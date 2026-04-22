@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AquaOptima — PSO Simulation</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #111827;
+      color: #e5e7eb;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      min-height: 100vh;
+    }
+
+    h1 {
+      color: #0fb9b1;
+      font-size: 1.35rem;
+      margin-bottom: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      color: #6b7280;
+      font-size: 0.78rem;
+      margin-bottom: 18px;
+    }
+
+    .layout {
+      display: flex;
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .canvas-col { display: flex; flex-direction: column; }
+
+    canvas {
+      border: 2px solid #0fb9b1;
+      border-radius: 4px;
+      display: block;
+    }
+
+    .progress-bar {
+      width: 800px;
+      height: 3px;
+      background: #1f2937;
+      border-radius: 2px;
+      margin-top: 5px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: #0fb9b1;
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.08s linear;
+    }
+
+    .season-label {
+      text-align: center;
+      color: #6b7280;
+      font-size: 0.72rem;
+      margin-top: 4px;
+    }
+
+    .panel {
+      background: #1f2937;
+      border: 1px solid #374151;
+      border-radius: 6px;
+      padding: 14px 16px;
+      width: 230px;
+      font-size: 0.76rem;
+    }
+
+    .panel h2 {
+      color: #0fb9b1;
+      font-size: 0.8rem;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 3px 0;
+    }
+
+    .stat-label { color: #9ca3af; }
+    .stat-value { color: #f9fafb; font-weight: bold; }
+
+    .sep { border-top: 1px solid #374151; margin: 10px 0; }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      margin: 4px 0;
+    }
+
+    .legend-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .error-msg {
+      color: #f87171;
+      line-height: 1.6;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>AquaOptima — Multi-Species Aquaculture PSO Simulation</h1>
+  <p class="subtitle">
+    Inner PSO: multi-swarm fish foraging with Dynamic Multi-Swarm assimilation &nbsp;|&nbsp;
+    Outer EA: environmental parameter optimization
+  </p>
+
+  <div class="layout">
+    <div class="canvas-col">
+      <canvas id="tank" width="800" height="600"></canvas>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="season-label" id="season-label">&nbsp;</div>
+    </div>
+
+    <div class="panel" id="panel">
+      <h2>Status</h2>
+      <div class="stat-row"><span class="stat-label">Season</span>     <span class="stat-value" id="s-season">—</span></div>
+      <div class="stat-row"><span class="stat-label">Timestep</span>   <span class="stat-value" id="s-step">—</span></div>
+      <div class="stat-row"><span class="stat-label">Schools</span>    <span class="stat-value" id="s-schools">—</span></div>
+      <div class="stat-row"><span class="stat-label">Fish alive</span> <span class="stat-value" id="s-fish">—</span></div>
+
+      <div class="sep"></div>
+      <h2>Optimal Environment</h2>
+      <div class="stat-row"><span class="stat-label">Food density</span>  <span class="stat-value" id="e-food">—</span></div>
+      <div class="stat-row"><span class="stat-label">Temperature</span>   <span class="stat-value" id="e-temp">—</span></div>
+      <div class="stat-row"><span class="stat-label">Oxygen</span>        <span class="stat-value" id="e-o2">—</span></div>
+      <div class="stat-row"><span class="stat-label">pH</span>            <span class="stat-value" id="e-ph">—</span></div>
+
+      <div class="sep"></div>
+      <h2>Target vs Result</h2>
+      <div class="stat-row"><span class="stat-label">Pop target</span>  <span class="stat-value" id="t-pop">—</span></div>
+      <div class="stat-row"><span class="stat-label">Pop final</span>   <span class="stat-value" id="f-pop">—</span></div>
+      <div class="stat-row"><span class="stat-label">Div target</span>  <span class="stat-value" id="t-div">—</span></div>
+      <div class="stat-row"><span class="stat-label">Div final</span>   <span class="stat-value" id="f-div">—</span></div>
+
+      <div class="sep"></div>
+      <h2>Species Legend</h2>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#38bdf8"></div>
+        <span>Cool-water (sp. 0)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#fb923c"></div>
+        <span>Warm-water (sp. 1)</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#4ade80"></div>
+        <span>Flexible &nbsp;&nbsp; (sp. 2)</span>
+      </div>
+      <div class="sep"></div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:#22c55e;opacity:0.6"></div>
+        <span>Food source</span>
+      </div>
+      <div class="legend-item">
+        <div class="legend-dot" style="background:rgba(255,255,255,0.3);border-radius:0"></div>
+        <span>School best (✕)</span>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
