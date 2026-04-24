@@ -2,81 +2,283 @@
 """
 Largemouth Bass Aquaculture Optimizer
 PSO (fish swarm behavior) + EA (pond configuration evolution)
+
+Run:   python simulation.py
+Output: simulation_data.json  (for visualization.html)
+        results.csv           (for plot.py)
 """
 
 import random
 import math
 import json
+import csv
 import copy
-import os
-from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+import time as _time
+from dataclasses import dataclass
+from typing import List, Tuple
 from enum import IntEnum
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import multiprocessing
 
-# ============================================================
-# CONSTANTS
-# ============================================================
-FOOD_PRICE = 0.10
-PROBIOTIC_PRICE = 0.50
-OXYGEN_PRICE = 2.00
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    USER CONFIGURATION                       ║
+# ║  Adjust these to control the simulation scale & behavior.   ║
+# ╚══════════════════════════════════════════════════════════════╝
 
-W1_SURVIVAL = 0.50
-W2_CONDITION = 0.35
-W3_EFFICIENCY = 0.15
+MAX_BUDGET = 200.0                # Max allowed per-cycle cost ($). Ponds exceeding this are rejected by the Gatekeeper.
+INITIAL_FISH_POPULATION = 30      # Number of Largemouth Bass at the start of each simulation.
+AQUACULTURE_DAYS = 20             # Duration of the aquaculture period in real days. Runtime = this * 24 timesteps.
+POND_GENERATIONS = 10             # Number of EA selection rounds. More = better convergence but slower.
+RUN_SIMULATIONS = 3               # Number of independent parallel timelines. Best champion is picked across all.
+INITIAL_POND_COUNT = 10           # Number of random pond genotypes in the first EA generation.
+FRAME_SKIP = 1                    # Record a visualization frame every N timesteps. Lower = smoother but larger JSON.
+NUM_WORKERS = None                # Parallel workers. None = auto-detect CPU count. Set to 1 for debugging.
 
-POND_WIDTH = 200.0
-POND_HEIGHT = 200.0
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    ECONOMIC CONSTANTS                       ║
+# ║  Unit prices for pond policies. Affect total cost & fitness.║
+# ╚══════════════════════════════════════════════════════════════╝
 
-# Fish stat ranges
-HP_RANGE = (80, 120)
-ENERGY_RANGE = (60, 100)
-FULLNESS_RANGE = (50, 80)
-IMMUNITY_RANGE = (70, 100)
-OXYGEN_RANGE = (80, 100)
-VELOCITY_RANGE = (1.0, 3.0)
-MOUTH_SIZE_RANGE = (3, 8)
-BODY_SIZE_RANGE = (4, 10)
+FOOD_PRICE = 0.10                 # Cost per food pellet ($). Multiplied by quantity and frequency.
+PROBIOTIC_PRICE = 0.50            # Cost per probiotic pellet ($). More expensive than food.
+OXYGEN_PRICE = 2.00               # Cost per hour of oxygen pumping ($). Most expensive policy.
 
-# PSO distances
-SENSITIVE_DISTANCE = 40.0
-SOCIAL_DISTANCE = 25.0
-SELFISH_DISTANCE = 8.0
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                  EA FITNESS WEIGHTS                         ║
+# ║  Control how the 3 pillars contribute to final fitness.     ║
+# ║  Must sum to 1.0. Survival is king, efficiency is minor.    ║
+# ╚══════════════════════════════════════════════════════════════╝
 
-# Decay rates per timestep
-OXYGEN_DECAY = 0.3
-ENERGY_DECAY = 0.15
-FULLNESS_DECAY = 0.2
-IMMUNITY_DECAY_IN_DISEASE = 1.5
-HP_DECAY_NO_ENERGY = 0.8
-HP_DECAY_NO_FULLNESS = 0.5
-HP_DECAY_INFECTED = 1.0
-HP_DECAY_PARASITE = 1.5
-ENERGY_COST_MOVE = 0.2
+W1_SURVIVAL = 0.50                # Weight for survival rate (alive/initial). Dominant factor.
+W2_HEALTHINESS = 0.35             # Weight for average fish healthiness (HP, energy, fullness, immunity, velocity).
+W3_EFFICIENCY = 0.15              # Weight for budget efficiency ((budget - cost) / budget). Rewards frugality.
 
-# Object lifetimes
-FOOD_EXPIRE_TIMESTEPS = 30
-PROBIOTIC_EXPIRE_TIMESTEPS = 10
-FECAL_EXPIRE_TIMESTEPS = 20
-DEAD_FISH_DECAY_TIMESTEPS = 10
-NH3_EXPIRE_TIMESTEPS = 40
-DISEASE_AREA_DECAY = 50
-PARASITE_AREA_DECAY = 50
-POLLUTANT_TO_HAZARD_TIMESTEPS = 15
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    POND DIMENSIONS                          ║
+# ║  2D pond size in abstract units. All positions are within.  ║
+# ╚══════════════════════════════════════════════════════════════╝
 
-# Gains
-FOOD_ENERGY_GAIN = 15.0
-FOOD_FULLNESS_GAIN = 12.0
-PROBIOTIC_IMMUNITY_BOOST = 30.0
-OXYGEN_BUBBLE_GAIN = 20.0
-IMMUNITY_BOOST_DURATION = 10
-BOOSTING_DURATION = 5
+POND_WIDTH = 200.0                # Horizontal extent of the pond environment.
+POND_HEIGHT = 75.0               # Vertical extent of the pond environment.
 
-# Natural spawn rates
-NATURAL_OXYGEN_SPAWN_RATE = 0.02
-NATURAL_NH3_SPAWN_RATE = 0.01
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FISH TRAIT RANGES (FIXED)                   ║
+# ║  Randomized once per fish at creation. Cannot change.       ║
+# ╚══════════════════════════════════════════════════════════════╝
 
-# Obstacle count
-NUM_OBSTACLES = 5
+MOUTH_SIZE_RANGE = (3.0, 8.0)     # Determines max prey size for cannibalism. Larger = more dangerous predator.
+BODY_SIZE_RANGE = (4.0, 10.0)     # Defensive stat. If body < another's mouth, this fish is a valid prey target.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FISH STAT RANGES (DYNAMIC)                  ║
+# ║  Randomized at creation. Change every timestep via decay,   ║
+# ║  eating, disease, etc. Fish dies if HP or Oxygen <= 0.      ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+HP_RANGE = (80.0, 120.0)          # Health points. Fish dies at 0. Drained by starvation, infection, parasites.
+ENERGY_RANGE = (60.0, 100.0)      # Movement fuel. Drained by swimming. At 0, HP starts dropping.
+FULLNESS_RANGE = (50.0, 80.0)     # Stomach level. Decays naturally. At 0, HP drops. Regained by eating.
+IMMUNITY_RANGE = (70.0, 100.0)    # Disease resistance. Drained in disease areas. At 0, fish gets infected.
+OXYGEN_RANGE = (80.0, 100.0)      # Dissolved oxygen in fish. Decays naturally, faster in NH3. At 0, fish dies.
+VELOCITY_RANGE = (1.0, 3.0)       # Base swimming speed. Reduced by low HP/energy/fullness and parasites.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                   PSO DISTANCE RADII                        ║
+# ║  Control how far fish can sense and interact with others.   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+SENSITIVE_DISTANCE = 40.0         # Vision radius. Max range for detecting food, hazards, cannibals. Beyond = invisible.
+SOCIAL_DISTANCE = 25.0            # Cohesion radius. Fish inside this (but outside selfish) trigger schooling behavior.
+SELFISH_DISTANCE = 8.0            # Separation radius. Fish inside this trigger repulsion to avoid clipping.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                STAT DECAY RATES (PER TIMESTEP)              ║
+# ║  How fast each stat drains every hour. Lower = more         ║
+# ║  forgiving. Calibrated for 60-day (1440 ts) survival.       ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+OXYGEN_DECAY = 0.05               # O2 loss per timestep. At 0.05, a fish with 90 O2 lasts ~1800 ts (~75 days) alone.
+OXYGEN_DECAY_NH3_MULT = 2.0       # Extra O2 drain multiplier while inside NH3 area. Makes NH3 very dangerous.
+ENERGY_DECAY = 0.04               # Energy loss per timestep. At 0.04, fish with 80 energy lasts ~2000 ts (~83 days).
+FULLNESS_DECAY = 0.06             # Fullness loss per timestep. At 0.06, stomach empties in ~1000 ts (~42 days).
+ENERGY_COST_MOVE = 0.05           # Extra energy cost per timestep proportional to velocity. Swimming tax.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              HP DRAIN RATES (WHEN STATS DEPLETED)           ║
+# ║  These fire every timestep when the condition is met.       ║
+# ║  Multiple can stack (e.g., no energy + infected).           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+HP_DECAY_NO_ENERGY = 0.4          # HP loss/ts when energy <= 0. Fish slowly dies without fuel.
+HP_DECAY_NO_FULLNESS = 0.3        # HP loss/ts when fullness <= 0. Starvation damage.
+HP_DECAY_INFECTED = 0.6           # HP loss/ts while isInfected == True. Bacterial damage.
+HP_DECAY_PARASITE = 0.8           # HP loss every 3rd ts while hasParasite == True. Slow parasitic death.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              DISEASE & PARASITE MECHANICS                   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+IMMUNITY_DECAY_IN_DISEASE = 1.5   # Immunity loss/ts while inside a disease area. Fast — forces probiotic use.
+PARASITE_CONTACT_CHANCE = 0.05    # Chance per ts of contracting parasite while inside parasite area (0-1).
+PARASITE_FULLNESS_EFFICIENCY = 0.5  # Multiplier on food fullness gain while parasitized. Halved absorption.
+PARASITE_EXTRA_FULLNESS_DRAIN = 1.5 # Multiplier on fullness decay while parasitized. 50% faster hunger.
+PARASITE_EXTRA_ENERGY_DRAIN = 1.5   # Multiplier on energy cost while parasitized. 50% more tiring.
+PARASITE_VELOCITY_MULT = 0.75    # Velocity multiplier while parasitized. 25% slower.
+PARASITE_SCRUB_CHANCE = 0.15     # Chance of removing parasite when colliding with obstacle surface.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              VELOCITY REDUCTION THRESHOLDS                  ║
+# ║  Fish slow down when stats drop below these fractions.      ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+VELOCITY_HP_THRESHOLD = 0.5       # If HP <= 50% of max, velocity halved.
+VELOCITY_ENERGY_THRESHOLD = 0.5   # If energy <= 50% of max, velocity halved.
+VELOCITY_FULLNESS_THRESHOLD = 0.5 # If fullness <= 50% of max, velocity halved.
+VELOCITY_RUNNING_HUNTING_MULT = 1.5  # Speed boost while running or hunting. Costs more energy.
+RUNNING_HUNTING_ENERGY_MULT = 1.5    # Energy cost multiplier while running or hunting.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 OBJECT LIFETIMES (TIMESTEPS)                ║
+# ║  How long each dynamic object persists before expiring      ║
+# ║  and transforming (usually into pollutant).                 ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FOOD_EXPIRE_TIMESTEPS = 48        # Food pellet lifespan. 48 ts = 2 days. Becomes pollutant if uneaten.
+PROBIOTIC_EXPIRE_TIMESTEPS = 18   # Probiotic lifespan. 18 ts = 18 hours. Expires fast — urgency to consume.
+FECAL_EXPIRE_TIMESTEPS = 36       # Fecal drop lifespan. 36 ts = 1.5 days. Becomes pollutant.
+DEAD_FISH_DECAY_TIMESTEPS = 24    # Dead fish body lifespan. 24 ts = 1 day. Decays into pollutant.
+NH3_EXPIRE_TIMESTEPS = 60         # NH3 area lifespan. 60 ts = 2.5 days. Becomes pollutant at 50% value.
+DISEASE_AREA_DECAY = 72           # Disease area lifespan. 72 ts = 3 days. Slowly shrinks then disappears.
+PARASITE_AREA_DECAY = 72          # Parasite area lifespan. 72 ts = 3 days. Slowly shrinks then disappears.
+POLLUTANT_TO_HAZARD_TIMESTEPS = 48  # Pollutant lifespan before becoming disease/parasite area. 30 ts = 1.25 days.
+DISEASE_AREA_RADIUS_DECAY = 0.998   # Per-timestep radius multiplier for disease/parasite areas. Slow shrink.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 POLLUTANT → HAZARD CHANCES                  ║
+# ║  Probability that an expired pollutant spawns a hazard.     ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+POLLUTANT_TO_DISEASE_CHANCE = 0.4   # 40% chance pollutant becomes disease area.
+POLLUTANT_TO_PARASITE_CHANCE = 0.3  # 30% chance pollutant becomes parasite area. Can be both (12% chance).
+POLLUTANT_RADIUS_SCALE = 1.5       # Hazard radius = pollutant_value * this. Higher = larger danger zones.
+DEAD_FISH_POLLUTANT_MULT = 1.5     # Dead fish pollutant value multiplier. Corpses are extra toxic.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FOOD & HEALING GAINS                        ║
+# ║  How much each consumable restores per unit eaten.          ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FOOD_ENERGY_GAIN = 25.0           # Energy restored per food unit consumed. One pellet covers ~625 ts of decay.
+FOOD_FULLNESS_GAIN = 20.0         # Fullness restored per food unit consumed. One pellet covers ~333 ts of decay.
+FOOD_VALUE = 5.0                  # Number of "bites" in each food pellet. Each fish eating reduces by 1.
+PROBIOTIC_VALUE = 3.0             # Number of doses in each probiotic pellet.
+PROBIOTIC_IMMUNITY_BOOST = 40.0   # Immunity restored per probiotic dose consumed.
+OXYGEN_BUBBLE_GAIN = 30.0         # Oxygen restored per bubble absorbed. One bubble covers ~600 ts of decay.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 STATE DURATIONS (TIMESTEPS)                 ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+BOOSTING_DURATION = 5             # Timesteps isBoosting lasts after eating probiotic. Refreshed, not stacked.
+IMMUNITY_BOOST_DURATION = 10      # (Unused separately — boosting covers this window.)
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 NATURAL SPAWN RATES                         ║
+# ║  Per-timestep probability of environment spawning objects.  ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+NATURAL_OXYGEN_SPAWN_RATE = 0.12  # ~8% chance/ts of a natural O2 bubble appearing. ~2 per day.
+NATURAL_NH3_SPAWN_RATE = 0.005    # ~0.5% chance/ts of a natural NH3 area appearing. ~0.7 per day.
+OXYGEN_BUBBLES_PER_PUMP = 7       # Number of O2 bubbles spawned per active pump timestep.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 ENVIRONMENT OBJECTS                         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+NUM_OBSTACLES = 15                 # Number of underwater obstacles (rocks). Used for collision and parasite scrubbing.
+OBSTACLE_SIZE_RANGE = (8.0, 20.0) # Width/height range for each obstacle.
+OBSTACLE_STATIC_CHANCE = 0.6      # Probability an obstacle is static (vs. slowly drifting).
+OBSTACLE_MAX_SPEED = 0.3          # Max drift speed for dynamic obstacles.
+OXYGEN_BUBBLE_SPEED = 0.5         # Max random velocity for oxygen bubbles.
+NH3_AREA_RADIUS_RANGE = (8.0, 15.0)  # Radius range for naturally spawned NH3 areas.
+NH3_AREA_SPEED = 0.2              # Max drift speed for NH3 areas.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FECAL MECHANICS                             ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FECAL_DROP_INTERVAL = 2           # Fish can drop fecal every N timesteps (if fullness > 0).
+FECAL_BASE_CHANCE = 0.2           # Max fecal chance at full stomach. Actual = (fullness/max) * this.
+FECAL_VALUE = 2.0                 # Pollution value of each fecal drop.
+FECAL_STACK_RADIUS = 10.0         # Nearby fecal within this radius merge into one larger pile.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 CANNIBALISM MECHANICS                       ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+CANNIBAL_TRIGGER_CHANCE = 0.3     # Chance per ts of entering hunting mode when fullness <= 0 and valid target nearby.
+CANNIBAL_FULLNESS_GAIN_MULT = 2.0 # Fullness gained = target.body_size * this. Reward for successful hunt.
+CANNIBAL_COLLISION_RADIUS_MULT = 1.0  # Kill happens when dist <= target.body_size * this.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 PSO VECTOR WEIGHTS                          ║
+# ║  Base weights for each behavioral vector. Dynamically       ║
+# ║  scaled by fish stats during simulation.                    ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+PSO_INERTIA = 0.4                 # Momentum weight. Higher = fish maintain heading longer.
+PSO_FOOD_WEIGHT = 2.0             # Base attraction to food. Scaled by (1 - fullness_ratio).
+PSO_FOOD_URGENT_MULT = 2.0       # Extra food weight when energy < 30%.
+PSO_PROBIOTIC_WEIGHT = 1.5       # Base attraction to probiotics. Scaled by (1 - immunity_ratio).
+PSO_OXYGEN_WEIGHT = 3.0          # Base attraction to O2 bubbles. Scaled by (1 - oxygen_ratio).
+PSO_OXYGEN_CRITICAL_MULT = 3.0   # Extra O2 weight when oxygen < 30%. Makes O2 top priority.
+PSO_OXYGEN_THRESHOLD = 0.7       # O2 ratio below which cOxygen activates.
+PSO_OXYGEN_CRITICAL_THRESHOLD = 0.3  # O2 ratio below which critical multiplier kicks in.
+PSO_OXYGEN_INTERCEPT_STEPS = 3   # Timesteps ahead to predict moving O2 bubble position.
+PSO_SOCIAL_WEIGHT = 0.8          # Schooling cohesion weight. Keeps swarm together.
+PSO_SELFISH_WEIGHT = 1.5         # Separation repulsion weight. Prevents fish overlap.
+PSO_NH3_WEIGHT = 4.0             # NH3 avoidance weight. Very high — NH3 is lethal.
+PSO_NH3_HUNGRY_OVERRIDE = 0.5    # Reduced NH3 weight when starving and food is inside NH3.
+PSO_DISEASE_WEIGHT = 2.5         # Disease area avoidance weight.
+PSO_DISEASE_BOOSTING_WEIGHT = 0.3  # Reduced disease weight when isBoosting (immune).
+PSO_PARASITE_WEIGHT = 3.0        # Parasite area avoidance weight.
+PSO_RELIEF_WEIGHT = 4.0          # Scrubbing vector weight when parasitized.
+PSO_RUN_WEIGHT = 5.0             # Cannibal evasion weight. Scaled by distance.
+PSO_HUNT_WEIGHT = 3.0            # Cannibal pursuit weight. Scaled by distance.
+
+STATE_OVERRIDE_PARASITE_CHANCE = 0.6  # Chance parasitized fish overrides PSO with scrubbing.
+STATE_OVERRIDE_RUNNING_CHANCE = 0.7   # Chance fleeing fish overrides PSO with flee vector.
+STATE_OVERRIDE_HUNTING_CHANCE = 0.7   # Chance hunting fish overrides PSO with hunt vector.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 EA MUTATION PARAMETERS                      ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+EA_MUTATION_RATE = 0.25           # Per-gene probability of mutation during offspring creation.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FISH EATING RANGE                           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FISH_EAT_RANGE = 3.0              # Extra distance beyond body_size for consuming objects.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 INFECTED FISH DISEASE RADIUS                ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+INFECTED_FISH_DISEASE_RADIUS_MULT = 1.5  # Disease area radius = body_size * this when infected fish dies.
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 CSV OUTPUT FILE                             ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+RESULTS_CSV_PATH = 'results.csv'  # Path for the per-pond per-generation tracking CSV.
+
+# ════════════════════════════════════════════════════════════════
+#  DERIVED CONSTANTS (do not edit)
+# ════════════════════════════════════════════════════════════════
+
+RUNTIME = AQUACULTURE_DAYS * 24   # Total timesteps in one simulation run.
 
 
 class DropLocation(IntEnum):
@@ -102,31 +304,24 @@ class PondGenotype:
     oxygen_location: int = 0
 
     def total_cost(self, runtime: int) -> float:
-        food_cost = (runtime / self.food_interval) * self.food_quantity * FOOD_PRICE
-        prob_cost = (runtime / self.probiotic_interval) * self.probiotic_quantity * PROBIOTIC_PRICE
-        oxy_cost = (runtime / self.oxygen_interval) * self.oxygen_duration * OXYGEN_PRICE
-        return food_cost + prob_cost + oxy_cost
+        fc = (runtime / self.food_interval) * self.food_quantity * FOOD_PRICE
+        pc = (runtime / self.probiotic_interval) * self.probiotic_quantity * PROBIOTIC_PRICE
+        oc = (runtime / self.oxygen_interval) * self.oxygen_duration * OXYGEN_PRICE
+        return fc + pc + oc
 
-    def gatekeeper_cost(self) -> float:
+    def per_cycle_cost(self) -> float:
         return (self.food_quantity * FOOD_PRICE +
                 self.probiotic_quantity * PROBIOTIC_PRICE +
                 self.oxygen_duration * OXYGEN_PRICE)
 
-    def to_dict(self):
-        return {
-            'food_interval': self.food_interval,
-            'food_quantity': self.food_quantity,
-            'food_location': self.food_location,
-            'probiotic_interval': self.probiotic_interval,
-            'probiotic_quantity': self.probiotic_quantity,
-            'probiotic_location': self.probiotic_location,
-            'oxygen_interval': self.oxygen_interval,
-            'oxygen_duration': self.oxygen_duration,
-            'oxygen_location': self.oxygen_location,
-        }
+    def to_dict(self) -> dict:
+        return {k: getattr(self, k) for k in [
+            'food_interval', 'food_quantity', 'food_location',
+            'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
+            'oxygen_interval', 'oxygen_duration', 'oxygen_location']}
 
     @staticmethod
-    def random():
+    def random() -> 'PondGenotype':
         return PondGenotype(
             food_interval=random.randint(1, 24),
             food_quantity=random.randint(1, 10),
@@ -136,1138 +331,870 @@ class PondGenotype:
             probiotic_location=random.randint(0, 2),
             oxygen_interval=random.randint(1, 24),
             oxygen_duration=random.randint(1, 4),
-            oxygen_location=random.randint(0, 2),
-        )
+            oxygen_location=random.randint(0, 2))
 
     def crossover(self, other: 'PondGenotype') -> 'PondGenotype':
         child = PondGenotype()
-        for attr in ['food_interval', 'food_quantity', 'food_location',
-                      'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
-                      'oxygen_interval', 'oxygen_duration', 'oxygen_location']:
-            if random.random() < 0.5:
-                setattr(child, attr, getattr(self, attr))
-            else:
-                setattr(child, attr, getattr(other, attr))
+        for attr in self.to_dict():
+            setattr(child, attr, getattr(self if random.random() < 0.5 else other, attr))
         return child
 
-    def mutate(self, rate=0.2):
-        if random.random() < rate:
-            self.food_interval = random.randint(1, 24)
-        if random.random() < rate:
-            self.food_quantity = random.randint(1, 10)
-        if random.random() < rate:
-            self.food_location = random.randint(0, 2)
-        if random.random() < rate:
-            self.probiotic_interval = random.randint(1, 24)
-        if random.random() < rate:
-            self.probiotic_quantity = random.randint(1, 10)
-        if random.random() < rate:
-            self.probiotic_location = random.randint(0, 2)
-        if random.random() < rate:
-            self.oxygen_interval = random.randint(1, 24)
-        if random.random() < rate:
-            self.oxygen_duration = random.randint(1, 4)
-        if random.random() < rate:
-            self.oxygen_location = random.randint(0, 2)
+    def mutate(self):
+        r = EA_MUTATION_RATE
+        if random.random() < r: self.food_interval = random.randint(1, 24)
+        if random.random() < r: self.food_quantity = random.randint(1, 10)
+        if random.random() < r: self.food_location = random.randint(0, 2)
+        if random.random() < r: self.probiotic_interval = random.randint(1, 24)
+        if random.random() < r: self.probiotic_quantity = random.randint(1, 10)
+        if random.random() < r: self.probiotic_location = random.randint(0, 2)
+        if random.random() < r: self.oxygen_interval = random.randint(1, 24)
+        if random.random() < r: self.oxygen_duration = random.randint(1, 4)
+        if random.random() < r: self.oxygen_location = random.randint(0, 2)
 
 
 @dataclass
 class Obstacle:
-    x: float
-    y: float
-    w: float
-    h: float
+    x: float; y: float; w: float; h: float
     is_static: bool = True
-    vx: float = 0.0
-    vy: float = 0.0
+    vx: float = 0.0; vy: float = 0.0
 
-    def contains(self, px, py):
-        return (self.x <= px <= self.x + self.w and
-                self.y <= py <= self.y + self.h)
+    def contains(self, px, py) -> bool:
+        return self.x <= px <= self.x + self.w and self.y <= py <= self.y + self.h
 
-    def nearest_surface_point(self, px, py):
-        cx = max(self.x, min(px, self.x + self.w))
-        cy = max(self.y, min(py, self.y + self.h))
-        return cx, cy
+    def nearest_surface(self, px, py) -> Tuple[float, float]:
+        return max(self.x, min(px, self.x + self.w)), max(self.y, min(py, self.y + self.h))
 
 
 @dataclass
-class DynamicObject:
-    x: float
-    y: float
-    obj_type: str  # 'food', 'probiotic', 'fecal', 'dead_fish', 'oxygen', 'pollutant'
+class DynObj:
+    x: float; y: float
+    kind: str
     value: float = 5.0
     age: int = 0
     max_age: int = 30
-    vx: float = 0.0
-    vy: float = 0.0
+    vx: float = 0.0; vy: float = 0.0
     alive: bool = True
 
 
 @dataclass
-class HazardArea:
-    x: float
-    y: float
-    radius: float
-    hazard_type: str  # 'nh3', 'disease', 'parasite'
-    age: int = 0
-    max_age: int = 50
+class Hazard:
+    x: float; y: float; radius: float
+    kind: str
+    age: int = 0; max_age: int = 50
     alive: bool = True
-    vx: float = 0.0
-    vy: float = 0.0
+    vx: float = 0.0; vy: float = 0.0
 
-    def contains(self, px, py):
-        dx = px - self.x
-        dy = py - self.y
-        return (dx * dx + dy * dy) <= self.radius * self.radius
+    def contains(self, px, py) -> bool:
+        return (px - self.x) ** 2 + (py - self.y) ** 2 <= self.radius ** 2
 
 
 @dataclass
 class Fish:
-    # Identity
-    fish_id: int = 0
-    # Position & velocity
-    x: float = 0.0
-    y: float = 0.0
-    vx: float = 0.0
-    vy: float = 0.0
-    # Traits (fixed)
-    mouth_size: float = 5.0
-    body_size: float = 6.0
-    # Stats (dynamic)
-    hp: float = 100.0
-    max_hp: float = 100.0
-    energy: float = 80.0
-    max_energy: float = 80.0
-    fullness: float = 60.0
-    max_fullness: float = 60.0
-    immunity: float = 80.0
-    max_immunity: float = 80.0
-    oxygen: float = 90.0
-    max_oxygen: float = 90.0
+    fid: int = 0
+    x: float = 0.0; y: float = 0.0
+    vx: float = 0.0; vy: float = 0.0
+    mouth_size: float = 5.0; body_size: float = 6.0
+    hp: float = 100.0; max_hp: float = 100.0
+    energy: float = 80.0; max_energy: float = 80.0
+    fullness: float = 60.0; max_fullness: float = 60.0
+    immunity: float = 80.0; max_immunity: float = 80.0
+    oxygen: float = 90.0; max_oxygen: float = 90.0
     base_velocity: float = 2.0
-    # States
-    is_boosting: bool = False
-    boost_timer: int = 0
-    is_infected: bool = False
-    has_parasite: bool = False
-    is_running: bool = False
-    is_hunting: bool = False
-    alive: bool = True
-    # Fecal tracking
-    fecal_timer: int = 0
+    is_boosting: bool = False; boost_timer: int = 0
+    is_infected: bool = False; has_parasite: bool = False
+    is_running: bool = False; is_hunting: bool = False
+    alive: bool = True; fecal_timer: int = 0
 
-    def effective_velocity(self) -> float:
+    def eff_vel(self) -> float:
         v = self.base_velocity
-        if self.hp <= self.max_hp * 0.5:
-            v *= 0.5
-        if self.energy <= self.max_energy * 0.5:
-            v *= 0.5
-        if self.fullness <= self.max_fullness * 0.5:
-            v *= 0.5
-        if self.has_parasite:
-            v *= 0.75
-        if self.is_running or self.is_hunting:
-            v *= 1.5
+        if self.hp <= self.max_hp * VELOCITY_HP_THRESHOLD: v *= 0.5
+        if self.energy <= self.max_energy * VELOCITY_ENERGY_THRESHOLD: v *= 0.5
+        if self.fullness <= self.max_fullness * VELOCITY_FULLNESS_THRESHOLD: v *= 0.5
+        if self.has_parasite: v *= PARASITE_VELOCITY_MULT
+        if self.is_running or self.is_hunting: v *= VELOCITY_RUNNING_HUNTING_MULT
         return v
 
-    def normalized_stats(self):
+    def norm_stats(self) -> float:
         hp_n = max(0, self.hp) / self.max_hp
         en_n = max(0, self.energy) / self.max_energy
         fu_n = max(0, self.fullness) / self.max_fullness
         im_n = max(0, self.immunity) / self.max_immunity
-        vel_n = min(1.0, self.effective_velocity() / (self.base_velocity * 1.5 + 0.01))
-        return (hp_n + en_n + fu_n + im_n + vel_n) / 5.0
+        vl_n = min(1.0, self.eff_vel() / (self.base_velocity * VELOCITY_RUNNING_HUNTING_MULT + 1e-9))
+        return (hp_n + en_n + fu_n + im_n + vl_n) / 5.0
 
-    def to_snapshot(self):
-        return {
-            'id': self.fish_id,
-            'x': round(self.x, 1),
-            'y': round(self.y, 1),
-            'hp': round(self.hp, 1),
-            'energy': round(self.energy, 1),
-            'fullness': round(self.fullness, 1),
-            'immunity': round(self.immunity, 1),
-            'oxygen': round(self.oxygen, 1),
-            'alive': self.alive,
-            'is_infected': self.is_infected,
-            'has_parasite': self.has_parasite,
-            'is_running': self.is_running,
-            'is_hunting': self.is_hunting,
-            'is_boosting': self.is_boosting,
-            'body_size': self.body_size,
-            'mouth_size': self.mouth_size,
-        }
+    def snapshot(self) -> dict:
+        return {'id': self.fid, 'x': round(self.x, 1), 'y': round(self.y, 1),
+                'hp': round(self.hp, 1), 'energy': round(self.energy, 1),
+                'fullness': round(self.fullness, 1), 'immunity': round(self.immunity, 1),
+                'oxygen': round(self.oxygen, 1), 'alive': self.alive,
+                'is_infected': self.is_infected, 'has_parasite': self.has_parasite,
+                'is_running': self.is_running, 'is_hunting': self.is_hunting,
+                'is_boosting': self.is_boosting,
+                'body_size': round(self.body_size, 1), 'mouth_size': round(self.mouth_size, 1)}
 
 
-def create_fish(fish_id: int) -> Fish:
-    f = Fish()
-    f.fish_id = fish_id
+# ============================================================
+# HELPERS
+# ============================================================
+
+def _dist(x1, y1, x2, y2) -> float:
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
+
+def _clamp(v, lo, hi) -> float:
+    return max(lo, min(hi, v))
+
+def _norm(vx, vy) -> Tuple[float, float]:
+    m = math.sqrt(vx * vx + vy * vy)
+    return (vx / m, vy / m) if m > 1e-8 else (0.0, 0.0)
+
+def _drop_pos(loc: int) -> Tuple[float, float]:
+    if loc == DropLocation.MIDDLE:
+        return POND_WIDTH / 2 + random.uniform(-15, 15), POND_HEIGHT / 2 + random.uniform(-15, 15)
+    elif loc == DropLocation.CORNER:
+        cx, cy = random.choice([(15, 15), (POND_WIDTH - 15, 15),
+                                 (15, POND_HEIGHT - 15), (POND_WIDTH - 15, POND_HEIGHT - 15)])
+        return cx + random.uniform(-10, 10), cy + random.uniform(-10, 10)
+    return random.uniform(10, POND_WIDTH - 10), random.uniform(10, POND_HEIGHT - 10)
+
+def _make_fish(fid: int) -> Fish:
+    f = Fish(fid=fid)
     f.x = random.uniform(20, POND_WIDTH - 20)
     f.y = random.uniform(20, POND_HEIGHT - 20)
     f.mouth_size = random.uniform(*MOUTH_SIZE_RANGE)
     f.body_size = random.uniform(*BODY_SIZE_RANGE)
-    f.max_hp = random.uniform(*HP_RANGE)
-    f.hp = f.max_hp
-    f.max_energy = random.uniform(*ENERGY_RANGE)
-    f.energy = f.max_energy
-    f.max_fullness = random.uniform(*FULLNESS_RANGE)
-    f.fullness = f.max_fullness * 0.8
-    f.max_immunity = random.uniform(*IMMUNITY_RANGE)
-    f.immunity = f.max_immunity
-    f.max_oxygen = random.uniform(*OXYGEN_RANGE)
-    f.oxygen = f.max_oxygen
+    f.max_hp = random.uniform(*HP_RANGE); f.hp = f.max_hp
+    f.max_energy = random.uniform(*ENERGY_RANGE); f.energy = f.max_energy
+    f.max_fullness = random.uniform(*FULLNESS_RANGE); f.fullness = f.max_fullness * 0.8
+    f.max_immunity = random.uniform(*IMMUNITY_RANGE); f.immunity = f.max_immunity
+    f.max_oxygen = random.uniform(*OXYGEN_RANGE); f.oxygen = f.max_oxygen
     f.base_velocity = random.uniform(*VELOCITY_RANGE)
-    f.vx = random.uniform(-1, 1)
-    f.vy = random.uniform(-1, 1)
+    f.vx = random.uniform(-1, 1); f.vy = random.uniform(-1, 1)
     return f
-
-
-def get_drop_position(location_enum: int) -> Tuple[float, float]:
-    if location_enum == DropLocation.MIDDLE:
-        return (POND_WIDTH / 2 + random.uniform(-15, 15),
-                POND_HEIGHT / 2 + random.uniform(-15, 15))
-    elif location_enum == DropLocation.CORNER:
-        corner = random.choice([
-            (15, 15), (POND_WIDTH - 15, 15),
-            (15, POND_HEIGHT - 15), (POND_WIDTH - 15, POND_HEIGHT - 15)
-        ])
-        return (corner[0] + random.uniform(-10, 10),
-                corner[1] + random.uniform(-10, 10))
-    else:
-        return (random.uniform(10, POND_WIDTH - 10),
-                random.uniform(10, POND_HEIGHT - 10))
-
-
-def dist(x1, y1, x2, y2):
-    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2)
-
-
-def clamp(val, lo, hi):
-    return max(lo, min(hi, val))
-
-
-def normalize_vec(vx, vy):
-    mag = math.sqrt(vx * vx + vy * vy)
-    if mag < 1e-8:
-        return 0.0, 0.0
-    return vx / mag, vy / mag
 
 
 # ============================================================
 # POND SIMULATION ENGINE
 # ============================================================
 
-class PondSimulation:
-    def __init__(self, genotype: PondGenotype, fishes: List[Fish], runtime: int,
-                 max_budget: float, record_frames: bool = False, frame_skip: int = 1):
-        self.genotype = genotype
+class PondSim:
+    __slots__ = ('geno', 'runtime', 'max_budget', 'record', 'fskip',
+                 'fish', 'n0', 'ts', 'objs', 'hazards', 'obstacles',
+                 'oxy_pump', 'frames', 'accum_cost', 'budget_exceeded')
+
+    def __init__(self, geno: PondGenotype, fish_templates: List[Fish],
+                 runtime: int, max_budget: float,
+                 record: bool = False, fskip: int = 1):
+        self.geno = geno
         self.runtime = runtime
         self.max_budget = max_budget
-        self.record_frames = record_frames
-        self.frame_skip = frame_skip
-
-        # Deep copy fishes so each pond gets its own swarm
-        self.fishes: List[Fish] = copy.deepcopy(fishes)
-        self.initial_count = len(self.fishes)
-        self.timestep = 0
-
-        # Environment objects
-        self.objects: List[DynamicObject] = []
-        self.hazards: List[HazardArea] = []
+        self.record = record
+        self.fskip = fskip
+        self.fish: List[Fish] = copy.deepcopy(fish_templates)
+        self.n0 = len(self.fish)
+        self.ts = 0
+        self.objs: List[DynObj] = []
+        self.hazards: List[Hazard] = []
         self.obstacles: List[Obstacle] = []
+        self.oxy_pump = 0
+        self.frames: list = []
+        self.accum_cost = 0.0
+        self.budget_exceeded = False
+        self._make_obstacles()
 
-        # Generate obstacles
-        self._generate_obstacles()
-
-        # Oxygen pump tracking
-        self.oxygen_pump_active = 0
-
-        # Recording
-        self.frames = []
-
-        # PSO inertia
-        self.w_inertia = 0.4
-
-    def _generate_obstacles(self):
-        for i in range(NUM_OBSTACLES):
-            w = random.uniform(8, 20)
-            h = random.uniform(8, 20)
+    def _make_obstacles(self):
+        for _ in range(NUM_OBSTACLES):
+            w = random.uniform(*OBSTACLE_SIZE_RANGE)
+            h = random.uniform(*OBSTACLE_SIZE_RANGE)
             x = random.uniform(10, POND_WIDTH - 10 - w)
             y = random.uniform(10, POND_HEIGHT - 10 - h)
-            is_static = random.random() < 0.6
-            vx = random.uniform(-0.3, 0.3) if not is_static else 0
-            vy = random.uniform(-0.3, 0.3) if not is_static else 0
-            self.obstacles.append(Obstacle(x, y, w, h, is_static, vx, vy))
+            static = random.random() < OBSTACLE_STATIC_CHANCE
+            vx = random.uniform(-OBSTACLE_MAX_SPEED, OBSTACLE_MAX_SPEED) if not static else 0
+            vy = random.uniform(-OBSTACLE_MAX_SPEED, OBSTACLE_MAX_SPEED) if not static else 0
+            self.obstacles.append(Obstacle(x, y, w, h, static, vx, vy))
 
-    def _is_in_obstacle(self, px, py):
-        for obs in self.obstacles:
-            if obs.contains(px, py):
-                return True
-        return False
-
-    def _clamp_to_pond(self, x, y):
-        return clamp(x, 2, POND_WIDTH - 2), clamp(y, 2, POND_HEIGHT - 2)
+    def _cp(self, x, y):
+        return _clamp(x, 2, POND_WIDTH - 2), _clamp(y, 2, POND_HEIGHT - 2)
 
     def run(self) -> dict:
         for t in range(self.runtime):
-            self.timestep = t
+            self.ts = t
             self._step()
-            if self.record_frames and (t % self.frame_skip == 0):
-                self.frames.append(self._capture_frame())
-            # Early termination if all fish dead
-            alive_fish = [f for f in self.fishes if f.alive]
-            if len(alive_fish) == 0:
+            if self.record and t % self.fskip == 0:
+                self.frames.append(self._frame())
+            if self.budget_exceeded:
+                break
+            if not any(f.alive for f in self.fish):
                 break
 
-        alive_fish = [f for f in self.fishes if f.alive]
-        survival_rate = len(alive_fish) / self.initial_count if self.initial_count > 0 else 0
-        avg_condition = 0.0
-        if alive_fish:
-            avg_condition = sum(f.normalized_stats() for f in alive_fish) / len(alive_fish)
+        alive = [f for f in self.fish if f.alive]
+        sr = len(alive) / self.n0 if self.n0 else 0
+        hlth = sum(f.norm_stats() for f in alive) / len(alive) if alive else 0
+        cost = self.accum_cost
+        eff = max(0, (self.max_budget - cost) / self.max_budget) if not self.budget_exceeded else 0
+        fit = (W1_SURVIVAL * sr + W2_HEALTHINESS * hlth + W3_EFFICIENCY * eff) if not self.budget_exceeded else 0
 
-        cost = self.genotype.total_cost(self.runtime)
-        efficiency = max(0, (self.max_budget - cost) / self.max_budget)
-
-        fitness = W1_SURVIVAL * survival_rate + W2_CONDITION * avg_condition + W3_EFFICIENCY * efficiency
-
-        return {
-            'survival_rate': survival_rate,
-            'avg_condition': avg_condition,
-            'efficiency': efficiency,
-            'fitness': fitness,
-            'cost': cost,
-            'alive_count': len(alive_fish),
-            'initial_count': self.initial_count,
-            'frames': self.frames,
-            'genotype': self.genotype.to_dict(),
-        }
+        return {'survival_rate': sr, 'avg_healthiness': hlth, 'efficiency': eff,
+                'fitness': fit, 'cost': cost, 'alive_count': len(alive),
+                'initial_count': self.n0, 'frames': self.frames,
+                'genotype': self.geno.to_dict(), 'budget_exceeded': self.budget_exceeded}
 
     def _step(self):
-        t = self.timestep
-
-        # 1. Spawn policies
+        t = self.ts
         self._spawn_food(t)
-        self._spawn_probiotics(t)
-        self._manage_oxygen_pump(t)
-        self._natural_spawns()
+        self._spawn_prob(t)
+        self._pump_oxy(t)
+        self._nat_spawn()
+        self._upd_objs()
+        self._upd_hazards()
+        self._upd_obstacles()
+        self._decay_stats()
+        self._eat()
+        self._pso()
+        self._cannibal()
+        self._fecal()
+        self._death()
 
-        # 2. Update dynamic objects (age, expire, transform)
-        self._update_objects()
+    def _add_cost(self, amount: float):
+        self.accum_cost += amount
+        if self.accum_cost > self.max_budget:
+            self.budget_exceeded = True
 
-        # 3. Update hazard areas
-        self._update_hazards()
-
-        # 4. Update obstacles (dynamic ones)
-        self._update_obstacles()
-
-        # 5. Fish stat decay
-        self._decay_fish_stats()
-
-        # 6. Fish-environment interactions (eating, absorbing oxygen, disease/parasite contact)
-        self._fish_environment_interactions()
-
-        # 7. PSO movement
-        self._pso_update()
-
-        # 8. Cannibalism check
-        self._cannibalism_check()
-
-        # 9. Fecal drops
-        self._fecal_drops()
-
-        # 10. Fish death check
-        self._death_check()
-
-    # ---------- SPAWNING ----------
     def _spawn_food(self, t):
-        if t % self.genotype.food_interval == 0:
-            for _ in range(self.genotype.food_quantity):
-                x, y = get_drop_position(self.genotype.food_location)
-                self.objects.append(DynamicObject(
-                    x=x, y=y, obj_type='food',
-                    value=5.0, max_age=FOOD_EXPIRE_TIMESTEPS
-                ))
+        if t % self.geno.food_interval == 0:
+            cost = self.geno.food_quantity * FOOD_PRICE
+            self._add_cost(cost)
+            if self.budget_exceeded: return
+            for _ in range(self.geno.food_quantity):
+                x, y = _drop_pos(self.geno.food_location)
+                self.objs.append(DynObj(x, y, 'food', FOOD_VALUE, max_age=FOOD_EXPIRE_TIMESTEPS))
 
-    def _spawn_probiotics(self, t):
-        if t % self.genotype.probiotic_interval == 0:
-            for _ in range(self.genotype.probiotic_quantity):
-                x, y = get_drop_position(self.genotype.probiotic_location)
-                self.objects.append(DynamicObject(
-                    x=x, y=y, obj_type='probiotic',
-                    value=3.0, max_age=PROBIOTIC_EXPIRE_TIMESTEPS
-                ))
+    def _spawn_prob(self, t):
+        if t % self.geno.probiotic_interval == 0:
+            cost = self.geno.probiotic_quantity * PROBIOTIC_PRICE
+            self._add_cost(cost)
+            if self.budget_exceeded: return
+            for _ in range(self.geno.probiotic_quantity):
+                x, y = _drop_pos(self.geno.probiotic_location)
+                self.objs.append(DynObj(x, y, 'probiotic', PROBIOTIC_VALUE, max_age=PROBIOTIC_EXPIRE_TIMESTEPS))
 
-    def _manage_oxygen_pump(self, t):
-        if t % self.genotype.oxygen_interval == 0:
-            self.oxygen_pump_active = self.genotype.oxygen_duration
-        if self.oxygen_pump_active > 0:
-            # Spawn oxygen bubbles
-            for _ in range(3):
-                x, y = get_drop_position(self.genotype.oxygen_location)
-                self.objects.append(DynamicObject(
-                    x=x, y=y, obj_type='oxygen',
-                    value=1.0, max_age=9999,
-                    vx=random.uniform(-0.5, 0.5),
-                    vy=random.uniform(-0.5, 0.5)
-                ))
-            self.oxygen_pump_active -= 1
+    def _pump_oxy(self, t):
+        if t % self.geno.oxygen_interval == 0:
+            self.oxy_pump = self.geno.oxygen_duration
+        if self.oxy_pump > 0:
+            cost = OXYGEN_PRICE
+            self._add_cost(cost)
+            if self.budget_exceeded: return
+            for _ in range(OXYGEN_BUBBLES_PER_PUMP):
+                x, y = _drop_pos(self.geno.oxygen_location)
+                self.objs.append(DynObj(x, y, 'oxygen', 1.0, max_age=99999,
+                                        vx=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED),
+                                        vy=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED)))
+            self.oxy_pump -= 1
 
-    def _natural_spawns(self):
+    def _nat_spawn(self):
         if random.random() < NATURAL_OXYGEN_SPAWN_RATE:
             x, y = random.uniform(10, POND_WIDTH - 10), random.uniform(10, POND_HEIGHT - 10)
-            self.objects.append(DynamicObject(
-                x=x, y=y, obj_type='oxygen', value=1.0, max_age=9999,
-                vx=random.uniform(-0.5, 0.5), vy=random.uniform(-0.5, 0.5)
-            ))
+            self.objs.append(DynObj(x, y, 'oxygen', 1.0, max_age=99999,
+                                    vx=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED),
+                                    vy=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED)))
         if random.random() < NATURAL_NH3_SPAWN_RATE:
             x, y = random.uniform(10, POND_WIDTH - 10), random.uniform(10, POND_HEIGHT - 10)
-            self.hazards.append(HazardArea(
-                x=x, y=y, radius=random.uniform(8, 15),
-                hazard_type='nh3', max_age=NH3_EXPIRE_TIMESTEPS,
-                vx=random.uniform(-0.2, 0.2), vy=random.uniform(-0.2, 0.2)
-            ))
+            self.hazards.append(Hazard(x, y, random.uniform(*NH3_AREA_RADIUS_RANGE), 'nh3',
+                                       max_age=NH3_EXPIRE_TIMESTEPS,
+                                       vx=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
+                                       vy=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED)))
 
-    # ---------- OBJECT UPDATES ----------
-    def _update_objects(self):
-        new_objects = []
-        for obj in self.objects:
-            obj.age += 1
-            # Move if has velocity
-            if obj.obj_type == 'oxygen':
-                obj.x += obj.vx
-                obj.y += obj.vy
-                # Bounce off walls
-                if obj.x < 2 or obj.x > POND_WIDTH - 2:
-                    obj.vx *= -1
-                if obj.y < 2 or obj.y > POND_HEIGHT - 2:
-                    obj.vy *= -1
-                obj.x, obj.y = self._clamp_to_pond(obj.x, obj.y)
-                # Remove oxygen if inside NH3
-                in_nh3 = any(h.contains(obj.x, obj.y) and h.hazard_type == 'nh3' and h.alive
-                             for h in self.hazards)
-                if in_nh3:
-                    obj.alive = False
+    def _upd_objs(self):
+        keep = []
+        for o in self.objs:
+            o.age += 1
+            if o.kind == 'oxygen':
+                o.x += o.vx; o.y += o.vy
+                if o.x < 2 or o.x > POND_WIDTH - 2: o.vx *= -1
+                if o.y < 2 or o.y > POND_HEIGHT - 2: o.vy *= -1
+                o.x, o.y = self._cp(o.x, o.y)
+                if any(h.contains(o.x, o.y) and h.kind == 'nh3' and h.alive for h in self.hazards):
                     continue
-                new_objects.append(obj)
-                continue
-
-            if obj.age >= obj.max_age and obj.alive:
-                # Expire -> become pollutant
-                if obj.obj_type in ('food', 'probiotic', 'fecal', 'dead_fish'):
-                    if obj.value > 0:
-                        poll_val = obj.value
-                        if obj.obj_type == 'dead_fish':
-                            poll_val = obj.value * 1.5
-                        # Don't create pollutant inside NH3
-                        in_nh3 = any(h.contains(obj.x, obj.y) and h.hazard_type == 'nh3' and h.alive
-                                     for h in self.hazards)
-                        if not in_nh3:
-                            new_objects.append(DynamicObject(
-                                x=obj.x, y=obj.y, obj_type='pollutant',
-                                value=poll_val, max_age=POLLUTANT_TO_HAZARD_TIMESTEPS
-                            ))
-                    obj.alive = False
+                keep.append(o); continue
+            if o.age >= o.max_age and o.alive:
+                if o.kind in ('food', 'probiotic', 'fecal', 'dead_fish'):
+                    if o.value > 0:
+                        pv = o.value * (DEAD_FISH_POLLUTANT_MULT if o.kind == 'dead_fish' else 1.0)
+                        if not any(h.contains(o.x, o.y) and h.kind == 'nh3' and h.alive for h in self.hazards):
+                            keep.append(DynObj(o.x, o.y, 'pollutant', pv, max_age=POLLUTANT_TO_HAZARD_TIMESTEPS))
                     continue
-                elif obj.obj_type == 'pollutant':
-                    # Pollutant -> disease or parasite area
-                    r = obj.value * 1.5
-                    if random.random() < 0.4:
-                        self.hazards.append(HazardArea(
-                            x=obj.x, y=obj.y, radius=r,
-                            hazard_type='disease', max_age=DISEASE_AREA_DECAY
-                        ))
-                    if random.random() < 0.3:
-                        self.hazards.append(HazardArea(
-                            x=obj.x, y=obj.y, radius=r,
-                            hazard_type='parasite', max_age=PARASITE_AREA_DECAY
-                        ))
-                    obj.alive = False
+                elif o.kind == 'pollutant':
+                    r = o.value * POLLUTANT_RADIUS_SCALE
+                    if random.random() < POLLUTANT_TO_DISEASE_CHANCE:
+                        self.hazards.append(Hazard(o.x, o.y, r, 'disease', max_age=DISEASE_AREA_DECAY))
+                    if random.random() < POLLUTANT_TO_PARASITE_CHANCE:
+                        self.hazards.append(Hazard(o.x, o.y, r, 'parasite', max_age=PARASITE_AREA_DECAY))
                     continue
+            if o.alive:
+                keep.append(o)
+        self.objs = keep
 
-            if obj.alive:
-                new_objects.append(obj)
-
-        self.objects = new_objects
-
-    def _update_hazards(self):
-        new_hazards = []
+    def _upd_hazards(self):
+        keep = []
         for h in self.hazards:
             h.age += 1
-            # Move NH3
-            if h.hazard_type == 'nh3':
-                h.x += h.vx
-                h.y += h.vy
-                if h.x < 5 or h.x > POND_WIDTH - 5:
-                    h.vx *= -1
-                if h.y < 5 or h.y > POND_HEIGHT - 5:
-                    h.vy *= -1
-                h.x = clamp(h.x, 5, POND_WIDTH - 5)
-                h.y = clamp(h.y, 5, POND_HEIGHT - 5)
-
+            if h.kind == 'nh3':
+                h.x += h.vx; h.y += h.vy
+                if h.x < 5 or h.x > POND_WIDTH - 5: h.vx *= -1
+                if h.y < 5 or h.y > POND_HEIGHT - 5: h.vy *= -1
+                h.x = _clamp(h.x, 5, POND_WIDTH - 5)
+                h.y = _clamp(h.y, 5, POND_HEIGHT - 5)
             if h.age >= h.max_age:
-                if h.hazard_type == 'nh3':
-                    # NH3 expires -> pollutant with 50% value
-                    in_nh3_other = False  # already expiring
-                    self.objects.append(DynamicObject(
-                        x=h.x, y=h.y, obj_type='pollutant',
-                        value=h.radius * 0.5, max_age=POLLUTANT_TO_HAZARD_TIMESTEPS
-                    ))
-                h.alive = False
+                if h.kind == 'nh3':
+                    self.objs.append(DynObj(h.x, h.y, 'pollutant', h.radius * 0.5,
+                                           max_age=POLLUTANT_TO_HAZARD_TIMESTEPS))
                 continue
+            if h.kind in ('disease', 'parasite'):
+                h.radius = max(1, h.radius * DISEASE_AREA_RADIUS_DECAY)
+            keep.append(h)
+        self.hazards = keep
 
-            # Disease and parasite areas decay radius
-            if h.hazard_type in ('disease', 'parasite'):
-                h.radius = max(1, h.radius * 0.998)
+    def _upd_obstacles(self):
+        for o in self.obstacles:
+            if not o.is_static:
+                o.x += o.vx; o.y += o.vy
+                if o.x < 2 or o.x + o.w > POND_WIDTH - 2: o.vx *= -1
+                if o.y < 2 or o.y + o.h > POND_HEIGHT - 2: o.vy *= -1
+                o.x = _clamp(o.x, 2, POND_WIDTH - 2 - o.w)
+                o.y = _clamp(o.y, 2, POND_HEIGHT - 2 - o.h)
 
-            if h.alive:
-                new_hazards.append(h)
-
-        self.hazards = new_hazards
-
-    def _update_obstacles(self):
-        for obs in self.obstacles:
-            if not obs.is_static:
-                obs.x += obs.vx
-                obs.y += obs.vy
-                if obs.x < 2 or obs.x + obs.w > POND_WIDTH - 2:
-                    obs.vx *= -1
-                if obs.y < 2 or obs.y + obs.h > POND_HEIGHT - 2:
-                    obs.vy *= -1
-                obs.x = clamp(obs.x, 2, POND_WIDTH - 2 - obs.w)
-                obs.y = clamp(obs.y, 2, POND_HEIGHT - 2 - obs.h)
-
-    # ---------- FISH STAT DECAY ----------
-    def _decay_fish_stats(self):
-        for f in self.fishes:
-            if not f.alive:
-                continue
-            # Oxygen natural decay
+    def _decay_stats(self):
+        for f in self.fish:
+            if not f.alive: continue
             f.oxygen -= OXYGEN_DECAY
-            # Check if in NH3 -> faster oxygen drain
             for h in self.hazards:
-                if h.hazard_type == 'nh3' and h.alive and h.contains(f.x, f.y):
-                    f.oxygen -= OXYGEN_DECAY * 2
-
-            # Energy decay
-            energy_cost = ENERGY_DECAY
-            if f.has_parasite:
-                energy_cost *= 1.5
-            if f.is_running or f.is_hunting:
-                energy_cost *= 1.5
-            f.energy -= energy_cost
-
-            # Fullness decay
-            fullness_decay = FULLNESS_DECAY
-            if f.has_parasite:
-                fullness_decay *= 1.5
-            f.fullness -= fullness_decay
-
-            # HP effects
-            if f.energy <= 0:
-                f.hp -= HP_DECAY_NO_ENERGY
-            if f.fullness <= 0:
-                f.hp -= HP_DECAY_NO_FULLNESS
-            if f.is_infected:
-                f.hp -= HP_DECAY_INFECTED
-            if f.has_parasite and self.timestep % 3 == 0:
-                f.hp -= HP_DECAY_PARASITE
-
-            # Boosting timer
+                if h.kind == 'nh3' and h.contains(f.x, f.y):
+                    f.oxygen -= OXYGEN_DECAY * OXYGEN_DECAY_NH3_MULT
+            ec = ENERGY_DECAY
+            if f.has_parasite: ec *= PARASITE_EXTRA_ENERGY_DRAIN
+            if f.is_running or f.is_hunting: ec *= RUNNING_HUNTING_ENERGY_MULT
+            f.energy -= ec
+            fd = FULLNESS_DECAY
+            if f.has_parasite: fd *= PARASITE_EXTRA_FULLNESS_DRAIN
+            f.fullness -= fd
+            if f.energy <= 0: f.hp -= HP_DECAY_NO_ENERGY
+            if f.fullness <= 0: f.hp -= HP_DECAY_NO_FULLNESS
+            if f.is_infected: f.hp -= HP_DECAY_INFECTED
+            if f.has_parasite and self.ts % 3 == 0: f.hp -= HP_DECAY_PARASITE
             if f.is_boosting:
                 f.boost_timer -= 1
-                if f.boost_timer <= 0:
-                    f.is_boosting = False
-
-            # Disease contact
+                if f.boost_timer <= 0: f.is_boosting = False
             for h in self.hazards:
-                if h.hazard_type == 'disease' and h.alive and h.contains(f.x, f.y):
+                if h.kind == 'disease' and h.contains(f.x, f.y):
                     f.immunity -= IMMUNITY_DECAY_IN_DISEASE
-                    if f.immunity <= 0:
-                        f.is_infected = True
-                        f.immunity = 0
-
-            # Parasite contact
-            for h in self.hazards:
-                if h.hazard_type == 'parasite' and h.alive and h.contains(f.x, f.y):
-                    if random.random() < 0.1:
+                    if f.immunity <= 0: f.is_infected = True; f.immunity = 0
+                if h.kind == 'parasite' and h.contains(f.x, f.y):
+                    if random.random() < PARASITE_CONTACT_CHANCE:
                         f.has_parasite = True
 
-    # ---------- FISH-ENVIRONMENT INTERACTIONS ----------
-    def _fish_environment_interactions(self):
-        for f in self.fishes:
-            if not f.alive:
-                continue
-
-            for obj in self.objects:
-                if not obj.alive or obj.value <= 0:
-                    continue
-                d = dist(f.x, f.y, obj.x, obj.y)
-                if d > f.body_size + 2:
-                    continue
-
-                if obj.obj_type == 'food' and f.fullness < f.max_fullness:
-                    obj.value -= 1
-                    gain = FOOD_FULLNESS_GAIN
-                    if f.has_parasite:
-                        gain *= 0.5
-                    f.fullness = min(f.max_fullness, f.fullness + gain)
+    def _eat(self):
+        for f in self.fish:
+            if not f.alive: continue
+            for o in self.objs:
+                if not o.alive or o.value <= 0: continue
+                if _dist(f.x, f.y, o.x, o.y) > f.body_size + FISH_EAT_RANGE: continue
+                if o.kind == 'food' and f.fullness < f.max_fullness:
+                    o.value -= 1
+                    g = FOOD_FULLNESS_GAIN * (PARASITE_FULLNESS_EFFICIENCY if f.has_parasite else 1.0)
+                    f.fullness = min(f.max_fullness, f.fullness + g)
                     f.energy = min(f.max_energy, f.energy + FOOD_ENERGY_GAIN)
-                    if obj.value <= 0:
-                        obj.alive = False
-
-                elif obj.obj_type == 'probiotic' and not f.is_boosting:
-                    obj.value -= 1
+                    if o.value <= 0: o.alive = False
+                elif o.kind == 'probiotic' and not f.is_boosting:
+                    o.value -= 1
                     f.immunity = min(f.max_immunity, f.immunity + PROBIOTIC_IMMUNITY_BOOST)
-                    f.is_boosting = True
-                    f.boost_timer = BOOSTING_DURATION
-                    if obj.value <= 0:
-                        obj.alive = False
-
-                elif obj.obj_type == 'oxygen':
+                    f.is_boosting = True; f.boost_timer = BOOSTING_DURATION
+                    if o.value <= 0: o.alive = False
+                elif o.kind == 'oxygen':
                     f.oxygen = min(f.max_oxygen, f.oxygen + OXYGEN_BUBBLE_GAIN)
-                    obj.alive = False
+                    o.alive = False
 
-    # ---------- PSO UPDATE ----------
-    def _pso_update(self):
-        alive_fish = [f for f in self.fishes if f.alive]
-        if not alive_fish:
-            return
-
-        for f in alive_fish:
-            vel = f.effective_velocity()
-            # Start with inertia
-            new_vx = self.w_inertia * f.vx
-            new_vy = self.w_inertia * f.vy
-
-            # Calculate all PSO vectors
-            vectors = self._calculate_pso_vectors(f, alive_fish)
-
-            for weight, vx, vy in vectors:
-                new_vx += weight * vx
-                new_vy += weight * vy
-
-            # Normalize and scale by effective velocity
-            mag = math.sqrt(new_vx ** 2 + new_vy ** 2)
-            if mag > 0.01:
-                new_vx = (new_vx / mag) * vel
-                new_vy = (new_vy / mag) * vel
-
-            # State overrides
-            if f.has_parasite and random.random() < 0.6:
-                # Scrub against nearest obstacle
-                sv = self._scrub_vector(f)
-                if sv:
-                    new_vx, new_vy = sv[0] * vel, sv[1] * vel
-
-            if f.is_running and random.random() < 0.7:
-                rv = self._run_vector(f, alive_fish)
-                if rv:
-                    new_vx, new_vy = rv[0] * vel * 1.2, rv[1] * vel * 1.2
-
-            if f.is_hunting and random.random() < 0.7:
-                hv = self._hunt_vector_direct(f, alive_fish)
-                if hv:
-                    new_vx, new_vy = hv[0] * vel * 1.2, hv[1] * vel * 1.2
-
-            f.vx = new_vx
-            f.vy = new_vy
-
-            # Move
-            new_x = f.x + f.vx
-            new_y = f.y + f.vy
-
-            # Obstacle collision
+    def _pso(self):
+        alive = [f for f in self.fish if f.alive]
+        if not alive: return
+        for f in alive:
+            vel = f.eff_vel()
+            nvx = PSO_INERTIA * f.vx
+            nvy = PSO_INERTIA * f.vy
+            for w, dx, dy in self._vectors(f, alive):
+                nvx += w * dx; nvy += w * dy
+            m = math.sqrt(nvx ** 2 + nvy ** 2)
+            if m > 0.01: nvx = nvx / m * vel; nvy = nvy / m * vel
+            if f.has_parasite and random.random() < STATE_OVERRIDE_PARASITE_CHANCE:
+                sv = self._scrub(f)
+                if sv: nvx, nvy = sv[0] * vel, sv[1] * vel
+            if f.is_running and random.random() < STATE_OVERRIDE_RUNNING_CHANCE:
+                rv = self._flee(f, alive)
+                if rv: nvx, nvy = rv[0] * vel * 1.2, rv[1] * vel * 1.2
+            if f.is_hunting and random.random() < STATE_OVERRIDE_HUNTING_CHANCE:
+                hv = self._pursue(f, alive)
+                if hv: nvx, nvy = hv[0] * vel * 1.2, hv[1] * vel * 1.2
+            f.vx, f.vy = nvx, nvy
+            nx, ny = f.x + f.vx, f.y + f.vy
             for obs in self.obstacles:
-                if obs.contains(new_x, new_y):
-                    # Push out
-                    sx, sy = obs.nearest_surface_point(f.x, f.y)
-                    dx, dy = f.x - sx, f.y - sy
-                    dx, dy = normalize_vec(dx, dy)
-                    new_x = f.x + dx * 2
-                    new_y = f.y + dy * 2
-                    f.vx *= -0.5
-                    f.vy *= -0.5
-                    # Scrubbing removes parasite
-                    if f.has_parasite and random.random() < 0.15:
+                if obs.contains(nx, ny):
+                    sx, sy = obs.nearest_surface(f.x, f.y)
+                    dx, dy = _norm(f.x - sx, f.y - sy)
+                    nx, ny = f.x + dx * 2, f.y + dy * 2
+                    f.vx *= -0.5; f.vy *= -0.5
+                    if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE:
                         f.has_parasite = False
+            f.x, f.y = self._cp(nx, ny)
+            mc = ENERGY_COST_MOVE * vel
+            if f.has_parasite: mc *= PARASITE_EXTRA_ENERGY_DRAIN
+            if f.is_running or f.is_hunting: mc *= RUNNING_HUNTING_ENERGY_MULT
+            f.energy -= mc
 
-            new_x, new_y = self._clamp_to_pond(new_x, new_y)
-            f.x = new_x
-            f.y = new_y
-
-            # Energy cost for movement
-            move_cost = ENERGY_COST_MOVE * vel
-            if f.has_parasite:
-                move_cost *= 1.5
-            if f.is_running or f.is_hunting:
-                move_cost *= 1.5
-            f.energy -= move_cost
-
-    def _calculate_pso_vectors(self, f: Fish, alive_fish: List[Fish]):
-        vectors = []
-
-        # ---------- cFood ----------
-        fullness_ratio = max(0, f.fullness) / f.max_fullness
-        if fullness_ratio < 1.0:
-            food_weight = 2.0 * (1.0 - fullness_ratio)
-            energy_ratio = max(0, f.energy) / f.max_energy
-            if energy_ratio < 0.3:
-                food_weight *= 2.0
-            nearest_food = None
-            nearest_dist = float('inf')
-            for obj in self.objects:
-                if obj.alive and obj.obj_type == 'food' and obj.value > 0:
-                    d = dist(f.x, f.y, obj.x, obj.y)
-                    if d < SENSITIVE_DISTANCE and d < nearest_dist:
-                        nearest_dist = d
-                        nearest_food = obj
-            if nearest_food:
-                dx, dy = normalize_vec(nearest_food.x - f.x, nearest_food.y - f.y)
-                vectors.append((food_weight, dx, dy))
-
-        # ---------- cProbiotic ----------
+    def _vectors(self, f: Fish, alive: List[Fish]):
+        vecs = []
+        fr = max(0, f.fullness) / f.max_fullness
+        if fr < 1.0:
+            fw = PSO_FOOD_WEIGHT * (1.0 - fr)
+            if max(0, f.energy) / f.max_energy < 0.3: fw *= PSO_FOOD_URGENT_MULT
+            nd, no = float('inf'), None
+            for o in self.objs:
+                if o.alive and o.kind == 'food' and o.value > 0:
+                    d = _dist(f.x, f.y, o.x, o.y)
+                    if d < SENSITIVE_DISTANCE and d < nd: nd, no = d, o
+            if no:
+                dx, dy = _norm(no.x - f.x, no.y - f.y)
+                vecs.append((fw, dx, dy))
         if not f.is_boosting:
-            imm_ratio = max(0, f.immunity) / f.max_immunity
-            prob_weight = 1.5 * (1.0 - imm_ratio)
-            nearest_prob = None
-            nearest_dist = float('inf')
-            for obj in self.objects:
-                if obj.alive and obj.obj_type == 'probiotic' and obj.value > 0:
-                    d = dist(f.x, f.y, obj.x, obj.y)
-                    if d < SENSITIVE_DISTANCE and d < nearest_dist:
-                        nearest_dist = d
-                        nearest_prob = obj
-            if nearest_prob:
-                dx, dy = normalize_vec(nearest_prob.x - f.x, nearest_prob.y - f.y)
-                vectors.append((prob_weight, dx, dy))
-
-        # ---------- cOxygen ----------
-        oxy_ratio = max(0, f.oxygen) / f.max_oxygen
-        if oxy_ratio < 0.7:
-            oxy_weight = 3.0 * (1.0 - oxy_ratio)
-            if oxy_ratio < 0.3:
-                oxy_weight *= 3.0  # Critical priority
-            nearest_oxy = None
-            nearest_dist = float('inf')
-            for obj in self.objects:
-                if obj.alive and obj.obj_type == 'oxygen':
-                    d = dist(f.x, f.y, obj.x, obj.y)
-                    # Intercept path: predict where bubble will be
-                    future_x = obj.x + obj.vx * 3
-                    future_y = obj.y + obj.vy * 3
-                    d_future = dist(f.x, f.y, future_x, future_y)
-                    effective_d = min(d, d_future)
-                    if effective_d < SENSITIVE_DISTANCE and effective_d < nearest_dist:
-                        nearest_dist = effective_d
-                        nearest_oxy = obj
-            if nearest_oxy:
-                # Intercept
-                target_x = nearest_oxy.x + nearest_oxy.vx * 3
-                target_y = nearest_oxy.y + nearest_oxy.vy * 3
-                dx, dy = normalize_vec(target_x - f.x, target_y - f.y)
-                vectors.append((oxy_weight, dx, dy))
-
-        # ---------- cSocial & cSelfish ----------
-        social_vx, social_vy = 0.0, 0.0
-        selfish_vx, selfish_vy = 0.0, 0.0
-        social_count = 0
-        selfish_count = 0
-
-        for other in alive_fish:
-            if other.fish_id == f.fish_id:
-                continue
-            d = dist(f.x, f.y, other.x, other.y)
+            ir = max(0, f.immunity) / f.max_immunity
+            pw = PSO_PROBIOTIC_WEIGHT * (1.0 - ir)
+            nd, no = float('inf'), None
+            for o in self.objs:
+                if o.alive and o.kind == 'probiotic' and o.value > 0:
+                    d = _dist(f.x, f.y, o.x, o.y)
+                    if d < SENSITIVE_DISTANCE and d < nd: nd, no = d, o
+            if no:
+                dx, dy = _norm(no.x - f.x, no.y - f.y)
+                vecs.append((pw, dx, dy))
+        orr = max(0, f.oxygen) / f.max_oxygen
+        if orr < PSO_OXYGEN_THRESHOLD:
+            ow = PSO_OXYGEN_WEIGHT * (1.0 - orr)
+            if orr < PSO_OXYGEN_CRITICAL_THRESHOLD: ow *= PSO_OXYGEN_CRITICAL_MULT
+            nd, no = float('inf'), None
+            for o in self.objs:
+                if o.alive and o.kind == 'oxygen':
+                    fx2 = o.x + o.vx * PSO_OXYGEN_INTERCEPT_STEPS
+                    fy2 = o.y + o.vy * PSO_OXYGEN_INTERCEPT_STEPS
+                    d = min(_dist(f.x, f.y, o.x, o.y), _dist(f.x, f.y, fx2, fy2))
+                    if d < SENSITIVE_DISTANCE and d < nd: nd, no = d, o
+            if no:
+                tx = no.x + no.vx * PSO_OXYGEN_INTERCEPT_STEPS
+                ty = no.y + no.vy * PSO_OXYGEN_INTERCEPT_STEPS
+                dx, dy = _norm(tx - f.x, ty - f.y)
+                vecs.append((ow, dx, dy))
+        svx, svy, sc = 0, 0, 0
+        rvx, rvy, rc = 0, 0, 0
+        for o in alive:
+            if o.fid == f.fid: continue
+            d = _dist(f.x, f.y, o.x, o.y)
             if d < SELFISH_DISTANCE and d > 0.1:
-                dx, dy = normalize_vec(f.x - other.x, f.y - other.y)
-                selfish_vx += dx / d
-                selfish_vy += dy / d
-                selfish_count += 1
+                dx, dy = _norm(f.x - o.x, f.y - o.y)
+                rvx += dx / d; rvy += dy / d; rc += 1
             elif d < SOCIAL_DISTANCE:
-                social_vx += other.x - f.x
-                social_vy += other.y - f.y
-                social_count += 1
-
-        if social_count > 0:
-            sx, sy = normalize_vec(social_vx / social_count, social_vy / social_count)
-            vectors.append((0.8, sx, sy))
-
-        if selfish_count > 0:
-            sx, sy = normalize_vec(selfish_vx, selfish_vy)
-            vectors.append((1.5, sx, sy))
-
-        # ---------- cNH3 ----------
+                svx += o.x - f.x; svy += o.y - f.y; sc += 1
+        if sc > 0:
+            dx, dy = _norm(svx / sc, svy / sc)
+            vecs.append((PSO_SOCIAL_WEIGHT, dx, dy))
+        if rc > 0:
+            dx, dy = _norm(rvx, rvy)
+            vecs.append((PSO_SELFISH_WEIGHT, dx, dy))
         for h in self.hazards:
-            if h.hazard_type == 'nh3' and h.alive:
-                d = dist(f.x, f.y, h.x, h.y)
+            if h.kind == 'nh3':
+                d = _dist(f.x, f.y, h.x, h.y)
                 if d < h.radius + SENSITIVE_DISTANCE * 0.5:
-                    nh3_weight = 4.0
-                    # Unless extremely hungry and food inside
-                    if fullness_ratio < 0.1:
-                        has_food_in_nh3 = any(
-                            obj.alive and obj.obj_type == 'food' and h.contains(obj.x, obj.y)
-                            for obj in self.objects
-                        )
-                        if has_food_in_nh3:
-                            nh3_weight = 0.5
-                    dx, dy = normalize_vec(f.x - h.x, f.y - h.y)
-                    vectors.append((nh3_weight, dx, dy))
-
-        # ---------- cDisease ----------
+                    w = PSO_NH3_WEIGHT
+                    if fr < 0.1 and any(o.alive and o.kind == 'food' and h.contains(o.x, o.y) for o in self.objs):
+                        w = PSO_NH3_HUNGRY_OVERRIDE
+                    dx, dy = _norm(f.x - h.x, f.y - h.y)
+                    vecs.append((w, dx, dy))
         for h in self.hazards:
-            if h.hazard_type == 'disease' and h.alive:
-                d = dist(f.x, f.y, h.x, h.y)
+            if h.kind == 'disease':
+                d = _dist(f.x, f.y, h.x, h.y)
                 if d < h.radius + SENSITIVE_DISTANCE * 0.5:
-                    disease_weight = 2.5
-                    if f.is_boosting:
-                        disease_weight = 0.3  # Can risk it
-                    dx, dy = normalize_vec(f.x - h.x, f.y - h.y)
-                    vectors.append((disease_weight, dx, dy))
-
-        # ---------- cParasite ----------
+                    w = PSO_DISEASE_BOOSTING_WEIGHT if f.is_boosting else PSO_DISEASE_WEIGHT
+                    dx, dy = _norm(f.x - h.x, f.y - h.y)
+                    vecs.append((w, dx, dy))
         for h in self.hazards:
-            if h.hazard_type == 'parasite' and h.alive:
-                d = dist(f.x, f.y, h.x, h.y)
+            if h.kind == 'parasite':
+                d = _dist(f.x, f.y, h.x, h.y)
                 if d < h.radius + SENSITIVE_DISTANCE * 0.5:
-                    dx, dy = normalize_vec(f.x - h.x, f.y - h.y)
-                    vectors.append((3.0, dx, dy))
-
-        # ---------- cRun ----------
+                    dx, dy = _norm(f.x - h.x, f.y - h.y)
+                    vecs.append((PSO_PARASITE_WEIGHT, dx, dy))
         f.is_running = False
-        for other in alive_fish:
-            if other.fish_id == f.fish_id or not other.alive:
-                continue
-            if other.mouth_size > f.body_size:
-                d = dist(f.x, f.y, other.x, other.y)
-                if d < SENSITIVE_DISTANCE and d > 0.1:
+        for o in alive:
+            if o.fid == f.fid: continue
+            if o.mouth_size > f.body_size:
+                d = _dist(f.x, f.y, o.x, o.y)
+                if 0.1 < d < SENSITIVE_DISTANCE:
                     f.is_running = True
-                    run_weight = 5.0 * (SENSITIVE_DISTANCE / (d + 1))
-                    dx, dy = normalize_vec(f.x - other.x, f.y - other.y)
-                    vectors.append((run_weight, dx, dy))
-
-        # ---------- cHunt ----------
+                    w = PSO_RUN_WEIGHT * (SENSITIVE_DISTANCE / (d + 1))
+                    dx, dy = _norm(f.x - o.x, f.y - o.y)
+                    vecs.append((w, dx, dy))
         f.is_hunting = False
         if f.fullness <= 0:
-            for other in alive_fish:
-                if other.fish_id == f.fish_id or not other.alive:
-                    continue
-                if f.mouth_size > other.body_size:
-                    d = dist(f.x, f.y, other.x, other.y)
-                    if d < SENSITIVE_DISTANCE:
-                        # Cannibal rate inversely scales with fullness (already <= 0)
-                        if random.random() < 0.3:
-                            f.is_hunting = True
-                            hunt_weight = 3.0 * (SENSITIVE_DISTANCE / (d + 1))
-                            dx, dy = normalize_vec(other.x - f.x, other.y - f.y)
-                            vectors.append((hunt_weight, dx, dy))
-                            break  # Hunt one target
-
-        # ---------- cRelief ----------
+            for o in alive:
+                if o.fid == f.fid: continue
+                if f.mouth_size > o.body_size:
+                    d = _dist(f.x, f.y, o.x, o.y)
+                    if d < SENSITIVE_DISTANCE and random.random() < CANNIBAL_TRIGGER_CHANCE:
+                        f.is_hunting = True
+                        w = PSO_HUNT_WEIGHT * (SENSITIVE_DISTANCE / (d + 1))
+                        dx, dy = _norm(o.x - f.x, o.y - f.y)
+                        vecs.append((w, dx, dy)); break
         if f.has_parasite:
-            sv = self._scrub_vector(f)
-            if sv:
-                vectors.append((4.0, sv[0], sv[1]))
+            sv = self._scrub(f)
+            if sv: vecs.append((PSO_RELIEF_WEIGHT, sv[0], sv[1]))
+        return vecs
 
-        return vectors
-
-    def _scrub_vector(self, f: Fish):
-        nearest_obs = None
-        nearest_dist = float('inf')
-        for obs in self.obstacles:
-            sx, sy = obs.nearest_surface_point(f.x, f.y)
-            d = dist(f.x, f.y, sx, sy)
-            if d < nearest_dist:
-                nearest_dist = d
-                nearest_obs = obs
-        if nearest_obs:
-            sx, sy = nearest_obs.nearest_surface_point(f.x, f.y)
-            dx, dy = normalize_vec(sx - f.x, sy - f.y)
-            return dx, dy
+    def _scrub(self, f):
+        bd, bo = float('inf'), None
+        for o in self.obstacles:
+            sx, sy = o.nearest_surface(f.x, f.y)
+            d = _dist(f.x, f.y, sx, sy)
+            if d < bd: bd, bo = d, o
+        if bo:
+            sx, sy = bo.nearest_surface(f.x, f.y)
+            return _norm(sx - f.x, sy - f.y)
         return None
 
-    def _run_vector(self, f: Fish, alive_fish: List[Fish]):
-        flee_x, flee_y = 0.0, 0.0
-        count = 0
-        for other in alive_fish:
-            if other.fish_id == f.fish_id:
-                continue
-            if other.mouth_size > f.body_size:
-                d = dist(f.x, f.y, other.x, other.y)
-                if d < SENSITIVE_DISTANCE and d > 0.1:
-                    dx, dy = normalize_vec(f.x - other.x, f.y - other.y)
-                    flee_x += dx / (d + 1)
-                    flee_y += dy / (d + 1)
-                    count += 1
-        if count > 0:
-            return normalize_vec(flee_x, flee_y)
+    def _flee(self, f, alive):
+        fx, fy, c = 0, 0, 0
+        for o in alive:
+            if o.fid == f.fid: continue
+            if o.mouth_size > f.body_size:
+                d = _dist(f.x, f.y, o.x, o.y)
+                if 0.1 < d < SENSITIVE_DISTANCE:
+                    dx, dy = _norm(f.x - o.x, f.y - o.y)
+                    fx += dx / (d + 1); fy += dy / (d + 1); c += 1
+        return _norm(fx, fy) if c else None
+
+    def _pursue(self, f, alive):
+        bd, bt = float('inf'), None
+        for o in alive:
+            if o.fid == f.fid: continue
+            if f.mouth_size > o.body_size:
+                d = _dist(f.x, f.y, o.x, o.y)
+                if d < SENSITIVE_DISTANCE and d < bd: bd, bt = d, o
+        if bt: return _norm(bt.x - f.x, bt.y - f.y)
         return None
 
-    def _hunt_vector_direct(self, f: Fish, alive_fish: List[Fish]):
-        nearest = None
-        nearest_dist = float('inf')
-        for other in alive_fish:
-            if other.fish_id == f.fish_id:
-                continue
-            if f.mouth_size > other.body_size:
-                d = dist(f.x, f.y, other.x, other.y)
-                if d < SENSITIVE_DISTANCE and d < nearest_dist:
-                    nearest_dist = d
-                    nearest = other
-        if nearest:
-            dx, dy = normalize_vec(nearest.x - f.x, nearest.y - f.y)
-            return dx, dy
-        return None
+    def _cannibal(self):
+        alive = [f for f in self.fish if f.alive]
+        for f in alive:
+            if not f.alive or not f.is_hunting: continue
+            for t in alive:
+                if t.fid == f.fid or not t.alive: continue
+                if f.mouth_size > t.body_size:
+                    if _dist(f.x, f.y, t.x, t.y) <= t.body_size * CANNIBAL_COLLISION_RADIUS_MULT:
+                        t.hp = 0; t.alive = False
+                        f.fullness = min(f.max_fullness, f.fullness + t.body_size * CANNIBAL_FULLNESS_GAIN_MULT)
+                        f.is_hunting = False; break
 
-    # ---------- CANNIBALISM ----------
-    def _cannibalism_check(self):
-        alive_fish = [f for f in self.fishes if f.alive]
-        for f in alive_fish:
-            if not f.alive or not f.is_hunting:
-                continue
-            for target in alive_fish:
-                if target.fish_id == f.fish_id or not target.alive:
-                    continue
-                if f.mouth_size > target.body_size:
-                    d = dist(f.x, f.y, target.x, target.y)
-                    if d <= target.body_size:
-                        # Cannibalism occurs
-                        target.hp = 0
-                        target.alive = False
-                        f.fullness = min(f.max_fullness, f.fullness + target.body_size * 2)
-                        f.is_hunting = False
-                        break
-
-    # ---------- FECAL DROPS ----------
-    def _fecal_drops(self):
-        for f in self.fishes:
-            if not f.alive:
-                continue
+    def _fecal(self):
+        for f in self.fish:
+            if not f.alive: continue
             f.fecal_timer += 1
-            if f.fecal_timer >= 2 and f.fullness > 0:
+            if f.fecal_timer >= FECAL_DROP_INTERVAL and f.fullness > 0:
                 f.fecal_timer = 0
-                chance = (f.fullness / f.max_fullness) * 0.3
-                if random.random() < chance:
-                    fecal_val = 2.0
-                    # Stack nearby fecal
+                if random.random() < (f.fullness / f.max_fullness) * FECAL_BASE_CHANCE:
                     stacked = False
-                    for obj in self.objects:
-                        if obj.alive and obj.obj_type == 'fecal':
-                            if dist(f.x, f.y, obj.x, obj.y) < 10:
-                                obj.value += fecal_val
-                                stacked = True
-                                break
+                    for o in self.objs:
+                        if o.alive and o.kind == 'fecal' and _dist(f.x, f.y, o.x, o.y) < FECAL_STACK_RADIUS:
+                            o.value += FECAL_VALUE; stacked = True; break
                     if not stacked:
-                        self.objects.append(DynamicObject(
-                            x=f.x + random.uniform(-3, 3),
-                            y=f.y + random.uniform(-3, 3),
-                            obj_type='fecal', value=fecal_val,
-                            max_age=FECAL_EXPIRE_TIMESTEPS
-                        ))
+                        self.objs.append(DynObj(f.x + random.uniform(-3, 3), f.y + random.uniform(-3, 3),
+                                               'fecal', FECAL_VALUE, max_age=FECAL_EXPIRE_TIMESTEPS))
 
-    # ---------- DEATH CHECK ----------
-    def _death_check(self):
-        for f in self.fishes:
-            if not f.alive:
-                continue
+    def _death(self):
+        for f in self.fish:
+            if not f.alive: continue
             if f.hp <= 0 or f.oxygen <= 0:
                 f.alive = False
-                # Spawn dead fish body
-                self.objects.append(DynamicObject(
-                    x=f.x, y=f.y, obj_type='dead_fish',
-                    value=f.body_size, max_age=DEAD_FISH_DECAY_TIMESTEPS
-                ))
-                # Infected fish creates disease area
+                self.objs.append(DynObj(f.x, f.y, 'dead_fish', f.body_size,
+                                        max_age=DEAD_FISH_DECAY_TIMESTEPS))
                 if f.is_infected:
-                    self.hazards.append(HazardArea(
-                        x=f.x, y=f.y, radius=f.body_size * 1.5,
-                        hazard_type='disease', max_age=DISEASE_AREA_DECAY
-                    ))
+                    self.hazards.append(Hazard(f.x, f.y, f.body_size * INFECTED_FISH_DISEASE_RADIUS_MULT,
+                                              'disease', max_age=DISEASE_AREA_DECAY))
 
-    # ---------- FRAME CAPTURE ----------
-    def _capture_frame(self):
-        alive_fish = [f for f in self.fishes if f.alive]
+    def _frame(self):
+        alive = [f for f in self.fish if f.alive]
         return {
-            't': self.timestep,
-            'day': self.timestep // 24,
-            'hour': self.timestep % 24,
-            'fish': [f.to_snapshot() for f in alive_fish],
-            'objects': [
-                {
-                    'x': round(o.x, 1), 'y': round(o.y, 1),
-                    'type': o.obj_type, 'value': round(o.value, 1)
-                }
-                for o in self.objects if o.alive
-            ],
-            'hazards': [
-                {
-                    'x': round(h.x, 1), 'y': round(h.y, 1),
-                    'r': round(h.radius, 1), 'type': h.hazard_type
-                }
-                for h in self.hazards if h.alive
-            ],
-            'obstacles': [
-                {
-                    'x': round(o.x, 1), 'y': round(o.y, 1),
-                    'w': round(o.w, 1), 'h': round(o.h, 1)
-                }
-                for o in self.obstacles
-            ],
-            'alive_count': len(alive_fish),
-            'total_count': self.initial_count,
-        }
+            't': self.ts, 'day': self.ts // 24, 'hour': self.ts % 24,
+            'fish': [f.snapshot() for f in alive],
+            'objects': [{'x': round(o.x, 1), 'y': round(o.y, 1), 'type': o.kind,
+                         'value': round(o.value, 1)} for o in self.objs if o.alive],
+            'hazards': [{'x': round(h.x, 1), 'y': round(h.y, 1), 'r': round(h.radius, 1),
+                         'type': h.kind} for h in self.hazards],
+            'obstacles': [{'x': round(o.x, 1), 'y': round(o.y, 1), 'w': round(o.w, 1),
+                           'h': round(o.h, 1)} for o in self.obstacles],
+            'alive_count': len(alive), 'total_count': self.n0}
+
+
+# ============================================================
+# PARALLEL WORKER
+# ============================================================
+
+def _run_pond_worker(args):
+    geno_dict, fish_data, runtime, max_budget, do_record, fskip, seed = args
+    random.seed(seed)
+    geno = PondGenotype(**geno_dict)
+    fishes = []
+    for fd in fish_data:
+        f = Fish()
+        for k, v in fd.items(): setattr(f, k, v)
+        fishes.append(f)
+    sim = PondSim(geno, fishes, runtime, max_budget, record=do_record, fskip=fskip)
+    result = sim.run()
+    result['genotype_obj_dict'] = geno_dict
+    return result
+
+
+def _fish_to_dict(f: Fish) -> dict:
+    return {s: getattr(f, s) for s in [
+        'fid', 'x', 'y', 'vx', 'vy', 'mouth_size', 'body_size',
+        'hp', 'max_hp', 'energy', 'max_energy', 'fullness', 'max_fullness',
+        'immunity', 'max_immunity', 'oxygen', 'max_oxygen', 'base_velocity',
+        'is_boosting', 'boost_timer', 'is_infected', 'has_parasite',
+        'is_running', 'is_hunting', 'alive', 'fecal_timer']}
+
+
+# ============================================================
+# CSV TRACKING
+# ============================================================
+
+CSV_HEADER = [
+    'simulation', 'generation', 'pond', 'status',
+    'fitness', 'survival_rate', 'healthiness', 'cost',
+    'efficiency', 'alive_count', 'initial_count',
+    'food_interval', 'food_quantity', 'food_location',
+    'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
+    'oxygen_interval', 'oxygen_duration', 'oxygen_location',
+]
+
+
+def _csv_row(sim_idx, gen_idx, pond_idx, status, result, genotype_dict):
+    """Build one CSV row from a pond result."""
+    return [
+        sim_idx + 1,
+        gen_idx + 1,
+        pond_idx,
+        status,
+        f"{result.get('fitness', 0):.4f}",
+        f"{result.get('survival_rate', 0):.4f}",
+        f"{result.get('avg_healthiness', 0):.4f}",
+        f"{result.get('cost', 0):.2f}",
+        f"{result.get('efficiency', 0):.4f}",
+        result.get('alive_count', 0),
+        result.get('initial_count', 0),
+        genotype_dict.get('food_interval', ''),
+        genotype_dict.get('food_quantity', ''),
+        genotype_dict.get('food_location', ''),
+        genotype_dict.get('probiotic_interval', ''),
+        genotype_dict.get('probiotic_quantity', ''),
+        genotype_dict.get('probiotic_location', ''),
+        genotype_dict.get('oxygen_interval', ''),
+        genotype_dict.get('oxygen_duration', ''),
+        genotype_dict.get('oxygen_location', ''),
+    ]
 
 
 # ============================================================
 # EVOLUTIONARY ALGORITHM
 # ============================================================
 
-class EvolutionaryAlgorithm:
-    def __init__(self, max_budget, initial_fish_population, aquaculture_days,
-                 pond_generations, run_simulations, initial_pond_count=8):
-        self.max_budget = max_budget
-        self.initial_fish_population = initial_fish_population
-        self.aquaculture_days = aquaculture_days
-        self.runtime = aquaculture_days * 24
-        self.pond_generations = pond_generations
-        self.run_simulations = run_simulations
-        self.initial_pond_count = initial_pond_count
+class EA:
+    def __init__(self):
+        self.runtime = RUNTIME
+        self.csv_rows: List[list] = []  # Accumulate all rows, write once at end.
 
-    def run(self, record_best=True, frame_skip=4):
+    def run(self, record_best=True):
+        wall_start = _time.time()
+        workers = NUM_WORKERS or max(1, multiprocessing.cpu_count())
         all_results = []
+        self.csv_rows = []
 
-        for sim_idx in range(self.run_simulations):
-            print(f"\n{'='*60}")
-            print(f"  SIMULATION {sim_idx + 1}/{self.run_simulations}")
-            print(f"{'='*60}")
+        print(f"\n{'═' * 72}")
+        print(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER  —  PSO + EA")
+        print(f"{'═' * 72}")
+        print(f"  Fish: {INITIAL_FISH_POPULATION}  |  Days: {AQUACULTURE_DAYS}  |  "
+              f"Budget: ${MAX_BUDGET:.2f}  |  Workers: {workers}")
+        print(f"  Ponds/gen: {INITIAL_POND_COUNT}  |  Generations: {POND_GENERATIONS}  |  "
+              f"Simulations: {RUN_SIMULATIONS}")
+        print(f"{'═' * 72}")
 
-            # Create initial fish population (same for all ponds in this simulation)
-            base_fishes = [create_fish(i) for i in range(self.initial_fish_population)]
+        for sim_idx in range(RUN_SIMULATIONS):
+            sim_start = _time.time()
+            print(f"\n{'─' * 72}")
+            print(f"  SIMULATION {sim_idx + 1}/{RUN_SIMULATIONS}")
+            print(f"{'─' * 72}")
 
-            # Create initial pond population
-            ponds = [PondGenotype.random() for _ in range(self.initial_pond_count)]
-
+            base_fishes = [_make_fish(i) for i in range(INITIAL_FISH_POPULATION)]
+            fish_data = [_fish_to_dict(f) for f in base_fishes]
+            ponds = [PondGenotype.random() for _ in range(INITIAL_POND_COUNT)]
             best_result = None
 
-            for gen in range(self.pond_generations):
-                print(f"\n  Generation {gen + 1}/{self.pond_generations} | Ponds: {len(ponds)}")
-
+            for gen in range(POND_GENERATIONS):
                 if len(ponds) <= 1 and best_result is not None:
                     break
 
+                is_last = (gen == POND_GENERATIONS - 1)
+                do_rec = record_best and is_last and len(ponds) <= 4
+
+                tasks = []
+                for p_idx, geno in enumerate(ponds):
+                    if geno.per_cycle_cost() > MAX_BUDGET:
+                        tasks.append(None)
+                    else:
+                        seed = random.randint(0, 2 ** 31)
+                        tasks.append((geno.to_dict(), fish_data, self.runtime,
+                                      MAX_BUDGET, do_rec, FRAME_SKIP, seed))
+
+                results = [None] * len(tasks)
+                non_null = [(i, t) for i, t in enumerate(tasks) if t is not None]
+
+                if non_null:
+                    with ProcessPoolExecutor(max_workers=min(workers, len(non_null))) as pool:
+                        futures = {pool.submit(_run_pond_worker, t): i for i, t in non_null}
+                        for fut in as_completed(futures):
+                            idx = futures[fut]
+                            results[idx] = fut.result()
+
                 gen_results = []
+                for p_idx, geno in enumerate(ponds):
+                    if results[p_idx] is None:
+                        r = {
+                            'fitness': 0.0, 'survival_rate': 0, 'avg_healthiness': 0,
+                            'efficiency': 0, 'cost': geno.total_cost(self.runtime),
+                            'genotype_obj': geno, 'genotype': geno.to_dict(),
+                            'frames': [], 'budget_exceeded': True,
+                            'alive_count': 0, 'initial_count': INITIAL_FISH_POPULATION,
+                            'status': 'GATEKEEPER'}
+                        gen_results.append(r)
+                        self.csv_rows.append(_csv_row(sim_idx, gen, p_idx, 'GATEKEEPER', r, geno.to_dict()))
+                    else:
+                        r = results[p_idx]
+                        r['genotype_obj'] = PondGenotype(**r['genotype_obj_dict'])
+                        if r.get('budget_exceeded'):
+                            r['status'] = 'OVER-BUDGET'
+                            r['fitness'] = 0.0
+                        elif r.get('survival_rate', 0) == 0:
+                            r['status'] = 'ALL-DEAD'
+                        else:
+                            r['status'] = 'OK'
+                        gen_results.append(r)
+                        self.csv_rows.append(_csv_row(sim_idx, gen, p_idx, r['status'], r, r['genotype']))
 
-                for p_idx, genotype in enumerate(ponds):
-                    # Gatekeeper check
-                    gk_cost = genotype.gatekeeper_cost()
-                    if gk_cost > self.max_budget:
-                        print(f"    Pond {p_idx}: REJECTED (cost ${gk_cost:.2f} > budget ${self.max_budget:.2f})")
-                        gen_results.append({
-                            'fitness': 0.0,
-                            'genotype': genotype,
-                            'survival_rate': 0,
-                            'avg_condition': 0,
-                            'efficiency': 0,
-                            'cost': gk_cost,
-                            'frames': [],
-                        })
-                        continue
+                gen_results.sort(key=lambda x: x['fitness'], reverse=True)
 
-                    # Run simulation
-                    is_last_gen = (gen == self.pond_generations - 1)
-                    do_record = record_best and is_last_gen and (len(ponds) <= 2)
-                    sim = PondSimulation(
-                        genotype=genotype,
-                        fishes=base_fishes,
-                        runtime=self.runtime,
-                        max_budget=self.max_budget,
-                        record_frames=do_record,
-                        frame_skip=frame_skip
-                    )
-                    result = sim.run()
-                    result['genotype_obj'] = genotype
-                    gen_results.append(result)
-                    print(f"    Pond {p_idx}: Fitness={result['fitness']:.4f} "
-                          f"Survival={result['survival_rate']:.2%} "
-                          f"Condition={result['avg_condition']:.3f} "
-                          f"Cost=${result['cost']:.2f}")
+                # Print table
+                print(f"\n  Gen {gen + 1:>2}/{POND_GENERATIONS} │ {len(ponds)} ponds")
+                print(f"  {'#':>3} │ {'Fitness':>8} │ {'Survival':>9} │ {'Healthiness':>11} │ "
+                      f"{'Cost':>12} │ {'Status':>11}")
+                print(f"  {'─' * 3}─┼─{'─' * 8}─┼─{'─' * 9}─┼─{'─' * 11}─┼─{'─' * 12}─┼─{'─' * 11}")
+                for i, r in enumerate(gen_results):
+                    fit_s = f"{r['fitness']:.4f}"
+                    sur_s = f"{r['survival_rate'] * 100:06.2f}%"
+                    hlt_s = f"{r.get('avg_healthiness', 0):.4f}"
+                    cst_s = f"${r['cost']:>10.2f}"
+                    st = r.get('status', '?')
+                    if st == 'GATEKEEPER':   st_s = '🚫 GATE'
+                    elif st == 'OVER-BUDGET': st_s = '💸 OVER$'
+                    elif st == 'ALL-DEAD':    st_s = '💀 DEAD'
+                    else:                     st_s = '✅ OK'
+                    print(f"  {i:>3} │ {fit_s:>8} │ {sur_s:>9} │ {hlt_s:>11} │ {cst_s:>12} │ {st_s:>11}")
 
-                # Sort by fitness
-                gen_results.sort(key=lambda r: r['fitness'], reverse=True)
+                if gen_results and gen_results[0]['fitness'] > 0:
+                    if best_result is None or gen_results[0]['fitness'] > best_result['fitness']:
+                        best_result = gen_results[0]
 
-                if gen_results:
-                    best_result = gen_results[0]
-
-                # Select top half
                 half = max(1, len(gen_results) // 2)
                 survivors = gen_results[:half]
+                if len(survivors) <= 1: break
 
-                # If only 1 left, we're done
-                if len(survivors) <= 1:
-                    break
-
-                # Crossover and mutation to create new pond population
-                new_ponds = []
-                survivor_genotypes = [r['genotype_obj'] for r in survivors if 'genotype_obj' in r]
-                if not survivor_genotypes:
-                    survivor_genotypes = [r.get('genotype_obj', PondGenotype.random()) for r in survivors]
-
-                # Keep survivors
-                for g in survivor_genotypes:
-                    new_ponds.append(copy.deepcopy(g))
-
-                # Fill rest with crossover + mutation
+                surv_genos = [r['genotype_obj'] for r in survivors]
+                new_ponds = [copy.deepcopy(g) for g in surv_genos]
                 while len(new_ponds) < len(ponds):
-                    p1 = random.choice(survivor_genotypes)
-                    p2 = random.choice(survivor_genotypes)
-                    child = p1.crossover(p2)
-                    child.mutate(rate=0.25)
+                    child = random.choice(surv_genos).crossover(random.choice(surv_genos))
+                    child.mutate()
                     new_ponds.append(child)
-
                 ponds = new_ponds
 
+            sim_elapsed = _time.time() - sim_start
             if best_result:
                 best_result['simulation_idx'] = sim_idx
                 all_results.append(best_result)
-                print(f"\n  >> Sim {sim_idx + 1} Best: Fitness={best_result['fitness']:.4f}")
+                print(f"\n  ▸ Sim {sim_idx + 1} best: Fitness={best_result['fitness']:.4f}  "
+                      f"Survival={best_result['survival_rate'] * 100:06.2f}%  "
+                      f"({sim_elapsed:.1f}s)")
+            else:
+                print(f"\n  ▸ Sim {sim_idx + 1}: No survivors. ({sim_elapsed:.1f}s)")
 
-        # Select champion across all simulations
+        # Write CSV
+        self._write_csv()
+
         if not all_results:
-            print("No valid results!")
+            print("\n  ❌ No valid results across all simulations.")
             return None
 
-        all_results.sort(key=lambda r: r['fitness'], reverse=True)
-        champion = all_results[0]
+        all_results.sort(key=lambda x: x['fitness'], reverse=True)
+        champ = all_results[0]
 
-        print(f"\n{'='*60}")
-        print(f"  CHAMPION POND (from Simulation {champion.get('simulation_idx', 0) + 1})")
-        print(f"{'='*60}")
-        print(f"  Fitness:       {champion['fitness']:.4f}")
-        print(f"  Survival Rate: {champion['survival_rate']:.2%}")
-        print(f"  Avg Condition: {champion['avg_condition']:.3f}")
-        print(f"  Efficiency:    {champion['efficiency']:.3f}")
-        print(f"  Total Cost:    ${champion['cost']:.2f}")
-        print(f"  Genotype:      {champion['genotype']}")
+        if record_best and not champ.get('frames'):
+            print("\n  🔄 Re-running champion with frame recording...")
+            base_fishes = [_make_fish(i) for i in range(INITIAL_FISH_POPULATION)]
+            geno = PondGenotype(**champ['genotype'])
+            sim = PondSim(geno, base_fishes, self.runtime, MAX_BUDGET, record=True, fskip=FRAME_SKIP)
+            res = sim.run()
+            champ['frames'] = res['frames']
+            champ['fitness'] = res['fitness']
+            champ['survival_rate'] = res['survival_rate']
+            champ['avg_healthiness'] = res['avg_healthiness']
+            champ['cost'] = res['cost']
+            champ['efficiency'] = res['efficiency']
 
-        # Re-run champion with full frame recording for visualization
-        if record_best and not champion.get('frames'):
-            print("\n  Re-running champion with frame recording...")
-            base_fishes = [create_fish(i) for i in range(self.initial_fish_population)]
-            genotype = PondGenotype(**champion['genotype'])
-            sim = PondSimulation(
-                genotype=genotype,
-                fishes=base_fishes,
-                runtime=self.runtime,
-                max_budget=self.max_budget,
-                record_frames=True,
-                frame_skip=frame_skip
-            )
-            result = sim.run()
-            champion['frames'] = result['frames']
-            champion['fitness'] = result['fitness']
-            champion['survival_rate'] = result['survival_rate']
-            champion['avg_condition'] = result['avg_condition']
+        wall_elapsed = _time.time() - wall_start
+        loc_names = {0: 'Middle', 1: 'Corner', 2: 'Random'}
+        g = champ['genotype']
 
-        return champion
+        print(f"\n{'═' * 72}")
+        print(f"  🏆  CHAMPION POND  (Simulation {champ.get('simulation_idx', 0) + 1})")
+        print(f"{'═' * 72}")
+        print(f"  {'Metric':<20} {'Value':>15}")
+        print(f"  {'─' * 20}─{'─' * 15}")
+        print(f"  {'Fitness':<20} {champ['fitness']:>15.4f}")
+        print(f"  {'Survival':<20} {champ['survival_rate'] * 100:>14.2f}%")
+        print(f"  {'Healthiness':<20} {champ.get('avg_healthiness', 0):>15.4f}")
+        print(f"  {'Efficiency':<20} {champ['efficiency']:>15.4f}")
+        print(f"  {'Total Cost':<20} ${champ['cost']:>13.2f}")
+        print(f"  {'─' * 20}─{'─' * 15}")
+        print(f"  {'Food Interval':<20} {g['food_interval']:>12}  h")
+        print(f"  {'Food Quantity':<20} {g['food_quantity']:>12}  pellets")
+        print(f"  {'Food Location':<20} {loc_names[g['food_location']]:>15}")
+        print(f"  {'Probiotic Interval':<20} {g['probiotic_interval']:>12}  h")
+        print(f"  {'Probiotic Quantity':<20} {g['probiotic_quantity']:>12}  pellets")
+        print(f"  {'Probiotic Location':<20} {loc_names[g['probiotic_location']]:>15}")
+        print(f"  {'O₂ Interval':<20} {g['oxygen_interval']:>12}  h")
+        print(f"  {'O₂ Duration':<20} {g['oxygen_duration']:>12}  h")
+        print(f"  {'O₂ Location':<20} {loc_names[g['oxygen_location']]:>15}")
+        print(f"  {'─' * 20}─{'─' * 15}")
+        print(f"  Total wall time: {wall_elapsed:.1f}s")
+
+        return champ
+
+    def _write_csv(self):
+        with open(RESULTS_CSV_PATH, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(CSV_HEADER)
+            writer.writerows(self.csv_rows)
+        print(f"\n  📊 Saved {RESULTS_CSV_PATH} ({len(self.csv_rows)} rows)")
 
 
 # ============================================================
@@ -1275,55 +1202,28 @@ class EvolutionaryAlgorithm:
 # ============================================================
 
 def main():
-    print("=" * 60)
-    print("  LARGEMOUTH BASS AQUACULTURE OPTIMIZER")
-    print("  PSO + Evolutionary Algorithm")
-    print("=" * 60)
+    ea = EA()
+    champ = ea.run(record_best=True)
 
-    # --- Configuration ---
-    MAX_BUDGET = 200.0
-    INITIAL_FISH_POPULATION = 30
-    AQUACULTURE_DAYS = 60       # Keep small for demo; increase for realism
-    POND_GENERATIONS = 20
-    RUN_SIMULATIONS = 5
-    INITIAL_POND_COUNT = 10
-    FRAME_SKIP = 2             # Record every N timesteps
-
-    ea = EvolutionaryAlgorithm(
-        max_budget=MAX_BUDGET,
-        initial_fish_population=INITIAL_FISH_POPULATION,
-        aquaculture_days=AQUACULTURE_DAYS,
-        pond_generations=POND_GENERATIONS,
-        run_simulations=RUN_SIMULATIONS,
-        initial_pond_count=INITIAL_POND_COUNT,
-    )
-
-    champion = ea.run(record_best=True, frame_skip=FRAME_SKIP)
-
-    if champion and champion.get('frames'):
-        # Build visualization data
-        viz_data = {
-            'pond_width': POND_WIDTH,
-            'pond_height': POND_HEIGHT,
-            'genotype': champion['genotype'],
-            'fitness': champion['fitness'],
-            'survival_rate': champion['survival_rate'],
-            'avg_condition': champion['avg_condition'],
-            'cost': champion['cost'],
-            'efficiency': champion['efficiency'],
+    if champ and champ.get('frames'):
+        viz = {
+            'pond_width': POND_WIDTH, 'pond_height': POND_HEIGHT,
+            'genotype': champ['genotype'],
+            'fitness': champ['fitness'],
+            'survival_rate': champ['survival_rate'],
+            'avg_healthiness': champ.get('avg_healthiness', 0),
+            'cost': champ['cost'],
+            'efficiency': champ['efficiency'],
             'initial_fish': INITIAL_FISH_POPULATION,
             'aquaculture_days': AQUACULTURE_DAYS,
-            'frames': champion['frames'],
-        }
+            'frames': champ['frames']}
 
-        output_path = 'simulation_data.json'
-        with open(output_path, 'w') as fp:
-            json.dump(viz_data, fp)
-        print(f"\n  Visualization data saved to {output_path}")
-        print(f"  Total frames: {len(champion['frames'])}")
-        print(f"\n  Open visualization.html in a browser to view the simulation.")
+        with open('simulation_data.json', 'w') as fp:
+            json.dump(viz, fp)
+        print(f"\n  📁 Saved simulation_data.json ({len(champ['frames'])} frames)")
+        print(f"  🌐 Open visualization.html in browser (via local server)")
     else:
-        print("\n  No frames recorded. Adjust parameters and try again.")
+        print("\n  ⚠  No frames to export.")
 
 
 if __name__ == '__main__':
