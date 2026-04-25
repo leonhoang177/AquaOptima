@@ -18,8 +18,7 @@ Note:
 Run:
 
 ```bash
-cd ./leon
-python run.py
+python core/run.py
 python -m http.server 8000
 ```
 

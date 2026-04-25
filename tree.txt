@@ -1,0 +1,42 @@
+.
+├── docs
+│   ├── CS_420__Final_Project_Rubric__2026_.pdf
+│   ├── Largemouth-Bass-Aquaculture.docx
+│   ├── Nile-Tilapia-Aqualculture.docx
+│   ├── Project-Details.docx
+│   └── Project-Details.pdf
+├── LICENSE
+├── logs
+│   ├── results.csv
+│   └── simulation_data.json
+├── papers
+│   ├── An Environmental Impact Assessment of Largemouth Bass (Micropterus salmoides) Aquaculture.pdf
+│   ├── Comparison of the survival rate of largemouth bass (Micropterus salmoides) fingerlings.pdf
+│   ├── Controlling Mortality Caused by External Columnaris in Largemouth Bass and Bluegill with Chloramine-T or Hydrogen Peroxide.pdf
+│   ├── Environmental requirements for the culture of largemouth bass.pdf
+│   ├── Morphological constraints on intracohort cannibalism in age-0 largemouth bass.pdf
+│   └── Multiple effects of dietary supplementation with Lactobacillus reuteri and Bacillus subtilis on the growth, immunity, and metabolism of largemouth bass.pdf
+├── plots
+│   ├── plot_1_fitness.png
+│   ├── plot_2_survival.png
+│   ├── plot_3_healthiness.png
+│   ├── plot_4_cost.png
+│   ├── plot_5_status.png
+│   ├── plot_6_cost_vs_fitness.png
+│   ├── plot_7_survival_vs_healthiness.png
+│   └── plot_8_champion_comparison.png
+├── pythons
+│   ├── constants.py
+│   ├── ea.py
+│   ├── entities.py
+│   ├── helpers.py
+│   ├── log.py
+│   ├── plot.py
+│   ├── pond.py
+│   └── run.py
+├── README.md
+├── tree.txt
+└── visuals
+    └── visualization.html
+
+7 directories, 33 files

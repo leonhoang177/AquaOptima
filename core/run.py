@@ -1,0 +1,49 @@
+import sys
+import json
+import subprocess
+from pathlib import Path
+
+from constants import (
+    POND_WIDTH, POND_HEIGHT, INITIAL_FISH_POPULATION, AQUACULTURE_DAYS,
+    SIMULATION_JSON_PATH, PROJECT_ROOT,
+)
+from ea import EA
+
+
+def main():
+    ea = EA()
+    champ = ea.run(record_best=True)
+
+    if champ and champ.get('frames'):
+        viz = {
+            'pond_width': POND_WIDTH,
+            'pond_height': POND_HEIGHT,
+            'genotype': champ['genotype'],
+            'fitness': champ['fitness'],
+            'survival_rate': champ['survival_rate'],
+            'avg_healthiness': champ.get('avg_healthiness', 0),
+            'cost': champ['cost'],
+            'efficiency': champ['efficiency'],
+            'initial_fish': INITIAL_FISH_POPULATION,
+            'aquaculture_days': AQUACULTURE_DAYS,
+            'frames': champ['frames'],
+        }
+
+        with open(SIMULATION_JSON_PATH, 'w') as fp:
+            json.dump(viz, fp)
+        print(f"\n  Saved {SIMULATION_JSON_PATH} ({len(champ['frames'])} frames)")
+        print(f"  Open visuals/visualization.html in browser")
+        print(f"  (serve from project root: python -m http.server)")
+    else:
+        print("\n  No frames to export.")
+
+    # Automatically run plot.py
+    plot_path = str(PROJECT_ROOT / 'core' / 'plot.py')
+    print(f"\n  Running plot.py...")
+    result = subprocess.run([sys.executable, plot_path])
+    if result.returncode != 0:
+        print(f"  Warning: plot.py exited with code {result.returncode}")
+
+
+if __name__ == '__main__':
+    main()

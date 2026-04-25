@@ -1,5 +1,0 @@
-We want to apply a combination of EA and PSO to a real-world problem in the fish production industry: optimizing multi-species aquaculture environments.
-
-We are building a nested model where an inner PSO simulation handles dynamic fish foraging and group behavior, while an outer EA loop evaluates and evolves the tank's conditions.
-
-Ultimately, this system will allow us to input a target fish population and diversity, and automatically output the precise environmental parameters required to sustain them, or it might be opposite.
