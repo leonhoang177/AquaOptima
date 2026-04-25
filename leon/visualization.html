@@ -10,7 +10,7 @@
         box-sizing: border-box;
       }
       body {
-        background: #0a1628;
+        background: #0d1a2e;
         color: #e0e8f0;
         font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
         display: flex;
@@ -25,87 +25,14 @@
         color: #5ec4ff;
         text-align: center;
       }
-      #main-container {
+
+      #top-bar {
         display: flex;
         flex-wrap: wrap;
-        justify-content: center;
-        gap: 12px;
+        gap: 8px;
         width: 100%;
         max-width: 1500px;
-      }
-      #canvas-wrap {
-        position: relative;
-        border: 2px solid #1e3a5f;
-        border-radius: 8px;
-        overflow: hidden;
-        background: #0d2137;
-      }
-      canvas {
-        display: block;
-      }
-      #sidebar {
-        width: 280px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        transition: width 0.3s;
-      }
-      #sidebar.collapsed {
-        width: 0;
-        overflow: hidden;
-      }
-      .panel {
-        background: #111e30;
-        border: 1px solid #1e3a5f;
-        border-radius: 8px;
-        padding: 10px;
-      }
-      .panel h2 {
-        font-size: 0.95em;
-        color: #5ec4ff;
         margin-bottom: 6px;
-        border-bottom: 1px solid #1e3a5f;
-        padding-bottom: 3px;
-        cursor: pointer;
-        user-select: none;
-      }
-      .panel h2:hover {
-        color: #8ad4ff;
-      }
-      .panel-body {
-        transition:
-          max-height 0.3s ease,
-          opacity 0.2s;
-        overflow: hidden;
-      }
-      .panel-body.collapsed {
-        max-height: 0 !important;
-        opacity: 0;
-        padding: 0;
-      }
-      .stat-row {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.8em;
-        padding: 1px 0;
-      }
-      .stat-label {
-        color: #8899aa;
-      }
-      .stat-value {
-        color: #e0e8f0;
-        font-weight: bold;
-        font-family: "Consolas", monospace;
-        font-size: 0.85em;
-      }
-      .stat-value.good {
-        color: #4cff8e;
-      }
-      .stat-value.warn {
-        color: #ffc04c;
-      }
-      .stat-value.bad {
-        color: #ff4c6a;
       }
 
       #controls {
@@ -119,8 +46,6 @@
         flex-wrap: wrap;
         justify-content: center;
         width: 100%;
-        max-width: 1500px;
-        margin-bottom: 6px;
       }
       button {
         background: #1a3a5c;
@@ -138,21 +63,72 @@
         background: #2a7acc;
         color: #fff;
       }
-      .slider-group {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        font-size: 0.82em;
-      }
-      input[type="range"] {
-        width: 100px;
-        accent-color: #5ec4ff;
-      }
       #time-display {
         font-size: 0.85em;
         color: #5ec4ff;
         min-width: 180px;
         text-align: center;
+        font-family: "Consolas", monospace;
+      }
+      #speed-display {
+        font-size: 0.82em;
+        color: #8899aa;
+        min-width: 60px;
+        text-align: center;
+        font-family: "Consolas", monospace;
+      }
+
+      #stats-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 7px 14px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 8px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+      }
+      .stat-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.78em;
+      }
+      .stat-chip-label {
+        color: #8899aa;
+      }
+      .stat-chip-value {
+        color: #e0e8f0;
+        font-weight: bold;
+        font-family: "Consolas", monospace;
+        font-size: 0.9em;
+      }
+
+      #genotype-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        padding: 5px 14px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 8px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+        font-size: 0.72em;
+      }
+      .geno-chip {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .geno-chip-label {
+        color: #667788;
+      }
+      .geno-chip-value {
+        color: #aabbcc;
         font-family: "Consolas", monospace;
       }
 
@@ -165,9 +141,8 @@
         border: 1px solid #1e3a5f;
         border-radius: 8px;
         width: 100%;
-        max-width: 1500px;
-        margin-top: 6px;
         justify-content: center;
+        align-items: center;
       }
       .legend-item {
         display: flex;
@@ -185,16 +160,20 @@
       .legend-swatch.circle {
         border-radius: 50%;
       }
-      .legend-icon {
-        font-size: 11px;
-        width: 14px;
-        text-align: center;
+      .legend-canvas {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+      }
+      .legend-bar {
+        width: 20px;
+        height: 5px;
+        border-radius: 1px;
         flex-shrink: 0;
       }
 
       #progress-bar-container {
         width: 100%;
-        max-width: 1500px;
         height: 5px;
         background: #1e3a5f;
         border-radius: 3px;
@@ -206,6 +185,21 @@
         background: #5ec4ff;
         border-radius: 3px;
         width: 0%;
+      }
+
+      #canvas-wrap {
+        position: relative;
+        border: 2px solid #1e3a5f;
+        border-radius: 8px;
+        overflow: hidden;
+        background: #0f2540;
+        width: 100%;
+        max-width: 1500px;
+        margin-top: 6px;
+      }
+      canvas {
+        display: block;
+        width: 100%;
       }
 
       #loading {
@@ -250,139 +244,155 @@
 
     <h1>Largemouth Bass Aquaculture -- PSO + EA Visualization</h1>
 
-    <div id="controls">
-      <button id="btn-play" class="active">Play</button>
-      <button id="btn-pause">Pause</button>
-      <button id="btn-restart">Restart</button>
-      <button id="btn-toggle-sidebar">Toggle Stats</button>
-      <div class="slider-group">
-        <label>Speed:</label>
-        <input type="range" id="speed-slider" min="1" max="120" value="15" />
-        <span id="speed-label">15 fps</span>
+    <div id="top-bar">
+      <div id="controls">
+        <button id="btn-play" class="active">Play</button>
+        <button id="btn-pause">Pause</button>
+        <button id="btn-restart">Restart</button>
+        <button id="btn-slower">&lt;&lt;</button>
+        <span id="speed-display">3 fps</span>
+        <button id="btn-faster">&gt;&gt;</button>
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.82em;
+          "
+        >
+          <label>Frame:</label>
+          <input
+            type="range"
+            id="frame-slider"
+            min="0"
+            max="100"
+            value="0"
+            style="width: 180px; accent-color: #5ec4ff"
+          />
+        </div>
+        <div id="time-display">Day 00 | Hour 00 | Frame 0000/0000</div>
       </div>
-      <div class="slider-group">
-        <label>Frame:</label>
-        <input
-          type="range"
-          id="frame-slider"
-          min="0"
-          max="100"
-          value="0"
-          style="width: 180px"
-        />
+
+      <div id="stats-bar"></div>
+      <div id="genotype-bar"></div>
+
+      <div id="legend">
+        <!-- Fish -->
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-fish"></canvas>
+          Fish
+        </div>
+        <!-- Objects -->
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-food"></canvas>
+          Food
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-probiotic"></canvas>
+          Probiotic
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-oxygen"></canvas>
+          O₂ Bubble
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-fecal"></canvas>
+          Fecal
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-deadfish"></canvas>
+          Dead Fish
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-pollutant"></canvas>
+          Pollutant
+        </div>
+        <!-- Hazards -->
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-nh3"></canvas>
+          NH₃
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-disease"></canvas>
+          Disease
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-parasite"></canvas>
+          Parasite
+        </div>
+        <!-- Obstacle -->
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-obstacle"></canvas>
+          Obstacle
+        </div>
+        <!-- Status glows -->
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ffaa00;
+              box-shadow: 0 0 4px #ffaa00;
+            "
+          ></div>
+          Infected
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #cc44ff;
+              box-shadow: 0 0 4px #cc44ff;
+            "
+          ></div>
+          Parasitized
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #55ffcc;
+              box-shadow: 0 0 4px #55ffcc;
+            "
+          ></div>
+          Boosting
+        </div>
+        <div class="legend-item">
+          <canvas class="legend-canvas" id="legend-skull"></canvas>
+          Cannibal Kill
+        </div>
+        <!-- Stat bars -->
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #e06070"></div>
+          HP
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #f0a040"></div>
+          Energy
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #88ccff"></div>
+          Oxygen
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #ffee55"></div>
+          Fullness
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #55ffcc"></div>
+          Immunity
+        </div>
       </div>
-      <div id="time-display">Day 00 | Hour 00 | Frame 0000/0000</div>
+
+      <div id="progress-bar-container">
+        <div id="progress-bar"></div>
+      </div>
     </div>
 
-    <div id="progress-bar-container"><div id="progress-bar"></div></div>
-
-    <div id="main-container">
-      <div id="canvas-wrap">
-        <canvas id="pond-canvas"></canvas>
-      </div>
-      <div id="sidebar">
-        <div class="panel">
-          <h2 onclick="togglePanel(this)">[-] Champion Pond</h2>
-          <div class="panel-body" id="info-content"></div>
-        </div>
-        <div class="panel">
-          <h2 onclick="togglePanel(this)">[-] Live Statistics</h2>
-          <div class="panel-body" id="stats-content"></div>
-        </div>
-        <div class="panel">
-          <h2 onclick="togglePanel(this)">[-] Pond Genotype</h2>
-          <div class="panel-body" id="genotype-content"></div>
-        </div>
-      </div>
-    </div>
-
-    <div id="legend">
-      <div class="legend-item">
-        <div class="legend-swatch" style="background: #3a5068"></div>
-        Fish
-      </div>
-      <div class="legend-item">
-        <div
-          class="legend-swatch"
-          style="background: #4cff8e; height: 3px; border-radius: 1px"
-        ></div>
-        HP Healthy
-      </div>
-      <div class="legend-item">
-        <div
-          class="legend-swatch"
-          style="background: #ffc04c; height: 3px; border-radius: 1px"
-        ></div>
-        HP Weakened
-      </div>
-      <div class="legend-item">
-        <div
-          class="legend-swatch"
-          style="background: #ff4c6a; height: 3px; border-radius: 1px"
-        ></div>
-        HP Critical
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon" style="color: #ffaa00">&#x2623;</span>Infected
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon" style="color: #cc44ff">~</span>Parasitized
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon" style="color: #44aaff">&#x2726;</span>Boosting
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon" style="color: #ff2222">&#x2620;</span>Cannibal
-        Kill
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch circle" style="background: #ffee55"></div>
-        Food
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch circle" style="background: #55ffcc"></div>
-        Probiotic
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch circle" style="background: #88ccff"></div>
-        O2 Bubble
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon" style="color: #8b6914">&#x25cf;</span>Fecal
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch" style="background: #cc2222"></div>
-        Dead Fish
-      </div>
-      <div class="legend-item">
-        <span class="legend-icon" style="color: #cc6600">&#x25B2;</span
-        >Pollutant
-      </div>
-      <div class="legend-item">
-        <div
-          class="legend-swatch"
-          style="background: rgba(0, 255, 100, 0.3); border-color: #00ff64"
-        ></div>
-        NH3
-      </div>
-      <div class="legend-item">
-        <div
-          class="legend-swatch"
-          style="background: rgba(255, 180, 0, 0.3); border-color: #ffb400"
-        ></div>
-        Disease
-      </div>
-      <div class="legend-item">
-        <div
-          class="legend-swatch"
-          style="background: rgba(200, 80, 255, 0.25); border-color: #c850ff"
-        ></div>
-        Parasite
-      </div>
-      <div class="legend-item">
-        <div class="legend-swatch" style="background: #1a3050"></div>
-        Obstacle
-      </div>
+    <div id="canvas-wrap">
+      <canvas id="pond-canvas"></canvas>
     </div>
 
     <script>
@@ -393,7 +403,7 @@
         frames = [],
         currentFrame = 0,
         playing = true,
-        fps = 15,
+        fps = 3,
         lastTime = 0;
       let scaleX = 1,
         scaleY = 1,
@@ -402,29 +412,266 @@
       const KILL_EFFECT_FRAMES = 25;
       let prevFishIds = new Set();
 
+      const FPS_STEPS = [1, 2, 3, 5, 10, 15, 30, 60, 120];
+      let fpsIndex = 2;
+
       const btnPlay = document.getElementById("btn-play");
       const btnPause = document.getElementById("btn-pause");
       const btnRestart = document.getElementById("btn-restart");
-      const btnToggle = document.getElementById("btn-toggle-sidebar");
-      const speedSlider = document.getElementById("speed-slider");
-      const speedLabel = document.getElementById("speed-label");
+      const btnSlower = document.getElementById("btn-slower");
+      const btnFaster = document.getElementById("btn-faster");
+      const speedDisplay = document.getElementById("speed-display");
       const frameSlider = document.getElementById("frame-slider");
       const timeDisplay = document.getElementById("time-display");
       const progressBar = document.getElementById("progress-bar");
       const loadingDiv = document.getElementById("loading");
-      const sidebar = document.getElementById("sidebar");
 
-      function togglePanel(h2) {
-        const body = h2.nextElementSibling;
-        body.classList.toggle("collapsed");
-        h2.textContent = body.classList.contains("collapsed")
-          ? h2.textContent.replace("[-]", "[+]")
-          : h2.textContent.replace("[+]", "[-]");
+      // ── Bar colors (fixed) ──
+      const BAR_HP = "#e06070";
+      const BAR_ENERGY = "#f0a040";
+      const BAR_OXYGEN = "#88ccff";
+      const BAR_FULLNESS = "#ffee55";
+      const BAR_IMMUNITY = "#55ffcc";
+
+      // ── Glow colors ──
+      const GLOW_INFECTED = "#ffaa00";
+      const GLOW_PARASITE = "#cc44ff";
+      const GLOW_BOOSTING = "#55ffcc";
+
+      // ── Legend icons ──
+
+      function drawLegendIcons() {
+        // Fish (matching pond rendering)
+        const fic = document.getElementById("legend-fish");
+        const fictx = fic.getContext("2d");
+        fic.width = 16;
+        fic.height = 16;
+        fictx.save();
+        fictx.translate(9, 8);
+        fictx.fillStyle = "#3a5068";
+        fictx.beginPath();
+        fictx.ellipse(0, 0, 5, 2.8, 0, 0, Math.PI * 2);
+        fictx.fill();
+        fictx.strokeStyle = "#2a3a4a";
+        fictx.lineWidth = 0.7;
+        fictx.stroke();
+        // Tail
+        fictx.fillStyle = "#2e4458";
+        fictx.globalAlpha = 0.8;
+        fictx.beginPath();
+        fictx.moveTo(-5, 0);
+        fictx.lineTo(-7.5, -2.5);
+        fictx.lineTo(-7.5, 2.5);
+        fictx.closePath();
+        fictx.fill();
+        fictx.globalAlpha = 1;
+        // Eye
+        fictx.fillStyle = "#bbb";
+        fictx.beginPath();
+        fictx.arc(2.5, -0.5, 1, 0, Math.PI * 2);
+        fictx.fill();
+        fictx.fillStyle = "#111";
+        fictx.beginPath();
+        fictx.arc(2.8, -0.5, 0.5, 0, Math.PI * 2);
+        fictx.fill();
+        fictx.restore();
+
+        // Food
+        const fc = document.getElementById("legend-food");
+        const fctx = fc.getContext("2d");
+        fc.width = 16;
+        fc.height = 16;
+        fctx.fillStyle = "#ffee55";
+        fctx.beginPath();
+        fctx.arc(8, 8, 4, 0, Math.PI * 2);
+        fctx.fill();
+        fctx.strokeStyle = "#ccaa22";
+        fctx.lineWidth = 0.8;
+        fctx.stroke();
+
+        // Probiotic
+        const pc = document.getElementById("legend-probiotic");
+        const pctx = pc.getContext("2d");
+        pc.width = 16;
+        pc.height = 16;
+        pctx.fillStyle = "#55ffcc";
+        pctx.beginPath();
+        pctx.arc(8, 8, 4, 0, Math.PI * 2);
+        pctx.fill();
+        pctx.strokeStyle = "#22aa88";
+        pctx.lineWidth = 0.8;
+        pctx.stroke();
+        pctx.strokeStyle = "#fff";
+        pctx.lineWidth = 1;
+        pctx.beginPath();
+        pctx.moveTo(6, 8);
+        pctx.lineTo(10, 8);
+        pctx.stroke();
+        pctx.beginPath();
+        pctx.moveTo(8, 6);
+        pctx.lineTo(8, 10);
+        pctx.stroke();
+
+        // Oxygen
+        const oc = document.getElementById("legend-oxygen");
+        const octx = oc.getContext("2d");
+        oc.width = 16;
+        oc.height = 16;
+        octx.fillStyle = "rgba(136,204,255,0.6)";
+        octx.beginPath();
+        octx.arc(8, 8, 3.5, 0, Math.PI * 2);
+        octx.fill();
+        octx.strokeStyle = "rgba(136,204,255,0.9)";
+        octx.lineWidth = 0.6;
+        octx.stroke();
+
+        // Fecal
+        const fec = document.getElementById("legend-fecal");
+        const fectx = fec.getContext("2d");
+        fec.width = 16;
+        fec.height = 16;
+        fectx.fillStyle = "#8B6914";
+        fectx.beginPath();
+        fectx.ellipse(8, 10, 4, 2, 0, 0, Math.PI * 2);
+        fectx.fill();
+        fectx.beginPath();
+        fectx.ellipse(8, 7.5, 2.8, 1.8, 0, 0, Math.PI * 2);
+        fectx.fill();
+        fectx.beginPath();
+        fectx.ellipse(8, 5.5, 1.8, 1.2, 0, 0, Math.PI * 2);
+        fectx.fill();
+
+        // Dead fish
+        const dc = document.getElementById("legend-deadfish");
+        const dctx = dc.getContext("2d");
+        dc.width = 16;
+        dc.height = 16;
+        dctx.save();
+        dctx.translate(8, 8);
+        dctx.rotate(0.4);
+        dctx.fillStyle = "#cc2222";
+        dctx.beginPath();
+        dctx.ellipse(0, 0, 5, 2.5, 0, 0, Math.PI * 2);
+        dctx.fill();
+        dctx.strokeStyle = "#881111";
+        dctx.lineWidth = 0.7;
+        dctx.stroke();
+        dctx.fillStyle = "#aa1111";
+        dctx.beginPath();
+        dctx.moveTo(-5, 0);
+        dctx.lineTo(-7, -2);
+        dctx.lineTo(-7, 2);
+        dctx.closePath();
+        dctx.fill();
+        dctx.strokeStyle = "#ff8888";
+        dctx.lineWidth = 1;
+        dctx.beginPath();
+        dctx.moveTo(1, -1);
+        dctx.lineTo(3, 1);
+        dctx.stroke();
+        dctx.beginPath();
+        dctx.moveTo(3, -1);
+        dctx.lineTo(1, 1);
+        dctx.stroke();
+        dctx.restore();
+
+        // Pollutant
+        const plc = document.getElementById("legend-pollutant");
+        const plctx = plc.getContext("2d");
+        plc.width = 16;
+        plc.height = 16;
+        plctx.fillStyle = "rgba(204,102,0,0.75)";
+        plctx.strokeStyle = "rgba(204,102,0,0.9)";
+        plctx.lineWidth = 0.8;
+        plctx.beginPath();
+        plctx.moveTo(8, 2);
+        plctx.lineTo(3, 13);
+        plctx.lineTo(13, 13);
+        plctx.closePath();
+        plctx.fill();
+        plctx.stroke();
+        plctx.fillStyle = "#fff";
+        plctx.font = "bold 8px sans-serif";
+        plctx.textAlign = "center";
+        plctx.fillText("!", 8, 12);
+
+        // NH3 (radial gradient circle matching pond)
+        const nh3c = document.getElementById("legend-nh3");
+        const nh3ctx = nh3c.getContext("2d");
+        nh3c.width = 16;
+        nh3c.height = 16;
+        const nh3g = nh3ctx.createRadialGradient(8, 8, 0, 8, 8, 7);
+        nh3g.addColorStop(0, "rgba(0,255,100,0.4)");
+        nh3g.addColorStop(1, "rgba(0,255,100,0.02)");
+        nh3ctx.fillStyle = nh3g;
+        nh3ctx.beginPath();
+        nh3ctx.arc(8, 8, 7, 0, Math.PI * 2);
+        nh3ctx.fill();
+        nh3ctx.strokeStyle = "rgba(0,255,100,0.6)";
+        nh3ctx.lineWidth = 1;
+        nh3ctx.stroke();
+
+        // Disease (radial gradient circle matching pond)
+        const disc = document.getElementById("legend-disease");
+        const disctx = disc.getContext("2d");
+        disc.width = 16;
+        disc.height = 16;
+        const disg = disctx.createRadialGradient(8, 8, 0, 8, 8, 7);
+        disg.addColorStop(0, "rgba(255,180,0,0.4)");
+        disg.addColorStop(1, "rgba(255,180,0,0.02)");
+        disctx.fillStyle = disg;
+        disctx.beginPath();
+        disctx.arc(8, 8, 7, 0, Math.PI * 2);
+        disctx.fill();
+        disctx.strokeStyle = "rgba(255,180,0,0.6)";
+        disctx.lineWidth = 1;
+        disctx.stroke();
+
+        // Parasite (radial gradient circle matching pond)
+        const parc = document.getElementById("legend-parasite");
+        const parctx = parc.getContext("2d");
+        parc.width = 16;
+        parc.height = 16;
+        const parg = parctx.createRadialGradient(8, 8, 0, 8, 8, 7);
+        parg.addColorStop(0, "rgba(200,80,255,0.35)");
+        parg.addColorStop(1, "rgba(200,80,255,0.02)");
+        parctx.fillStyle = parg;
+        parctx.beginPath();
+        parctx.arc(8, 8, 7, 0, Math.PI * 2);
+        parctx.fill();
+        parctx.strokeStyle = "rgba(200,80,255,0.55)";
+        parctx.lineWidth = 1;
+        parctx.stroke();
+
+        // Obstacle (matching pond rendering)
+        const obc = document.getElementById("legend-obstacle");
+        const obctx = obc.getContext("2d");
+        obc.width = 16;
+        obc.height = 16;
+        obctx.fillStyle = "#1a3050";
+        obctx.fillRect(2, 4, 12, 8);
+        obctx.strokeStyle = "#2a5070";
+        obctx.lineWidth = 1.5;
+        obctx.strokeRect(2, 4, 12, 8);
+
+        // Skull (cannibal kill)
+        const skc = document.getElementById("legend-skull");
+        const skctx = skc.getContext("2d");
+        skc.width = 16;
+        skc.height = 16;
+        skctx.font = "13px serif";
+        skctx.fillStyle = "#ff4444";
+        skctx.textAlign = "center";
+        skctx.textBaseline = "middle";
+        skctx.fillText("\u2620", 8, 9);
       }
+
+      // ── Setup ──
 
       function setupHiDPI(pw, ph) {
         dpr = window.devicePixelRatio || 1;
-        const cssW = Math.min(900, window.innerWidth - 340);
+        const wrap = document.getElementById("canvas-wrap");
+        const cssW = wrap.clientWidth;
         const cssH = cssW * (ph / pw);
         canvas.style.width = cssW + "px";
         canvas.style.height = cssH + "px";
@@ -446,8 +693,8 @@
           setupHiDPI(data.pond_width, data.pond_height);
           frameSlider.max = frames.length - 1;
           loadingDiv.classList.add("hidden");
-          populateInfo();
           populateGenotype();
+          drawLegendIcons();
           if (frames.length > 0)
             prevFishIds = new Set(frames[0].fish.map((f) => f.id));
           requestAnimationFrame(loop);
@@ -456,6 +703,8 @@
           loadingDiv.innerHTML = `<div style="color:#ff4c6a;">Could not load simulation_data.json<br>
       <span style="font-size:0.7em;color:#8899aa;">${err.message}</span></div>`;
         });
+
+      // ── Controls ──
 
       btnPlay.addEventListener("click", () => {
         playing = true;
@@ -472,12 +721,15 @@
         frameSlider.value = 0;
         killEffects = [];
       });
-      btnToggle.addEventListener("click", () => {
-        sidebar.classList.toggle("collapsed");
+      btnSlower.addEventListener("click", () => {
+        fpsIndex = Math.max(0, fpsIndex - 1);
+        fps = FPS_STEPS[fpsIndex];
+        speedDisplay.textContent = fps + " fps";
       });
-      speedSlider.addEventListener("input", () => {
-        fps = parseInt(speedSlider.value);
-        speedLabel.textContent = fps + " fps";
+      btnFaster.addEventListener("click", () => {
+        fpsIndex = Math.min(FPS_STEPS.length - 1, fpsIndex + 1);
+        fps = FPS_STEPS[fpsIndex];
+        speedDisplay.textContent = fps + " fps";
       });
       frameSlider.addEventListener("input", () => {
         currentFrame = parseInt(frameSlider.value);
@@ -495,6 +747,8 @@
       window.addEventListener("resize", () => {
         if (DATA) setupHiDPI(DATA.pond_width, DATA.pond_height);
       });
+
+      // ── Main loop ──
 
       function loop(ts) {
         requestAnimationFrame(loop);
@@ -516,7 +770,6 @@
       }
 
       function detectKills(frame) {
-        // Cannibal events from simulation data
         if (frame.cannibal_events) {
           for (const ev of frame.cannibal_events) {
             killEffects.push({
@@ -527,7 +780,6 @@
             });
           }
         }
-        // Also detect disappearances
         const curIds = new Set(
           frame.fish.filter((f) => f.alive).map((f) => f.id),
         );
@@ -535,7 +787,6 @@
           const prev = frames[currentFrame - 1];
           for (const pf of prev.fish) {
             if (pf.alive && !curIds.has(pf.id)) {
-              // Check if near any current fish (cannibal proxy)
               let near = false;
               for (const cf of frame.fish) {
                 if (!cf.alive) continue;
@@ -565,6 +816,8 @@
         prevFishIds = curIds;
       }
 
+      // ── Drawing helpers ──
+
       function sx(x) {
         return x * scaleX;
       }
@@ -582,8 +835,8 @@
 
         // Background
         const grad = ctx.createLinearGradient(0, 0, 0, H);
-        grad.addColorStop(0, "#0b2e4a");
-        grad.addColorStop(1, "#071a2c");
+        grad.addColorStop(0, "#0f3355");
+        grad.addColorStop(1, "#0a2238");
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, H);
         ctx.strokeStyle = "#1e5080";
@@ -591,7 +844,7 @@
         ctx.strokeRect(1, 1, W - 2, H - 2);
 
         // Grid
-        ctx.strokeStyle = "rgba(30,80,128,0.1)";
+        ctx.strokeStyle = "rgba(30,80,128,0.12)";
         ctx.lineWidth = 0.5 * dpr;
         const gs = 50 * scaleX;
         for (let i = gs; i < W; i += gs) {
@@ -613,21 +866,21 @@
           const cx = sx(h.x),
             cy = sy(h.y),
             r = sr(h.r);
-          let c1, c2, sc, label;
+          let c1, c2, sc2, label;
           if (h.type === "nh3") {
             c1 = "rgba(0,255,100,0.25)";
             c2 = "rgba(0,255,100,0.01)";
-            sc = "rgba(0,255,100,0.4)";
+            sc2 = "rgba(0,255,100,0.4)";
             label = "NH3";
           } else if (h.type === "disease") {
             c1 = "rgba(255,180,0,0.25)";
             c2 = "rgba(255,180,0,0.01)";
-            sc = "rgba(255,180,0,0.4)";
+            sc2 = "rgba(255,180,0,0.4)";
             label = "Disease";
           } else {
             c1 = "rgba(200,80,255,0.2)";
             c2 = "rgba(200,80,255,0.01)";
-            sc = "rgba(200,80,255,0.4)";
+            sc2 = "rgba(200,80,255,0.4)";
             label = "Parasite";
           }
           const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
@@ -637,10 +890,10 @@
           ctx.beginPath();
           ctx.arc(cx, cy, r, 0, Math.PI * 2);
           ctx.fill();
-          ctx.strokeStyle = sc;
+          ctx.strokeStyle = sc2;
           ctx.lineWidth = 1 * dpr;
           ctx.stroke();
-          ctx.fillStyle = sc;
+          ctx.fillStyle = sc2;
           ctx.font = `${9 * dpr}px monospace`;
           ctx.fillText(label, cx - 12 * dpr, cy - r - 2 * dpr);
         }
@@ -782,17 +1035,31 @@
             fy = sy(fish.y);
           const bs = Math.max(3.5 * dpr, fish.body_size * sr(1) * 0.35);
 
-          ctx.save();
-          ctx.translate(fx, fy);
-          if (fish.is_infected) {
-            ctx.shadowColor = "#ffaa00";
-            ctx.shadowBlur = 5 * dpr;
-          } else if (fish.has_parasite) {
-            ctx.shadowColor = "#cc44ff";
-            ctx.shadowBlur = 5 * dpr;
+          // ── Multi-glow (concentric rings) ──
+          const glows = [];
+          if (fish.is_infected) glows.push(GLOW_INFECTED);
+          if (fish.has_parasite) glows.push(GLOW_PARASITE);
+          if (fish.is_boosting) glows.push(GLOW_BOOSTING);
+
+          if (glows.length > 0) {
+            for (let gi = 0; gi < glows.length; gi++) {
+              const glowR = bs + (4 + gi * 3.5) * dpr;
+              ctx.save();
+              ctx.beginPath();
+              ctx.arc(fx, fy, glowR, 0, Math.PI * 2);
+              ctx.strokeStyle = glows[gi];
+              ctx.lineWidth = 2 * dpr;
+              ctx.globalAlpha = 0.7;
+              ctx.shadowColor = glows[gi];
+              ctx.shadowBlur = 6 * dpr;
+              ctx.stroke();
+              ctx.restore();
+            }
           }
 
           // Body
+          ctx.save();
+          ctx.translate(fx, fy);
           ctx.fillStyle = "#3a5068";
           ctx.beginPath();
           ctx.ellipse(0, 0, bs, bs * 0.55, 0, 0, Math.PI * 2);
@@ -819,39 +1086,51 @@
           ctx.beginPath();
           ctx.arc(bs * 0.55, -bs * 0.15, 0.6 * dpr, 0, Math.PI * 2);
           ctx.fill();
-          ctx.shadowBlur = 0;
           ctx.restore();
 
-          // HP bar — thin
-          const barW = bs * 2.2,
-            barH = 1.5 * dpr;
-          const barX = fx - barW / 2,
-            barY = fy - bs - 5 * dpr;
-          ctx.fillStyle = "rgba(0,0,0,0.4)";
-          ctx.fillRect(barX, barY, barW, barH);
-          const maxHp = fish.max_hp || 120;
-          const hpPct = Math.max(0, Math.min(1, fish.hp / maxHp));
-          ctx.fillStyle =
-            hpPct > 0.6 ? "#4cff8e" : hpPct > 0.3 ? "#ffc04c" : "#ff4c6a";
-          ctx.fillRect(barX, barY, barW * hpPct, barH);
+          // ── Stat bars: HP, Energy, O2, Fullness, Immunity ──
+          const barW = bs * 2.2;
+          const barH = 1.3 * dpr;
+          const barGap = 1.2 * dpr;
+          const numBars = 5;
+          const barStartY = fy - bs - numBars * (barH + barGap) - 2 * dpr;
+          const barX = fx - barW / 2;
 
-          // State icons
-          let icons = [];
-          if (fish.is_infected) icons.push({ t: "\u2623", c: "#ffaa00" });
-          if (fish.has_parasite) icons.push({ t: "~", c: "#cc44ff" });
-          if (fish.is_boosting) icons.push({ t: "\u2726", c: "#44aaff" });
-          if (icons.length) {
-            const isz = 8 * dpr,
-              tw = icons.length * (isz + 1 * dpr);
-            let ix = fx - tw / 2;
-            ctx.font = `bold ${isz}px sans-serif`;
-            ctx.textAlign = "center";
-            for (const ic of icons) {
-              ctx.fillStyle = ic.c;
-              ctx.fillText(ic.t, ix + isz / 2, barY - 1 * dpr);
-              ix += isz + 1 * dpr;
-            }
-            ctx.textAlign = "start";
+          const maxHp = fish.max_hp || 120;
+          const maxOxy = 100;
+          const maxFull = 80;
+          const maxImm = 100;
+          const maxEn = 100;
+
+          const bars = [
+            {
+              pct: Math.max(0, Math.min(1, fish.hp / maxHp)),
+              color: BAR_HP,
+            },
+            {
+              pct: Math.max(0, Math.min(1, fish.energy / maxEn)),
+              color: BAR_ENERGY,
+            },
+            {
+              pct: Math.max(0, Math.min(1, fish.oxygen / maxOxy)),
+              color: BAR_OXYGEN,
+            },
+            {
+              pct: Math.max(0, Math.min(1, fish.fullness / maxFull)),
+              color: BAR_FULLNESS,
+            },
+            {
+              pct: Math.max(0, Math.min(1, fish.immunity / maxImm)),
+              color: BAR_IMMUNITY,
+            },
+          ];
+
+          for (let bi = 0; bi < bars.length; bi++) {
+            const by = barStartY + bi * (barH + barGap);
+            ctx.fillStyle = "rgba(0,0,0,0.35)";
+            ctx.fillRect(barX, by, barW, barH);
+            ctx.fillStyle = bars[bi].color;
+            ctx.fillRect(barX, by, barW * bars[bi].pct, barH);
           }
         }
 
@@ -918,81 +1197,60 @@
         }
       }
 
+      // ── Stats bar ──
+
       function updateStats(frame) {
-        const alive = frame.fish.filter((f) => f.alive),
-          n = alive.length || 1,
-          total = frame.total_count;
+        const alive = frame.fish.filter((f) => f.alive);
+        const n = alive.length || 1;
+        const total = frame.total_count;
         const sp = (alive.length / total) * 100;
         let sH = 0,
           sE = 0,
           sF = 0,
           sI = 0,
           sO = 0,
-          nI = 0,
-          nP = 0,
-          nB = 0;
+          nInf = 0,
+          nPar = 0,
+          nBst = 0;
         for (const f of alive) {
           sH += f.hp;
           sE += f.energy;
           sF += f.fullness;
           sI += f.immunity;
           sO += f.oxygen;
-          if (f.is_infected) nI++;
-          if (f.has_parasite) nP++;
-          if (f.is_boosting) nB++;
+          if (f.is_infected) nInf++;
+          if (f.has_parasite) nPar++;
+          if (f.is_boosting) nBst++;
         }
-        const aH = sH / n,
-          aE = sE / n,
-          aF = sF / n,
-          aI = sI / n,
-          aO = sO / n;
-        const c = (v, m) =>
-          v / m > 0.6 ? "good" : v / m > 0.3 ? "warn" : "bad";
-        const fm = (v) => v.toFixed(1);
-        document.getElementById("stats-content").innerHTML = `
-    <div class="stat-row"><span class="stat-label">Survival</span><span class="stat-value ${sp > 60 ? "good" : sp > 30 ? "warn" : "bad"}">${sp.toFixed(1)}% (${alive.length}/${total})</span></div>
-    <div class="stat-row"><span class="stat-label">Avg HP</span><span class="stat-value ${c(aH, 120)}">${fm(aH)}</span></div>
-    <div class="stat-row"><span class="stat-label">Avg Energy</span><span class="stat-value ${c(aE, 100)}">${fm(aE)}</span></div>
-    <div class="stat-row"><span class="stat-label">Avg Fullness</span><span class="stat-value ${c(aF, 80)}">${fm(aF)}</span></div>
-    <div class="stat-row"><span class="stat-label">Avg Immunity</span><span class="stat-value ${c(aI, 100)}">${fm(aI)}</span></div>
-    <div class="stat-row"><span class="stat-label">Avg Oxygen</span><span class="stat-value ${c(aO, 100)}">${fm(aO)}</span></div>
-    <hr style="border-color:#1e3a5f;margin:4px 0;">
-    <div class="stat-row"><span class="stat-label">Infected</span><span class="stat-value ${nI ? "bad" : "good"}">${nI}</span></div>
-    <div class="stat-row"><span class="stat-label">Parasitized</span><span class="stat-value ${nP ? "bad" : "good"}">${nP}</span></div>
-    <div class="stat-row"><span class="stat-label">Boosting</span><span class="stat-value ${nB ? "good" : ""}">${nB}</span></div>
-    <div class="stat-row"><span class="stat-label">Objects</span><span class="stat-value">${frame.objects.length}</span></div>
-    <div class="stat-row"><span class="stat-label">Hazards</span><span class="stat-value ${frame.hazards.length ? "warn" : "good"}">${frame.hazards.length}</span></div>`;
-      }
+        const fm = (v) => (v / n).toFixed(1);
 
-      function populateInfo() {
-        if (!DATA) return;
-        document.getElementById("info-content").innerHTML = `
-    <div class="stat-row"><span class="stat-label">Fitness</span><span class="stat-value good">${DATA.fitness.toFixed(4)}</span></div>
-    <div class="stat-row"><span class="stat-label">Survival</span><span class="stat-value">${(DATA.survival_rate * 100).toFixed(2)}%</span></div>
-    <div class="stat-row"><span class="stat-label">Healthiness</span><span class="stat-value">${DATA.avg_healthiness.toFixed(4)}</span></div>
-    <div class="stat-row"><span class="stat-label">Efficiency</span><span class="stat-value">${DATA.efficiency.toFixed(4)}</span></div>
-    <div class="stat-row"><span class="stat-label">Cost</span><span class="stat-value">$${DATA.cost.toFixed(2)}</span></div>
-    <div class="stat-row"><span class="stat-label">Fish</span><span class="stat-value">${DATA.initial_fish}</span></div>
-    <div class="stat-row"><span class="stat-label">Days</span><span class="stat-value">${DATA.aquaculture_days}</span></div>
-    <div class="stat-row"><span class="stat-label">Frames</span><span class="stat-value">${DATA.frames.length}</span></div>`;
+        document.getElementById("stats-bar").innerHTML = `
+          <div class="stat-chip"><span class="stat-chip-label">Survival</span><span class="stat-chip-value">${sp.toFixed(1)}% (${alive.length}/${total})</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">HP</span><span class="stat-chip-value">${fm(sH)}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Energy</span><span class="stat-chip-value">${fm(sE)}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">O₂</span><span class="stat-chip-value">${fm(sO)}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Infected</span><span class="stat-chip-value">${nInf}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Parasitized</span><span class="stat-chip-value">${nPar}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Boosting</span><span class="stat-chip-value">${nBst}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Objects</span><span class="stat-chip-value">${frame.objects.length}</span></div>
+          <div class="stat-chip"><span class="stat-chip-label">Hazards</span><span class="stat-chip-value">${frame.hazards.length}</span></div>
+        `;
       }
 
       function populateGenotype() {
         if (!DATA) return;
-        const g = DATA.genotype,
-          L = (v) => ["Middle", "Corner", "Random"][v] || "?";
-        document.getElementById("genotype-content").innerHTML = `
-    <div class="stat-row"><span class="stat-label">Food Interval</span><span class="stat-value">${g.food_interval}h</span></div>
-    <div class="stat-row"><span class="stat-label">Food Qty</span><span class="stat-value">${g.food_quantity}</span></div>
-    <div class="stat-row"><span class="stat-label">Food Loc</span><span class="stat-value">${L(g.food_location)}</span></div>
-    <hr style="border-color:#1e3a5f;margin:3px 0;">
-    <div class="stat-row"><span class="stat-label">Prob Interval</span><span class="stat-value">${g.probiotic_interval}h</span></div>
-    <div class="stat-row"><span class="stat-label">Prob Qty</span><span class="stat-value">${g.probiotic_quantity}</span></div>
-    <div class="stat-row"><span class="stat-label">Prob Loc</span><span class="stat-value">${L(g.probiotic_location)}</span></div>
-    <hr style="border-color:#1e3a5f;margin:3px 0;">
-    <div class="stat-row"><span class="stat-label">O2 Interval</span><span class="stat-value">${g.oxygen_interval}h</span></div>
-    <div class="stat-row"><span class="stat-label">O2 Duration</span><span class="stat-value">${g.oxygen_duration}h</span></div>
-    <div class="stat-row"><span class="stat-label">O2 Loc</span><span class="stat-value">${L(g.oxygen_location)}</span></div>`;
+        const g = DATA.genotype;
+        const L = (v) => ["Middle", "Corner", "Random"][v] || "?";
+        document.getElementById("genotype-bar").innerHTML = `
+          <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${DATA.fitness.toFixed(4)}</span></div>
+          <div class="geno-chip"><span class="geno-chip-label">Survival:</span><span class="geno-chip-value">${(DATA.survival_rate * 100).toFixed(1)}%</span></div>
+          <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${DATA.cost.toFixed(2)}</span></div>
+          <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}× / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
+          <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}× / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
+          <div class="geno-chip"><span class="geno-chip-label">O₂:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
+        `;
       }
     </script>
   </body>

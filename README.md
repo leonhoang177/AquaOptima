@@ -19,8 +19,7 @@ Run:
 
 ```bash
 cd ./leon
-python simulation_demo.py
-python plot.py
+python run.py
 python -m http.server 8000
 ```
 
