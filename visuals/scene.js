@@ -1,39 +1,27 @@
 /**
- * scene.js -- Three.js scene setup: renderer, camera, orbit controls, lights, pond box.
+ * scene.js -- Three.js scene: renderer, camera, controls, lights, pond, dense plants.
  */
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 
-/**
- * Initialize the 3D scene.
- * @param {HTMLElement} container - The DOM element to attach the renderer to.
- * @param {{width:number, height:number, depth:number}} pond - Pond dimensions.
- * @returns {object} sceneCtx - Shared scene context.
- */
 export function initScene(container, pond) {
   const { width: W, height: H, depth: D } = pond;
 
-  // ── Renderer ──
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.setClearColor(0x0a1628, 1);
-  renderer.shadowMap.enabled = false;
   _resize(renderer, container);
   container.appendChild(renderer.domElement);
 
-  // ── Scene ──
   const scene = new THREE.Scene();
   scene.fog = new THREE.FogExp2(0x0a1628, 0.003);
 
-  // ── Camera ──
   const aspect = container.clientWidth / container.clientHeight;
   const camera = new THREE.PerspectiveCamera(50, aspect, 1, 1000);
-  // Position camera looking at pond from above-front
   camera.position.set(W * 0.5, -H * 0.8, D * 1.8);
   camera.lookAt(W * 0.5, H * 0.5, D * 0.5);
 
-  // ── Orbit controls ──
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.target.set(W * 0.5, H * 0.5, D * 0.5);
   controls.enableDamping = true;
@@ -42,97 +30,169 @@ export function initScene(container, pond) {
   controls.maxDistance = 500;
   controls.update();
 
-  // ── Lights ──
-  const ambientLight = new THREE.AmbientLight(0x4466aa, 0.6);
-  scene.add(ambientLight);
-
+  scene.add(new THREE.AmbientLight(0x4466aa, 0.6));
   const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-  dirLight.position.set(W * 0.3, -H * 0.5, D * 2);
+  dirLight.position.set(W * 0.3, -H * 0.5, -D);
   scene.add(dirLight);
-
   const fillLight = new THREE.DirectionalLight(0x88aacc, 0.3);
   fillLight.position.set(W * 0.7, H * 1.5, D * 0.5);
   scene.add(fillLight);
 
-  // ── Pond box (wireframe edges) ──
+  // Pond wireframe
   const pondGeo = new THREE.BoxGeometry(W, H, D);
-  const pondEdges = new THREE.EdgesGeometry(pondGeo);
   const pondLine = new THREE.LineSegments(
-    pondEdges,
-    new THREE.LineBasicMaterial({ color: 0x1e5080, linewidth: 1 }),
+    new THREE.EdgesGeometry(pondGeo),
+    new THREE.LineBasicMaterial({ color: 0x1e5080 }),
   );
-  pondLine.position.set(W * 0.5, H * 0.5, D * 0.5);
+  pondLine.position.set(W / 2, H / 2, D / 2);
   scene.add(pondLine);
 
-  // ── Pond floor (subtle plane) ──
-  const floorGeo = new THREE.PlaneGeometry(W, H);
-  const floorMat = new THREE.MeshBasicMaterial({
-    color: 0x071a2c,
-    transparent: true,
-    opacity: 0.6,
-    side: THREE.DoubleSide,
-  });
-  const floor = new THREE.Mesh(floorGeo, floorMat);
-  floor.position.set(W * 0.5, H * 0.5, D);
-  scene.add(floor);
-
-  // ── Water surface (subtle plane at z=0) ──
-  const surfaceGeo = new THREE.PlaneGeometry(W, H);
-  const surfaceMat = new THREE.MeshBasicMaterial({
-    color: 0x1a5588,
-    transparent: true,
-    opacity: 0.15,
-    side: THREE.DoubleSide,
-  });
-  const surface = new THREE.Mesh(surfaceGeo, surfaceMat);
-  surface.position.set(W * 0.5, H * 0.5, 0);
-  scene.add(surface);
-
-  // ── Grid on floor ──
-  const gridGroup = new THREE.Group();
-  const gridMat = new THREE.LineBasicMaterial({
-    color: 0x1e3a5f,
+  // Water surface (z=0)
+  const surfMat = new THREE.MeshBasicMaterial({
+    color: 0x2a6699,
     transparent: true,
     opacity: 0.2,
+    side: THREE.DoubleSide,
   });
-  const gridStep = 25;
-  for (let x = 0; x <= W; x += gridStep) {
-    const pts = [new THREE.Vector3(x, 0, D), new THREE.Vector3(x, H, D)];
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    gridGroup.add(new THREE.LineSegments(geo, gridMat));
+  const surf = new THREE.Mesh(new THREE.PlaneGeometry(W, H), surfMat);
+  surf.position.set(W / 2, H / 2, 0);
+  scene.add(surf);
+
+  // Floor (z=D)
+  const floorMat = new THREE.MeshBasicMaterial({
+    color: 0x2a2018,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+  });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat);
+  floor.position.set(W / 2, H / 2, D);
+  scene.add(floor);
+
+  // Floor grid
+  const gridGroup = new THREE.Group();
+  const gridMat = new THREE.LineBasicMaterial({
+    color: 0x3a2a1a,
+    transparent: true,
+    opacity: 0.15,
+  });
+  for (let x = 0; x <= W; x += 25) {
+    gridGroup.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, 0, D),
+          new THREE.Vector3(x, H, D),
+        ]),
+        gridMat,
+      ),
+    );
   }
-  for (let y = 0; y <= H; y += gridStep) {
-    const pts = [new THREE.Vector3(0, y, D), new THREE.Vector3(W, y, D)];
-    const geo = new THREE.BufferGeometry().setFromPoints(pts);
-    gridGroup.add(new THREE.LineSegments(geo, gridMat));
+  for (let y = 0; y <= H; y += 25) {
+    gridGroup.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, y, D),
+          new THREE.Vector3(W, y, D),
+        ]),
+        gridMat,
+      ),
+    );
   }
   scene.add(gridGroup);
 
-  // ── Resize handler ──
+  // Dense underwater plants
+  _createPlants(scene, W, H, D);
+
   window.addEventListener("resize", () => {
     _resize(renderer, container);
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
   });
 
-  return {
-    renderer,
-    scene,
-    camera,
-    controls,
-    pond,
-  };
+  return { renderer, scene, camera, controls, pond };
 }
 
-/**
- * @returns {THREE.WebGLRenderer}
- */
-export function getRenderer(sceneCtx) {
-  return sceneCtx.renderer;
+export function getRenderer(ctx) {
+  return ctx.renderer;
 }
 
 function _resize(renderer, container) {
   const w = container.clientWidth;
   const h = container.clientHeight || window.innerHeight - container.offsetTop;
   renderer.setSize(w, h);
+}
+
+function _createPlants(scene, W, H, D) {
+  const group = new THREE.Group();
+  const grassColors = [0x1a6633, 0x228844, 0x2a7744, 0x1a5533, 0x1e7040];
+  const kelpColors = [0x0f4422, 0x1a5530, 0x0d3318, 0x145528];
+
+  // Dense tall seagrass — cover ~90% of floor
+  const spacing = 5;
+  for (let gx = 3; gx < W - 3; gx += spacing) {
+    for (let gy = 2; gy < H - 2; gy += spacing) {
+      if (Math.random() > 0.9) continue; // 10% gaps
+      const px = gx + (Math.random() - 0.5) * spacing * 0.8;
+      const py = gy + (Math.random() - 0.5) * spacing * 0.8;
+      const height = 3 + Math.random() * 8;
+      const width = 0.3 + Math.random() * 0.5;
+      const color = grassColors[Math.floor(Math.random() * grassColors.length)];
+
+      const mat = new THREE.MeshPhongMaterial({
+        color,
+        transparent: true,
+        opacity: 0.6 + Math.random() * 0.15,
+        side: THREE.DoubleSide,
+        emissive: color,
+        emissiveIntensity: 0.08,
+      });
+      const blade = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+      blade.position.set(px, py, D - height * 0.5);
+      blade.rotation.z = (Math.random() - 0.5) * 0.4;
+      blade.rotation.y = Math.random() * Math.PI;
+      group.add(blade);
+
+      // Companion blade for density
+      if (Math.random() > 0.3) {
+        const b2 = blade.clone();
+        b2.material = mat.clone();
+        b2.position.x += (Math.random() - 0.5) * 1.5;
+        b2.position.y += (Math.random() - 0.5) * 1.2;
+        const h2 = 2 + Math.random() * 6;
+        b2.scale.set(1, h2 / height, 1);
+        b2.rotation.z = (Math.random() - 0.5) * 0.5;
+        b2.rotation.y = Math.random() * Math.PI;
+        group.add(b2);
+      }
+    }
+  }
+
+  // Kelp clusters scattered throughout
+  for (let i = 0; i < 30; i++) {
+    const cx = Math.random() * (W - 30) + 15;
+    const cy = Math.random() * (H - 15) + 7;
+    const count = 3 + Math.floor(Math.random() * 5);
+    for (let j = 0; j < count; j++) {
+      const kx = cx + (Math.random() - 0.5) * 6;
+      const ky = cy + (Math.random() - 0.5) * 4;
+      const kh = 2 + Math.random() * 5;
+      const kw = 0.7 + Math.random() * 1.0;
+      const kColor = kelpColors[Math.floor(Math.random() * kelpColors.length)];
+      const kMat = new THREE.MeshPhongMaterial({
+        color: kColor,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
+        emissive: kColor,
+        emissiveIntensity: 0.05,
+      });
+      const kelp = new THREE.Mesh(new THREE.PlaneGeometry(kw, kh), kMat);
+      kelp.position.set(kx, ky, D - kh * 0.5);
+      kelp.rotation.y = Math.random() * Math.PI;
+      kelp.rotation.z = (Math.random() - 0.5) * 0.3;
+      group.add(kelp);
+    }
+  }
+
+  scene.add(group);
 }

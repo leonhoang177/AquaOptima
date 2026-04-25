@@ -20,8 +20,8 @@ PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 # ╚══════════════════════════════════════════════════════════════╝
 
 MAX_BUDGET = 200.0
-INITIAL_FISH_POPULATION = 30
-AQUACULTURE_DAYS = 20
+INITIAL_FISH_POPULATION = 20
+AQUACULTURE_DAYS = 10
 POND_GENERATIONS = 10
 RUN_TIMELINES = 3
 INITIAL_POND_COUNT = 10
@@ -85,7 +85,7 @@ SELFISH_DISTANCE = 8.0
 OXYGEN_DECAY = 0.05
 OXYGEN_DECAY_NH3_MULT = 2.0
 ENERGY_DECAY = 0.04
-FULLNESS_DECAY = 0.06
+FULLNESS_DECAY = 0.10
 ENERGY_COST_MOVE = 0.05
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -102,6 +102,7 @@ HP_DECAY_PARASITE = 0.8
 # ╚══════════════════════════════════════════════════════════════╝
 
 IMMUNITY_DECAY_IN_DISEASE = 1.5
+IMMUNITY_REGEN = 0.02
 PARASITE_CONTACT_CHANCE = 0.05
 PARASITE_FULLNESS_EFFICIENCY = 0.5
 PARASITE_EXTRA_FULLNESS_DRAIN = 1.5
@@ -132,13 +133,21 @@ POLLUTANT_TO_HAZARD_TIMESTEPS = 48
 DISEASE_AREA_RADIUS_DECAY = 0.990
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║                 POLLUTANT -> HAZARD CHANCES                 ║
+# ║                 POLLUTANT TRANSFORMATION                    ║
+# ║  Chances must sum to <= 1.0. Remainder = nothing happens.   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-POLLUTANT_TO_DISEASE_CHANCE = 0.4
-POLLUTANT_TO_PARASITE_CHANCE = 0.3
+POLLUTANT_TO_NH3_CHANCE = 0.25
+POLLUTANT_TO_DISEASE_CHANCE = 0.10
+POLLUTANT_TO_PARASITE_CHANCE = 0.10
+POLLUTANT_TO_BOTH_CHANCE = 0.05
+POLLUTANT_TO_PLANT_CHANCE = 0.10
+POLLUTANT_TO_OBSTACLE_CHANCE = 0.25
+# Remaining 0.15 = pollutant disappears
+
 POLLUTANT_RADIUS_SCALE = 1.5
 DEAD_FISH_POLLUTANT_MULT = 1.5
+POLLUTANT_OBSTACLE_AREA_RANGE = (3, 8)
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FOOD & HEALING GAINS                        ║
@@ -148,22 +157,15 @@ FOOD_ENERGY_GAIN = 25.0
 FOOD_FULLNESS_GAIN = 20.0
 FOOD_VALUE = 5.0
 PROBIOTIC_VALUE = 3.0
-PROBIOTIC_IMMUNITY_BOOST = 40.0
+PROBIOTIC_IMMUNITY_GAIN = 40.0
 OXYGEN_BUBBLE_GAIN = 30.0
-
-# ╔══════════════════════════════════════════════════════════════╗
-# ║                 STATE DURATIONS (TIMESTEPS)                 ║
-# ╚══════════════════════════════════════════════════════════════╝
-
-BOOSTING_DURATION = 5
-IMMUNITY_BOOST_DURATION = 10
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 NATURAL SPAWN RATES                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 NATURAL_OXYGEN_SPAWN_RATE = 0.12
-NATURAL_NH3_SPAWN_RATE = 0.005
+NATURAL_NH3_SPAWN_RATE = 0.015
 OXYGEN_BUBBLES_PER_PUMP = 7
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -178,8 +180,21 @@ OBSTACLE_STATIC_CHANCE = 0.6
 OBSTACLE_SPEED_RANGE = (0.05, 0.50)
 OBSTACLE_DEPTH_RANGE = (5.0, 15.0)
 OXYGEN_BUBBLE_SPEED = 0.5
-NH3_AREA_RADIUS_RANGE = (8.0, 15.0)
+NH3_AREA_RADIUS_RANGE = (12.0, 25.0)
 NH3_AREA_SPEED = 0.2
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 SINKING MECHANICS                           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+SINK_SPEED = 0.3
+SINK_SPEED_HEAVY = 0.6
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FLOOR HAZARD MECHANICS                      ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FLOOR_HAZARD_HEIGHT = 8.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FECAL MECHANICS                             ║
@@ -216,7 +231,6 @@ PSO_SELFISH_WEIGHT = 1.5
 PSO_NH3_WEIGHT = 4.0
 PSO_NH3_HUNGRY_OVERRIDE = 0.5
 PSO_DISEASE_WEIGHT = 2.5
-PSO_DISEASE_BOOSTING_WEIGHT = 0.3
 PSO_PARASITE_WEIGHT = 3.0
 PSO_RELIEF_WEIGHT = 4.0
 PSO_RUN_WEIGHT = 5.0

@@ -1,171 +1,175 @@
 /**
- * objects.js -- Food, probiotic, O₂, fecal, dead fish, pollutant meshes.
- *
- * Uses object pooling per type.
+ * objects.js -- Food, probiotic, O2, fecal, dead fish, pollutant, plant meshes.
  */
 
 import * as THREE from "three";
 
-// ── Pool sizes ──
-const MAX_FOOD = 60;
-const MAX_PROBIOTIC = 60;
-const MAX_OXYGEN = 80;
-const MAX_FECAL = 40;
-const MAX_DEAD_FISH = 20;
-const MAX_POLLUTANT = 30;
-
-// ── Colors ──
-const FOOD_COLOR = 0xffee55;
-const FOOD_EDGE = 0xccaa22;
-const PROBIOTIC_COLOR = 0x55ffcc;
-const PROBIOTIC_EDGE = 0x22aa88;
-const OXYGEN_COLOR = 0x88ccff;
-const FECAL_COLOR = 0x8b6914;
-const DEAD_FISH_COLOR = 0xcc2222;
-const POLLUTANT_COLOR = 0xcc6600;
+const MAX_FOOD = 60,
+  MAX_PROBIOTIC = 60,
+  MAX_OXYGEN = 80,
+  MAX_FECAL = 40;
+const MAX_DEAD_FISH = 20,
+  MAX_POLLUTANT = 30,
+  MAX_PLANT = 40;
 
 let pools = {};
 
-/**
- * Create a pool of meshes for a given type.
- */
-function _createPool(scene, count, createFn) {
-  const arr = [];
-  for (let i = 0; i < count; i++) {
-    const mesh = createFn();
-    mesh.visible = false;
-    scene.add(mesh);
-    arr.push(mesh);
+function _pool(scene, n, fn) {
+  const a = [];
+  for (let i = 0; i < n; i++) {
+    const m = fn();
+    m.visible = false;
+    scene.add(m);
+    a.push(m);
   }
-  return arr;
+  return a;
 }
 
-/**
- * Initialize all object pools.
- */
 export function initObjects(sceneCtx, pond) {
   const { scene } = sceneCtx;
 
-  // ── Food (small yellow spheres) ──
-  pools.food = _createPool(scene, MAX_FOOD, () => {
-    const geo = new THREE.SphereGeometry(0.8, 8, 6);
-    const mat = new THREE.MeshPhongMaterial({
-      color: FOOD_COLOR,
-      emissive: FOOD_EDGE,
-      emissiveIntensity: 0.2,
-    });
-    return new THREE.Mesh(geo, mat);
+  pools.food = _pool(
+    scene,
+    MAX_FOOD,
+    () =>
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 8, 6),
+        new THREE.MeshPhongMaterial({
+          color: 0xffee55,
+          emissive: 0xccaa22,
+          emissiveIntensity: 0.2,
+        }),
+      ),
+  );
+
+  pools.probiotic = _pool(scene, MAX_PROBIOTIC, () => {
+    const g = new THREE.Group();
+    g.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 8, 6),
+        new THREE.MeshPhongMaterial({
+          color: 0x55ffcc,
+          emissive: 0x22aa88,
+          emissiveIntensity: 0.2,
+        }),
+      ),
+    );
+    const cm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(1, 0.15, 0.15), cm));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 1, 0.15), cm));
+    return g;
   });
 
-  // ── Probiotic (small green spheres with cross) ──
-  pools.probiotic = _createPool(scene, MAX_PROBIOTIC, () => {
-    const group = new THREE.Group();
+  pools.oxygen = _pool(
+    scene,
+    MAX_OXYGEN,
+    () =>
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 8, 6),
+        new THREE.MeshPhongMaterial({
+          color: 0x88ccff,
+          transparent: true,
+          opacity: 0.45,
+          emissive: 0x88ccff,
+          emissiveIntensity: 0.15,
+        }),
+      ),
+  );
 
-    const geo = new THREE.SphereGeometry(0.8, 8, 6);
-    const mat = new THREE.MeshPhongMaterial({
-      color: PROBIOTIC_COLOR,
-      emissive: PROBIOTIC_EDGE,
-      emissiveIntensity: 0.2,
-    });
-    group.add(new THREE.Mesh(geo, mat));
+  pools.fecal = _pool(
+    scene,
+    MAX_FECAL,
+    () =>
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.6, 6, 5),
+        new THREE.MeshPhongMaterial({ color: 0x8b6914, shininess: 5 }),
+      ),
+  );
 
-    // Cross (two thin boxes)
-    const crossMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-    const h = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.15, 0.15), crossMat);
-    group.add(h);
-    const v = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.0, 0.15), crossMat);
-    group.add(v);
-
-    return group;
-  });
-
-  // ── Oxygen (small translucent blue spheres) ──
-  pools.oxygen = _createPool(scene, MAX_OXYGEN, () => {
-    const geo = new THREE.SphereGeometry(0.5, 8, 6);
-    const mat = new THREE.MeshPhongMaterial({
-      color: OXYGEN_COLOR,
-      transparent: true,
-      opacity: 0.45,
-      emissive: OXYGEN_COLOR,
-      emissiveIntensity: 0.15,
-    });
-    return new THREE.Mesh(geo, mat);
-  });
-
-  // ── Fecal (small brown spheres, scaled by value) ──
-  pools.fecal = _createPool(scene, MAX_FECAL, () => {
-    const geo = new THREE.SphereGeometry(0.6, 6, 5);
-    const mat = new THREE.MeshPhongMaterial({
-      color: FECAL_COLOR,
-      shininess: 5,
-    });
-    return new THREE.Mesh(geo, mat);
-  });
-
-  // ── Dead fish (red elongated shape, rotated) ──
-  pools.dead_fish = _createPool(scene, MAX_DEAD_FISH, () => {
-    const group = new THREE.Group();
-
-    // Body
-    const bodyGeo = new THREE.SphereGeometry(1, 8, 6);
-    const bodyMat = new THREE.MeshPhongMaterial({
-      color: DEAD_FISH_COLOR,
-      emissive: 0x881111,
-      emissiveIntensity: 0.2,
-    });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
+  pools.dead_fish = _pool(scene, MAX_DEAD_FISH, () => {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 8, 6),
+      new THREE.MeshPhongMaterial({
+        color: 0xcc2222,
+        emissive: 0x881111,
+        emissiveIntensity: 0.2,
+      }),
+    );
     body.scale.set(1.5, 0.6, 0.6);
-    group.add(body);
-
-    // Tail
-    const tailGeo = new THREE.ConeGeometry(0.4, 0.8, 5);
-    const tailMat = new THREE.MeshPhongMaterial({ color: 0xaa1111 });
-    const tail = new THREE.Mesh(tailGeo, tailMat);
+    g.add(body);
+    const tail = new THREE.Mesh(
+      new THREE.ConeGeometry(0.4, 0.8, 5),
+      new THREE.MeshPhongMaterial({ color: 0xaa1111 }),
+    );
     tail.rotation.z = Math.PI / 2;
     tail.position.set(-1.8, 0, 0);
-    group.add(tail);
-
-    // X eyes (two crossed lines)
-    const xMat = new THREE.MeshBasicMaterial({ color: 0xff8888 });
-    const x1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.08), xMat);
+    g.add(tail);
+    const xm = new THREE.MeshBasicMaterial({ color: 0xff8888 });
+    const x1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.08), xm);
     x1.position.set(0.6, 0.2, 0.35);
     x1.rotation.z = Math.PI / 4;
-    group.add(x1);
-    const x2 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.08), xMat);
-    x2.position.set(0.6, 0.2, 0.35);
+    g.add(x1);
+    const x2 = x1.clone();
     x2.rotation.z = -Math.PI / 4;
-    group.add(x2);
-
-    // Tilt the whole dead fish
-    group.rotation.z = 0.4;
-    group.rotation.x = 0.2;
-
-    return group;
+    g.add(x2);
+    g.rotation.z = 0.4;
+    g.rotation.x = 0.2;
+    return g;
   });
 
-  // ── Pollutant (orange octahedron as warning shape) ──
-  pools.pollutant = _createPool(scene, MAX_POLLUTANT, () => {
-    const geo = new THREE.OctahedronGeometry(1, 0);
+  pools.pollutant = _pool(
+    scene,
+    MAX_POLLUTANT,
+    () =>
+      new THREE.Mesh(
+        new THREE.OctahedronGeometry(1, 0),
+        new THREE.MeshPhongMaterial({
+          color: 0xcc6600,
+          transparent: true,
+          opacity: 0.7,
+          emissive: 0xcc6600,
+          emissiveIntensity: 0.15,
+        }),
+      ),
+  );
+
+  // Plants spawned by pollutant transformation
+  const plantColors = [0x1a6633, 0x228844, 0x2a7744, 0x1a5533];
+  pools.plant = _pool(scene, MAX_PLANT, () => {
+    const g = new THREE.Group();
+    const color = plantColors[Math.floor(Math.random() * plantColors.length)];
     const mat = new THREE.MeshPhongMaterial({
-      color: POLLUTANT_COLOR,
+      color,
       transparent: true,
-      opacity: 0.7,
-      emissive: POLLUTANT_COLOR,
-      emissiveIntensity: 0.15,
+      opacity: 0.65,
+      side: THREE.DoubleSide,
+      emissive: color,
+      emissiveIntensity: 0.08,
     });
-    return new THREE.Mesh(geo, mat);
+    const h = 3 + Math.random() * 6;
+    const blade = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.4 + Math.random() * 0.4, h),
+      mat,
+    );
+    blade.rotation.y = Math.random() * Math.PI;
+    blade.rotation.z = (Math.random() - 0.5) * 0.3;
+    g.add(blade);
+    if (Math.random() > 0.4) {
+      const b2 = blade.clone();
+      b2.material = mat.clone();
+      b2.position.x += (Math.random() - 0.5) * 1.2;
+      b2.rotation.y = Math.random() * Math.PI;
+      g.add(b2);
+    }
+    return g;
   });
 
   return { pools };
 }
 
-/**
- * Update all object meshes from frame data.
- */
 export function updateObjects(objectsCtx, frame) {
   const objData = frame.objects || [];
-
-  // Sort objects by type for pool assignment
   const byType = {
     food: [],
     probiotic: [],
@@ -173,64 +177,48 @@ export function updateObjects(objectsCtx, frame) {
     fecal: [],
     dead_fish: [],
     pollutant: [],
+    plant: [],
   };
-
   for (const obj of objData) {
-    if (byType[obj.type]) {
-      byType[obj.type].push(obj);
-    }
+    if (byType[obj.type]) byType[obj.type].push(obj);
   }
 
-  // ── Update each pool ──
-  _updatePool(pools.food, byType.food, (mesh, d) => {
-    mesh.position.set(d.x, d.y, d.z);
-    const s = 0.6 + d.value * 0.1;
-    mesh.scale.setScalar(s);
+  _upd(pools.food, byType.food, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.6 + d.value * 0.1);
   });
-
-  _updatePool(pools.probiotic, byType.probiotic, (mesh, d) => {
-    mesh.position.set(d.x, d.y, d.z);
-    const s = 0.6 + d.value * 0.08;
-    mesh.scale.setScalar(s);
+  _upd(pools.probiotic, byType.probiotic, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.6 + d.value * 0.08);
   });
-
-  _updatePool(pools.oxygen, byType.oxygen, (mesh, d) => {
-    mesh.position.set(d.x, d.y, d.z);
-    mesh.scale.setScalar(0.5);
+  _upd(pools.oxygen, byType.oxygen, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.5);
   });
-
-  _updatePool(pools.fecal, byType.fecal, (mesh, d) => {
-    mesh.position.set(d.x, d.y, d.z);
-    const s = 0.5 + d.value * 0.12;
-    mesh.scale.setScalar(s);
+  _upd(pools.fecal, byType.fecal, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.5 + d.value * 0.12);
   });
-
-  _updatePool(pools.dead_fish, byType.dead_fish, (mesh, d) => {
-    mesh.position.set(d.x, d.y, d.z);
-    const s = 0.8 + d.value * 0.1;
-    mesh.scale.setScalar(s);
+  _upd(pools.dead_fish, byType.dead_fish, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.8 + d.value * 0.1);
   });
-
-  _updatePool(pools.pollutant, byType.pollutant, (mesh, d) => {
-    mesh.position.set(d.x, d.y, d.z);
-    const s = 0.6 + d.value * 0.15;
-    mesh.scale.setScalar(s);
-    // Slow rotation for visual interest
-    mesh.rotation.y += 0.05;
-    mesh.rotation.x += 0.03;
+  _upd(pools.pollutant, byType.pollutant, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.6 + d.value * 0.15);
+    m.rotation.y += 0.05;
+    m.rotation.x += 0.03;
+  });
+  _upd(pools.plant, byType.plant, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
   });
 }
 
-/**
- * Generic pool updater: show first N, apply transform, hide rest.
- */
-function _updatePool(pool, dataArr, applyFn) {
+function _upd(pool, data, fn) {
   for (let i = 0; i < pool.length; i++) {
-    if (i < dataArr.length) {
+    if (i < data.length) {
       pool[i].visible = true;
-      applyFn(pool[i], dataArr[i]);
-    } else {
-      pool[i].visible = false;
-    }
+      fn(pool[i], data[i]);
+    } else pool[i].visible = false;
   }
 }

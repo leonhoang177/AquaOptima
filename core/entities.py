@@ -11,7 +11,7 @@ from constants import (
     EA_MUTATION_RATE, FOOD_INTERVAL_RANGE, FOOD_QUANTITY_RANGE,
     FOOD_PRICE, PROBIOTIC_PRICE, OXYGEN_PRICE,
     VELOCITY_HP_THRESHOLD, VELOCITY_ENERGY_THRESHOLD, VELOCITY_FULLNESS_THRESHOLD,
-    PARASITE_VELOCITY_MULT,
+    PARASITE_VELOCITY_MULT, FLOOR_HAZARD_HEIGHT,
 )
 
 
@@ -95,15 +95,13 @@ class Obstacle:
     def center(self) -> Tuple[float, float, float]:
         return self.x + self.w / 2, self.y + self.h / 2, self.z + self.d / 2
 
-    def predicted_box(self, steps: int) -> Tuple[float, float, float, float, float, float]:
-        """Return (x, y, z, w, h, d) at predicted future position."""
+    def predicted_box(self, steps):
         if self.is_static:
             return self.x, self.y, self.z, self.w, self.h, self.d
         return (self.x + self.vx * steps, self.y + self.vy * steps,
                 self.z + self.vz * steps, self.w, self.h, self.d)
 
-    def nearest_surface_predicted(self, px, py, pz, steps: int) -> Tuple[float, float, float]:
-        """Nearest surface point using predicted future position."""
+    def nearest_surface_predicted(self, px, py, pz, steps):
         fx, fy, fz, fw, fh, fd = self.predicted_box(steps)
         cx = max(fx, min(px, fx + fw))
         cy = max(fy, min(py, fy + fh))
@@ -117,6 +115,7 @@ class DynObj:
     age: int = 0; max_age: int = 30
     vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
     alive: bool = True
+    on_floor: bool = False
 
 
 @dataclass
@@ -124,8 +123,13 @@ class Hazard:
     x: float; y: float; z: float; radius: float; kind: str
     age: int = 0; max_age: int = 50; alive: bool = True
     vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
+    is_floor: bool = False
 
     def contains(self, px, py, pz) -> bool:
+        if self.is_floor:
+            if pz < self.z - FLOOR_HAZARD_HEIGHT:
+                return False
+            return (px - self.x) ** 2 + (py - self.y) ** 2 <= self.radius ** 2
         return ((px - self.x) ** 2 + (py - self.y) ** 2 +
                 (pz - self.z) ** 2) <= self.radius ** 2
 
@@ -142,7 +146,6 @@ class Fish:
     immunity: float = 80.0; max_immunity: float = 80.0
     oxygen: float = 90.0; max_oxygen: float = 90.0
     base_velocity: float = 2.0
-    is_boosting: bool = False; boost_timer: int = 0
     is_infected: bool = False; has_parasite: bool = False
     alive: bool = True; fecal_timer: int = 0
 
@@ -173,7 +176,6 @@ class Fish:
             'oxygen': round(self.oxygen, 1), 'max_oxygen': round(self.max_oxygen, 1),
             'alive': self.alive,
             'is_infected': self.is_infected, 'has_parasite': self.has_parasite,
-            'is_boosting': self.is_boosting,
             'body_size': round(self.body_size, 1), 'mouth_size': round(self.mouth_size, 1),
             'base_velocity': round(self.base_velocity, 2),
             'vx': round(self.vx, 2), 'vy': round(self.vy, 2), 'vz': round(self.vz, 2),

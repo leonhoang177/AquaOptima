@@ -1,292 +1,324 @@
 /**
- * entities.js -- Fish meshes, obstacle boxes, hazard spheres.
- *
- * Uses object pooling: pre-allocate max expected meshes,
- * show/hide per frame instead of creating/destroying.
+ * entities.js -- Fish, obstacles, hazards. Selected fish highlight ring + glow.
  */
 
 import * as THREE from "three";
+import { getSelectedFishId } from "./selection.js";
 
-// ── Pool sizes ──
-const MAX_FISH = 60;
-const MAX_OBSTACLES = 30;
-const MAX_HAZARDS = 40;
+const MAX_FISH = 60,
+  MAX_OBSTACLES = 30,
+  MAX_HAZARDS = 40;
 
-// ── Colors ──
-const FISH_COLOR = 0x3a5068;
-const FISH_TAIL_COLOR = 0x2e4458;
-const OBSTACLE_COLOR = 0x1a3050;
-const OBSTACLE_EDGE_COLOR = 0x2a5070;
-
+const FISH_COLOR = 0x7a9ab5;
+const FISH_COLOR_SELECTED = 0xaaddff;
+const FISH_EMISSIVE_SELECTED = 0x44aaff;
+const FISH_TAIL_COLOR = 0x6a8a9f;
+const OBSTACLE_COLOR = 0x5a3a28;
+const OBSTACLE_EDGE_COLOR = 0x7a5a40;
 const GLOW_INFECTED = 0xffaa00;
 const GLOW_PARASITE = 0xcc44ff;
-const GLOW_BOOSTING = 0x55ffcc;
+const GLOW_SELECTED = 0x44aaff;
 
 const HAZARD_COLORS = {
   nh3: { color: 0x00ff64, opacity: 0.15 },
-  disease: { color: 0xffb400, opacity: 0.15 },
-  parasite: { color: 0xc850ff, opacity: 0.12 },
+  disease: { color: 0xffb400, opacity: 0.18 },
+  parasite: { color: 0xc850ff, opacity: 0.15 },
 };
 
-let fishPool = [];
-let obstaclePool = [];
-let hazardPool = [];
-let glowPool = [];
+let fishPool = [],
+  obstaclePool = [],
+  hazardSpherePool = [],
+  hazardDiscPool = [],
+  glowPool = [];
+let selectionLight = null;
 
-/**
- * Initialize entity pools and add to scene.
- */
 export function initEntities(sceneCtx, pond) {
   const { scene } = sceneCtx;
 
-  // ── Fish pool ──
-  // Each fish = group containing body (ellipsoid), tail, eye
-  for (let i = 0; i < MAX_FISH; i++) {
-    const group = new THREE.Group();
-    group.visible = false;
+  selectionLight = new THREE.PointLight(0x44aaff, 0, 30);
+  selectionLight.visible = false;
+  scene.add(selectionLight);
 
-    // Body (sphere scaled to ellipsoid)
-    const bodyGeo = new THREE.SphereGeometry(1, 12, 8);
+  for (let i = 0; i < MAX_FISH; i++) {
+    const g = new THREE.Group();
+    g.visible = false;
     const bodyMat = new THREE.MeshPhongMaterial({
       color: FISH_COLOR,
-      shininess: 30,
+      shininess: 50,
+      emissive: 0,
+      emissiveIntensity: 0,
     });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    body.name = "fishBody";
-    group.add(body);
-
-    // Tail (cone)
-    const tailGeo = new THREE.ConeGeometry(0.55, 1, 6);
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), bodyMat));
     const tailMat = new THREE.MeshPhongMaterial({
       color: FISH_TAIL_COLOR,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.85,
     });
-    const tail = new THREE.Mesh(tailGeo, tailMat);
-    tail.name = "fishTail";
-    tail.rotation.z = Math.PI / 2; // point backward
-    group.add(tail);
-
-    // Eye (small white + black sphere)
-    const eyeWhiteGeo = new THREE.SphereGeometry(0.15, 6, 6);
-    const eyeWhiteMat = new THREE.MeshBasicMaterial({ color: 0xbbbbbb });
-    const eyeWhite = new THREE.Mesh(eyeWhiteGeo, eyeWhiteMat);
-    eyeWhite.name = "eyeWhite";
-    group.add(eyeWhite);
-
-    const eyePupilGeo = new THREE.SphereGeometry(0.08, 6, 6);
-    const eyePupilMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
-    const eyePupil = new THREE.Mesh(eyePupilGeo, eyePupilMat);
-    eyePupil.name = "eyePupil";
-    group.add(eyePupil);
-
-    // Store metadata
-    group.userData = { fishId: -1, bodySize: 1 };
-
-    scene.add(group);
-    fishPool.push(group);
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1, 6), tailMat);
+    tail.rotation.z = Math.PI / 2;
+    g.add(tail);
+    g.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.15, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xdddddd }),
+      ),
+    );
+    g.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0x111111 }),
+      ),
+    );
+    g.userData = { fishId: -1, bodySize: 1, fishData: null };
+    scene.add(g);
+    fishPool.push(g);
   }
 
-  // ── Glow rings pool (3 per fish max: infected, parasite, boosting) ──
+  // Glow rings: 3 per fish (infected, parasite, selected)
   for (let i = 0; i < MAX_FISH * 3; i++) {
-    const ringGeo = new THREE.RingGeometry(1, 1.15, 32);
-    const ringMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.6,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1, 1.1, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
     ring.visible = false;
     scene.add(ring);
     glowPool.push(ring);
   }
 
-  // ── Obstacle pool ──
   for (let i = 0; i < MAX_OBSTACLES; i++) {
-    const boxGeo = new THREE.BoxGeometry(1, 1, 1);
-    const boxMat = new THREE.MeshPhongMaterial({
-      color: OBSTACLE_COLOR,
-      transparent: true,
-      opacity: 0.7,
-    });
-    const box = new THREE.Mesh(boxGeo, boxMat);
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshPhongMaterial({
+        color: OBSTACLE_COLOR,
+        transparent: true,
+        opacity: 0.75,
+        shininess: 10,
+      }),
+    );
     box.visible = false;
-
-    // Edge wireframe
-    const edgeGeo = new THREE.EdgesGeometry(boxGeo);
-    const edgeMat = new THREE.LineBasicMaterial({ color: OBSTACLE_EDGE_COLOR });
-    const edges = new THREE.LineSegments(edgeGeo, edgeMat);
-    box.add(edges);
-
+    box.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
+        new THREE.LineBasicMaterial({ color: OBSTACLE_EDGE_COLOR }),
+      ),
+    );
     scene.add(box);
     obstaclePool.push(box);
   }
 
-  // ── Hazard pool (transparent spheres) ──
   for (let i = 0; i < MAX_HAZARDS; i++) {
-    const sphereGeo = new THREE.SphereGeometry(1, 16, 12);
-    const sphereMat = new THREE.MeshBasicMaterial({
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 16, 12),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.15,
+        depthWrite: false,
+      }),
+    );
+    s.visible = false;
+    s.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.SphereGeometry(1, 12, 8)),
+        new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.3,
+        }),
+      ),
+    );
+    scene.add(s);
+    hazardSpherePool.push(s);
+  }
+
+  for (let i = 0; i < MAX_HAZARDS; i++) {
+    const cyl = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1, 1, 24, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.12,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    cyl.visible = false;
+    const capMat = new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
-      opacity: 0.15,
+      opacity: 0.18,
+      side: THREE.DoubleSide,
       depthWrite: false,
     });
-    const sphere = new THREE.Mesh(sphereGeo, sphereMat);
-    sphere.visible = false;
-
-    // Wireframe ring for visibility
-    const wireGeo = new THREE.EdgesGeometry(new THREE.SphereGeometry(1, 12, 8));
-    const wireMat = new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      transparent: true,
-      opacity: 0.3,
-    });
-    const wire = new THREE.LineSegments(wireGeo, wireMat);
-    sphere.add(wire);
-
-    scene.add(sphere);
-    hazardPool.push(sphere);
+    const cap1 = new THREE.Mesh(new THREE.CircleGeometry(1, 24), capMat);
+    cap1.rotation.x = Math.PI / 2;
+    cap1.position.y = 0.5;
+    cyl.add(cap1);
+    const cap2 = cap1.clone();
+    cap2.position.y = -0.5;
+    cyl.add(cap2);
+    scene.add(cyl);
+    hazardDiscPool.push(cyl);
   }
 
   return {
     fishPool,
     obstaclePool,
-    hazardPool,
+    hazardSpherePool,
+    hazardDiscPool,
     glowPool,
+    selectionLight,
   };
 }
 
-/**
- * Update all entities from a single frame of data.
- */
 export function updateEntities(entitiesCtx, frame, sceneCtx) {
-  const { fishPool, obstaclePool, hazardPool, glowPool } = entitiesCtx;
+  const {
+    fishPool,
+    obstaclePool,
+    hazardSpherePool,
+    hazardDiscPool,
+    glowPool,
+    selectionLight,
+  } = entitiesCtx;
   const camera = sceneCtx.camera;
+  const selectedId = getSelectedFishId();
+  const FLOOR_HAZ_H = 8.0;
 
-  // ── Update fish ──
   const fishData = frame.fish || [];
+  let selectedGroup = null;
+
   for (let i = 0; i < fishPool.length; i++) {
-    const group = fishPool[i];
+    const g = fishPool[i];
     if (i < fishData.length && fishData[i].alive) {
       const fd = fishData[i];
       const bs = Math.max(1.5, fd.body_size * 0.35);
-      group.visible = true;
-      group.position.set(fd.x, fd.y, fd.z);
-      group.userData.fishId = fd.id;
-      group.userData.bodySize = bs;
-      group.userData.fishData = fd;
+      g.visible = true;
+      g.position.set(fd.x, fd.y, fd.z);
+      g.userData.fishId = fd.id;
+      g.userData.bodySize = bs;
+      g.userData.fishData = fd;
 
-      // Scale body
-      const body = group.children[0];
+      const body = g.children[0];
       body.scale.set(bs, bs * 0.55, bs * 0.55);
+      const isSel = fd.id === selectedId;
+      body.material.color.setHex(isSel ? FISH_COLOR_SELECTED : FISH_COLOR);
+      body.material.emissive.setHex(isSel ? FISH_EMISSIVE_SELECTED : 0);
+      body.material.emissiveIntensity = isSel ? 0.4 : 0;
+      if (isSel) selectedGroup = g;
 
-      // Position tail
-      const tail = group.children[1];
-      tail.position.set(-bs - 0.5, 0, 0);
-      tail.scale.set(bs * 0.4, bs * 0.5, bs * 0.4);
+      g.children[1].position.set(-bs - 0.5, 0, 0);
+      g.children[1].scale.set(bs * 0.4, bs * 0.5, bs * 0.4);
+      g.children[2].position.set(bs * 0.5, bs * 0.15, bs * 0.3);
+      g.children[2].scale.setScalar(bs * 0.8);
+      g.children[3].position.set(bs * 0.55, bs * 0.15, bs * 0.35);
+      g.children[3].scale.setScalar(bs * 0.8);
 
-      // Position eyes
-      const eyeWhite = group.children[2];
-      eyeWhite.position.set(bs * 0.5, bs * 0.15, bs * 0.3);
-      eyeWhite.scale.setScalar(bs * 0.8);
-
-      const eyePupil = group.children[3];
-      eyePupil.position.set(bs * 0.55, bs * 0.15, bs * 0.35);
-      eyePupil.scale.setScalar(bs * 0.8);
-
-      // Face direction of movement
-      if (Math.abs(fd.vx) > 0.01 || Math.abs(fd.vy) > 0.01) {
-        const angle = Math.atan2(fd.vy, fd.vx);
-        group.rotation.z = angle;
-      }
+      if (Math.abs(fd.vx) > 0.01 || Math.abs(fd.vy) > 0.01)
+        g.rotation.z = Math.atan2(fd.vy, fd.vx);
     } else {
-      group.visible = false;
-      group.userData.fishId = -1;
-      group.userData.fishData = null;
+      g.visible = false;
+      g.userData.fishId = -1;
+      g.userData.fishData = null;
     }
   }
 
-  // ── Update glow rings ──
-  let glowIdx = 0;
+  if (selectedGroup) {
+    selectionLight.visible = true;
+    selectionLight.position.copy(selectedGroup.position);
+    selectionLight.intensity = 1.5;
+  } else {
+    selectionLight.visible = false;
+  }
+
+  // Status rings: infected (bs+0.4), parasite (bs+0.9), selected (bs+0.2)
+  let gi = 0;
   for (let i = 0; i < fishData.length && i < fishPool.length; i++) {
     const fd = fishData[i];
-    const group = fishPool[i];
-    if (!fd.alive || !group.visible) continue;
-
-    const bs = group.userData.bodySize;
-    const glows = [];
-    if (fd.is_infected) glows.push(GLOW_INFECTED);
-    if (fd.has_parasite) glows.push(GLOW_PARASITE);
-    if (fd.is_boosting) glows.push(GLOW_BOOSTING);
-
-    for (let gi = 0; gi < glows.length; gi++) {
-      if (glowIdx >= glowPool.length) break;
-      const ring = glowPool[glowIdx++];
+    const grp = fishPool[i];
+    if (!fd.alive || !grp.visible) continue;
+    const bs = grp.userData.bodySize;
+    const rings = [];
+    if (fd.id === selectedId)
+      rings.push({ color: GLOW_SELECTED, radius: bs + 0.2 });
+    if (fd.is_infected) rings.push({ color: GLOW_INFECTED, radius: bs + 0.4 });
+    if (fd.has_parasite) rings.push({ color: GLOW_PARASITE, radius: bs + 0.9 });
+    for (const r of rings) {
+      if (gi >= glowPool.length) break;
+      const ring = glowPool[gi++];
       ring.visible = true;
-      const radius = bs + 1.5 + gi * 1.5;
-      ring.scale.set(radius, radius, radius);
-      ring.position.copy(group.position);
-      ring.material.color.setHex(glows[gi]);
-      ring.material.opacity = 0.5;
-      // Billboard: face camera
+      ring.scale.set(r.radius, r.radius, r.radius);
+      ring.position.copy(grp.position);
+      ring.material.color.setHex(r.color);
+      ring.material.opacity = 0.6;
       ring.lookAt(camera.position);
     }
   }
-  // Hide unused glow rings
-  for (let i = glowIdx; i < glowPool.length; i++) {
-    glowPool[i].visible = false;
-  }
+  for (let i = gi; i < glowPool.length; i++) glowPool[i].visible = false;
 
-  // ── Update obstacles ──
   const obsData = frame.obstacles || [];
   for (let i = 0; i < obstaclePool.length; i++) {
-    const box = obstaclePool[i];
     if (i < obsData.length) {
       const od = obsData[i];
-      box.visible = true;
-      box.scale.set(od.w, od.h, od.d);
-      box.position.set(od.x + od.w / 2, od.y + od.h / 2, od.z + od.d / 2);
-    } else {
-      box.visible = false;
-    }
+      obstaclePool[i].visible = true;
+      obstaclePool[i].scale.set(od.w, od.h, od.d);
+      obstaclePool[i].position.set(
+        od.x + od.w / 2,
+        od.y + od.h / 2,
+        od.z + od.d / 2,
+      );
+    } else obstaclePool[i].visible = false;
   }
 
-  // ── Update hazards ──
   const hazData = frame.hazards || [];
-  for (let i = 0; i < hazardPool.length; i++) {
-    const sphere = hazardPool[i];
-    if (i < hazData.length) {
-      const hd = hazData[i];
+  const sphHaz = [],
+    flrHaz = [];
+  for (const hd of hazData) {
+    if (hd.is_floor) flrHaz.push(hd);
+    else sphHaz.push(hd);
+  }
+
+  for (let i = 0; i < hazardSpherePool.length; i++) {
+    const s = hazardSpherePool[i];
+    if (i < sphHaz.length) {
+      const hd = sphHaz[i];
       const hc = HAZARD_COLORS[hd.type] || HAZARD_COLORS.nh3;
-      sphere.visible = true;
-      sphere.scale.setScalar(hd.r);
-      sphere.position.set(hd.x, hd.y, hd.z);
-      sphere.material.color.setHex(hc.color);
-      sphere.material.opacity = hc.opacity;
-      // Update wireframe color
-      const wire = sphere.children[0];
-      if (wire) {
-        wire.material.color.setHex(hc.color);
-        wire.material.opacity = hc.opacity + 0.15;
+      s.visible = true;
+      s.scale.setScalar(hd.r);
+      s.position.set(hd.x, hd.y, hd.z);
+      s.material.color.setHex(hc.color);
+      s.material.opacity = hc.opacity;
+      if (s.children[0]) {
+        s.children[0].material.color.setHex(hc.color);
+        s.children[0].material.opacity = hc.opacity + 0.15;
       }
-    } else {
-      sphere.visible = false;
-    }
+    } else s.visible = false;
+  }
+
+  for (let i = 0; i < hazardDiscPool.length; i++) {
+    const c = hazardDiscPool[i];
+    if (i < flrHaz.length) {
+      const hd = flrHaz[i];
+      const hc = HAZARD_COLORS[hd.type] || HAZARD_COLORS.disease;
+      c.visible = true;
+      c.scale.set(hd.r, FLOOR_HAZ_H, hd.r);
+      c.rotation.x = Math.PI / 2;
+      c.position.set(hd.x, hd.y, hd.z - FLOOR_HAZ_H * 0.5);
+      c.material.color.setHex(hc.color);
+      c.material.opacity = hc.opacity;
+      for (const ch of c.children) {
+        ch.material.color.setHex(hc.color);
+        ch.material.opacity = hc.opacity + 0.06;
+      }
+    } else c.visible = false;
   }
 }
 
-/**
- * Get the fish mesh pool (for raycasting in selection.js).
- */
 export function getFishBodies() {
-  const bodies = [];
-  for (const group of fishPool) {
-    if (group.visible && group.children[0]) {
-      // Return the body mesh for raycasting
-      bodies.push(group);
-    }
-  }
-  return bodies;
+  return fishPool.filter((g) => g.visible && g.children[0]);
 }

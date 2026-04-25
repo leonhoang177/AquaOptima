@@ -29,22 +29,17 @@ def _norm(vx, vy, vz):
 
 
 def _drop_pos(loc: int):
-    """Return (x, y, z) for a drop location. Items drop near the surface (low z)."""
     z = random.uniform(3, POND_DEPTH * 0.3)
     if loc == DropLocation.MIDDLE:
         return (POND_WIDTH / 2 + random.uniform(-15, 15),
-                POND_HEIGHT / 2 + random.uniform(-10, 10),
-                z)
+                POND_HEIGHT / 2 + random.uniform(-10, 10), z)
     elif loc == DropLocation.CORNER:
         cx, cy = random.choice([
             (15, 15), (POND_WIDTH - 15, 15),
             (15, POND_HEIGHT - 15), (POND_WIDTH - 15, POND_HEIGHT - 15)])
-        return (cx + random.uniform(-8, 8),
-                cy + random.uniform(-5, 5),
-                z)
+        return (cx + random.uniform(-8, 8), cy + random.uniform(-5, 5), z)
     return (random.uniform(10, POND_WIDTH - 10),
-            random.uniform(5, POND_HEIGHT - 5),
-            z)
+            random.uniform(5, POND_HEIGHT - 5), z)
 
 
 def _make_fish(fid: int) -> Fish:
@@ -70,8 +65,7 @@ FISH_DICT_KEYS = [
     'fid', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'mouth_size', 'body_size',
     'hp', 'max_hp', 'energy', 'max_energy', 'fullness', 'max_fullness',
     'immunity', 'max_immunity', 'oxygen', 'max_oxygen', 'base_velocity',
-    'is_boosting', 'boost_timer', 'is_infected', 'has_parasite',
-    'alive', 'fecal_timer']
+    'is_infected', 'has_parasite', 'alive', 'fecal_timer']
 
 
 def _fish_to_dict(f: Fish) -> dict:
