@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-entities.py -- Simulation entity dataclasses.
+entities.py -- Simulation entity dataclasses (3D).
 """
 
 import random
@@ -78,52 +78,63 @@ class PondGenotype:
 
 @dataclass
 class Obstacle:
-    x: float; y: float; w: float; h: float
-    is_static: bool = True; vx: float = 0.0; vy: float = 0.0
+    x: float; y: float; z: float; w: float; h: float; d: float
+    is_static: bool = True; vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
 
-    def contains(self, px, py) -> bool:
-        return self.x <= px <= self.x + self.w and self.y <= py <= self.y + self.h
+    def contains(self, px, py, pz) -> bool:
+        return (self.x <= px <= self.x + self.w and
+                self.y <= py <= self.y + self.h and
+                self.z <= pz <= self.z + self.d)
 
-    def nearest_surface(self, px, py) -> Tuple[float, float]:
+    def nearest_surface(self, px, py, pz) -> Tuple[float, float, float]:
         cx = max(self.x, min(px, self.x + self.w))
         cy = max(self.y, min(py, self.y + self.h))
-        return cx, cy
+        cz = max(self.z, min(pz, self.z + self.d))
+        return cx, cy, cz
 
-    def center(self) -> Tuple[float, float]:
-        return self.x + self.w / 2, self.y + self.h / 2
+    def center(self) -> Tuple[float, float, float]:
+        return self.x + self.w / 2, self.y + self.h / 2, self.z + self.d / 2
 
-    def predicted_rect(self, steps: int) -> Tuple[float, float, float, float]:
-        """Return (x, y, w, h) of obstacle at predicted future position."""
+    def predicted_box(self, steps: int) -> Tuple[float, float, float, float, float, float]:
+        """Return (x, y, z, w, h, d) at predicted future position."""
         if self.is_static:
-            return self.x, self.y, self.w, self.h
-        return self.x + self.vx * steps, self.y + self.vy * steps, self.w, self.h
+            return self.x, self.y, self.z, self.w, self.h, self.d
+        return (self.x + self.vx * steps, self.y + self.vy * steps,
+                self.z + self.vz * steps, self.w, self.h, self.d)
 
-    def nearest_surface_predicted(self, px, py, steps: int) -> Tuple[float, float]:
+    def nearest_surface_predicted(self, px, py, pz, steps: int) -> Tuple[float, float, float]:
         """Nearest surface point using predicted future position."""
-        fx, fy, fw, fh = self.predicted_rect(steps)
+        fx, fy, fz, fw, fh, fd = self.predicted_box(steps)
         cx = max(fx, min(px, fx + fw))
         cy = max(fy, min(py, fy + fh))
-        return cx, cy
+        cz = max(fz, min(pz, fz + fd))
+        return cx, cy, cz
 
 
 @dataclass
 class DynObj:
-    x: float; y: float; kind: str; value: float = 5.0
-    age: int = 0; max_age: int = 30; vx: float = 0.0; vy: float = 0.0; alive: bool = True
+    x: float; y: float; z: float; kind: str; value: float = 5.0
+    age: int = 0; max_age: int = 30
+    vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
+    alive: bool = True
 
 
 @dataclass
 class Hazard:
-    x: float; y: float; radius: float; kind: str
-    age: int = 0; max_age: int = 50; alive: bool = True; vx: float = 0.0; vy: float = 0.0
+    x: float; y: float; z: float; radius: float; kind: str
+    age: int = 0; max_age: int = 50; alive: bool = True
+    vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
 
-    def contains(self, px, py) -> bool:
-        return (px - self.x) ** 2 + (py - self.y) ** 2 <= self.radius ** 2
+    def contains(self, px, py, pz) -> bool:
+        return ((px - self.x) ** 2 + (py - self.y) ** 2 +
+                (pz - self.z) ** 2) <= self.radius ** 2
 
 
 @dataclass
 class Fish:
-    fid: int = 0; x: float = 0.0; y: float = 0.0; vx: float = 0.0; vy: float = 0.0
+    fid: int = 0
+    x: float = 0.0; y: float = 0.0; z: float = 0.0
+    vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
     mouth_size: float = 5.0; body_size: float = 6.0
     hp: float = 100.0; max_hp: float = 100.0
     energy: float = 80.0; max_energy: float = 80.0
@@ -152,11 +163,18 @@ class Fish:
         return (hp_n + en_n + fu_n + im_n + vl_n) / 5.0
 
     def snapshot(self) -> dict:
-        return {'id': self.fid, 'x': round(self.x, 1), 'y': round(self.y, 1),
-                'hp': round(self.hp, 1), 'max_hp': round(self.max_hp, 1),
-                'energy': round(self.energy, 1), 'fullness': round(self.fullness, 1),
-                'immunity': round(self.immunity, 1), 'oxygen': round(self.oxygen, 1),
-                'alive': self.alive,
-                'is_infected': self.is_infected, 'has_parasite': self.has_parasite,
-                'is_boosting': self.is_boosting,
-                'body_size': round(self.body_size, 1), 'mouth_size': round(self.mouth_size, 1)}
+        return {
+            'id': self.fid,
+            'x': round(self.x, 1), 'y': round(self.y, 1), 'z': round(self.z, 1),
+            'hp': round(self.hp, 1), 'max_hp': round(self.max_hp, 1),
+            'energy': round(self.energy, 1), 'max_energy': round(self.max_energy, 1),
+            'fullness': round(self.fullness, 1), 'max_fullness': round(self.max_fullness, 1),
+            'immunity': round(self.immunity, 1), 'max_immunity': round(self.max_immunity, 1),
+            'oxygen': round(self.oxygen, 1), 'max_oxygen': round(self.max_oxygen, 1),
+            'alive': self.alive,
+            'is_infected': self.is_infected, 'has_parasite': self.has_parasite,
+            'is_boosting': self.is_boosting,
+            'body_size': round(self.body_size, 1), 'mouth_size': round(self.mouth_size, 1),
+            'base_velocity': round(self.base_velocity, 2),
+            'vx': round(self.vx, 2), 'vy': round(self.vy, 2), 'vz': round(self.vz, 2),
+        }

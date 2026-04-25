@@ -1,0 +1,555 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Largemouth Bass Aquaculture – 3D Visualization</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #0d1a2e;
+        color: #e0e8f0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+
+      h1 {
+        font-size: 1.2em;
+        margin: 6px 0 4px 0;
+        color: #5ec4ff;
+        text-align: center;
+      }
+
+      /* ── Top bar ── */
+      #top-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+        padding: 0 10px;
+        z-index: 10;
+      }
+
+      #controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+      }
+      button {
+        background: #1a3a5c;
+        color: #5ec4ff;
+        border: 1px solid #2a5a8c;
+        border-radius: 4px;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 0.82em;
+      }
+      button:hover {
+        background: #2a5a8c;
+      }
+      button.active {
+        background: #2a7acc;
+        color: #fff;
+      }
+      #time-display {
+        font-size: 0.82em;
+        color: #5ec4ff;
+        min-width: 180px;
+        text-align: center;
+        font-family: "Consolas", monospace;
+      }
+      #speed-display {
+        font-size: 0.8em;
+        color: #8899aa;
+        min-width: 50px;
+        text-align: center;
+        font-family: "Consolas", monospace;
+      }
+
+      #stats-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 5px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+      }
+      .stat-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75em;
+      }
+      .stat-chip-label {
+        color: #8899aa;
+      }
+      .stat-chip-value {
+        color: #e0e8f0;
+        font-weight: bold;
+        font-family: "Consolas", monospace;
+        font-size: 0.88em;
+      }
+
+      #genotype-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 4px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+        font-size: 0.7em;
+      }
+      .geno-chip {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .geno-chip-label {
+        color: #667788;
+      }
+      .geno-chip-value {
+        color: #aabbcc;
+        font-family: "Consolas", monospace;
+      }
+
+      #legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 4px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.68em;
+      }
+      .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        border: 1px solid #3a5a7c;
+        flex-shrink: 0;
+      }
+      .legend-swatch.circle {
+        border-radius: 50%;
+      }
+      .legend-bar {
+        width: 18px;
+        height: 4px;
+        border-radius: 1px;
+        flex-shrink: 0;
+      }
+
+      #progress-bar-container {
+        width: 100%;
+        height: 4px;
+        background: #1e3a5f;
+        border-radius: 2px;
+        cursor: pointer;
+        margin-top: 2px;
+      }
+      #progress-bar {
+        height: 100%;
+        background: #5ec4ff;
+        border-radius: 2px;
+        width: 0%;
+      }
+
+      /* ── 3D canvas ── */
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        position: relative;
+      }
+      #canvas-container canvas {
+        display: block;
+      }
+
+      /* ── HUD overlay (alive count) ── */
+      #hud {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        background: rgba(10, 22, 40, 0.75);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-family: "Consolas", monospace;
+        color: #5ec4ff;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      /* ── Fish detail panel ── */
+      #fish-panel {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        width: 240px;
+        background: rgba(17, 30, 48, 0.95);
+        border: 1px solid #1e3a5f;
+        border-radius: 8px;
+        padding: 12px;
+        z-index: 20;
+        display: none;
+        font-size: 0.8em;
+      }
+      #fish-panel.visible {
+        display: block;
+      }
+      #fish-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #1e3a5f;
+        padding-bottom: 6px;
+      }
+      #fish-panel-title {
+        color: #5ec4ff;
+        font-weight: bold;
+        font-size: 1.05em;
+      }
+      #fish-panel-close {
+        background: none;
+        border: none;
+        color: #667788;
+        font-size: 1.2em;
+        cursor: pointer;
+        padding: 0 4px;
+      }
+      #fish-panel-close:hover {
+        color: #ff4c6a;
+      }
+      .fp-section {
+        margin-bottom: 8px;
+      }
+      .fp-section-title {
+        color: #5ec4ff;
+        font-size: 0.85em;
+        font-weight: bold;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .fp-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1px 0;
+      }
+      .fp-label {
+        color: #8899aa;
+        font-size: 0.9em;
+      }
+      .fp-value {
+        color: #e0e8f0;
+        font-family: "Consolas", monospace;
+        font-size: 0.88em;
+      }
+      .fp-bar-row {
+        margin: 3px 0;
+      }
+      .fp-bar-label-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1px;
+      }
+      .fp-bar-name {
+        color: #8899aa;
+        font-size: 0.85em;
+      }
+      .fp-bar-nums {
+        color: #ccc;
+        font-family: "Consolas", monospace;
+        font-size: 0.82em;
+      }
+      .fp-bar-track {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .fp-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.15s ease;
+      }
+      .fp-status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+      .fp-dead-banner {
+        text-align: center;
+        color: #ff4c6a;
+        font-weight: bold;
+        font-size: 1.1em;
+        padding: 8px 0;
+        border: 1px solid #ff4c6a;
+        border-radius: 4px;
+        margin-top: 6px;
+      }
+
+      /* ── Loading ── */
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(10, 22, 40, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 100;
+        font-size: 1.2em;
+        color: #5ec4ff;
+      }
+      #loading.hidden {
+        display: none;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #1e3a5f;
+        border-top: 4px solid #5ec4ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="spinner"></div>
+      <div>Loading simulation data...</div>
+    </div>
+
+    <h1>Largemouth Bass Aquaculture – 3D Visualization</h1>
+
+    <div id="top-bar">
+      <div id="controls">
+        <button id="btn-play" class="active">Play</button>
+        <button id="btn-pause">Pause</button>
+        <button id="btn-restart">Restart</button>
+        <button id="btn-slower">&lt;&lt;</button>
+        <span id="speed-display">3 fps</span>
+        <button id="btn-faster">&gt;&gt;</button>
+        <div
+          style="display: flex; align-items: center; gap: 5px; font-size: 0.8em"
+        >
+          <label>Frame:</label>
+          <input
+            type="range"
+            id="frame-slider"
+            min="0"
+            max="100"
+            value="0"
+            style="width: 160px; accent-color: #5ec4ff"
+          />
+        </div>
+        <div id="time-display">Day 00 | Hour 00 | Frame 0000/0000</div>
+      </div>
+
+      <div id="stats-bar"></div>
+      <div id="genotype-bar"></div>
+
+      <div id="legend">
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: #3a5068; border-radius: 50%"
+          ></div>
+          Fish
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: #ffee55; border-color: #ccaa22"
+          ></div>
+          Food
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: #55ffcc; border-color: #22aa88"
+          ></div>
+          Probiotic
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(136, 204, 255, 0.6); border-color: #88ccff"
+          ></div>
+          O₂
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: #8b6914; border-color: #6a5010"
+          ></div>
+          Fecal
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: #cc2222; border-color: #881111"
+          ></div>
+          Dead Fish
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: rgba(204, 102, 0, 0.7); border-color: #cc6600"
+          ></div>
+          Pollutant
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(0, 255, 100, 0.25); border-color: #00ff64"
+          ></div>
+          NH₃
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(255, 180, 0, 0.25); border-color: #ffb400"
+          ></div>
+          Disease
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(200, 80, 255, 0.2); border-color: #c850ff"
+          ></div>
+          Parasite
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background: #1a3050"></div>
+          Obstacle
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ffaa00;
+              box-shadow: 0 0 3px #ffaa00;
+            "
+          ></div>
+          Infected
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #cc44ff;
+              box-shadow: 0 0 3px #cc44ff;
+            "
+          ></div>
+          Parasitized
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #55ffcc;
+              box-shadow: 0 0 3px #55ffcc;
+            "
+          ></div>
+          Boosting
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #e06070"></div>
+          HP
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #f0a040"></div>
+          Energy
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #88ccff"></div>
+          O₂
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #ffee55"></div>
+          Fullness
+        </div>
+        <div class="legend-item">
+          <div class="legend-bar" style="background: #55ffcc"></div>
+          Immunity
+        </div>
+      </div>
+
+      <div id="progress-bar-container">
+        <div id="progress-bar"></div>
+      </div>
+    </div>
+
+    <div id="canvas-container">
+      <div id="hud">Alive: 0 / 0</div>
+      <div id="fish-panel">
+        <div id="fish-panel-header">
+          <span id="fish-panel-title">Fish #0</span>
+          <button id="fish-panel-close">✕</button>
+        </div>
+        <div id="fish-panel-body"></div>
+      </div>
+    </div>
+
+    <!-- Three.js from CDN -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

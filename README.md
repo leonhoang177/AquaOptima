@@ -22,4 +22,4 @@ python core/run.py
 python -m http.server 8000
 ```
 
-Open: http://localhost:8000/visualization.html
+Open: http://localhost:8000/visuals/visualization.html
