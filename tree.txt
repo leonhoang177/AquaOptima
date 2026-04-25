@@ -1,4 +1,13 @@
 .
+├── core
+│   ├── constants.py
+│   ├── ea.py
+│   ├── entities.py
+│   ├── helpers.py
+│   ├── log.py
+│   ├── plot.py
+│   ├── pond.py
+│   └── run.py
 ├── docs
 │   ├── CS_420__Final_Project_Rubric__2026_.pdf
 │   ├── Largemouth-Bass-Aquaculture.docx
@@ -25,15 +34,6 @@
 │   ├── plot_6_cost_vs_fitness.png
 │   ├── plot_7_survival_vs_healthiness.png
 │   └── plot_8_champion_comparison.png
-├── pythons
-│   ├── constants.py
-│   ├── ea.py
-│   ├── entities.py
-│   ├── helpers.py
-│   ├── log.py
-│   ├── plot.py
-│   ├── pond.py
-│   └── run.py
 ├── README.md
 ├── tree.txt
 └── visuals
