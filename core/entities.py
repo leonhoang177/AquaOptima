@@ -78,8 +78,8 @@ class PondGenotype:
 
 @dataclass
 class Obstacle:
+    """Static obstacle grounded on the floor. Top surface at z, extends down to z+d (floor)."""
     x: float; y: float; z: float; w: float; h: float; d: float
-    is_static: bool = True; vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
 
     def contains(self, px, py, pz) -> bool:
         return (self.x <= px <= self.x + self.w and
@@ -95,18 +95,13 @@ class Obstacle:
     def center(self) -> Tuple[float, float, float]:
         return self.x + self.w / 2, self.y + self.h / 2, self.z + self.d / 2
 
-    def predicted_box(self, steps):
-        if self.is_static:
-            return self.x, self.y, self.z, self.w, self.h, self.d
-        return (self.x + self.vx * steps, self.y + self.vy * steps,
-                self.z + self.vz * steps, self.w, self.h, self.d)
+    def top_z(self) -> float:
+        """Z coordinate of the top surface."""
+        return self.z
 
-    def nearest_surface_predicted(self, px, py, pz, steps):
-        fx, fy, fz, fw, fh, fd = self.predicted_box(steps)
-        cx = max(fx, min(px, fx + fw))
-        cy = max(fy, min(py, fy + fh))
-        cz = max(fz, min(pz, fz + fd))
-        return cx, cy, cz
+    def xy_contains(self, px, py) -> bool:
+        """Check if (px, py) is within the obstacle's footprint."""
+        return self.x <= px <= self.x + self.w and self.y <= py <= self.y + self.h
 
 
 @dataclass

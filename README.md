@@ -9,17 +9,18 @@ the the swarm with highest survival rate, best health condition and and using ch
 
 ## Run Leon's Branch
 
-Note:
+To run the compiled simulation:
 
-- Use `simulation_demo.py` for quick run
-- Use `simulation_real.py` for realistic run (take 20 minutes to run)
-- Feel free to adjust the params in the simulation code to tune it
-
-Run:
+1.
 
 ```bash
-python core/run.py
 python -m http.server 8000
 ```
 
-Open: http://localhost:8000/visuals/index.html
+2. Open: http://localhost:8000/visuals/index.html
+
+To compile your own simulation, edit constants on `./core/constants.py` and run:
+
+```bash
+python core/run.py
+```

@@ -19,10 +19,10 @@ PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 # ║                    USER CONFIGURATION                       ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-MAX_BUDGET = 200.0
-INITIAL_FISH_POPULATION = 20
-AQUACULTURE_DAYS = 10
-POND_GENERATIONS = 10
+MAX_BUDGET = 300.0
+INITIAL_FISH_POPULATION = 30
+AQUACULTURE_DAYS = 60
+POND_GENERATIONS = 20
 RUN_TIMELINES = 3
 INITIAL_POND_COUNT = 10
 FRAME_SKIP = 1
@@ -134,7 +134,6 @@ DISEASE_AREA_RADIUS_DECAY = 0.990
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 POLLUTANT TRANSFORMATION                    ║
-# ║  Chances must sum to <= 1.0. Remainder = nothing happens.   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 POLLUTANT_TO_NH3_CHANCE = 0.25
@@ -143,8 +142,6 @@ POLLUTANT_TO_PARASITE_CHANCE = 0.10
 POLLUTANT_TO_BOTH_CHANCE = 0.05
 POLLUTANT_TO_PLANT_CHANCE = 0.10
 POLLUTANT_TO_OBSTACLE_CHANCE = 0.25
-# Remaining 0.15 = pollutant disappears
-
 POLLUTANT_RADIUS_SCALE = 1.5
 DEAD_FISH_POLLUTANT_MULT = 1.5
 POLLUTANT_OBSTACLE_AREA_RANGE = (3, 8)
@@ -176,11 +173,9 @@ NUM_OBSTACLES = 15
 OBSTACLE_MAX_DIM_FRAC = 0.10
 OBSTACLE_AREA_RANGE = (30, 150)
 OBSTACLE_ASPECT_RANGE = (0.3, 3.0)
-OBSTACLE_STATIC_CHANCE = 0.6
-OBSTACLE_SPEED_RANGE = (0.05, 0.50)
 OBSTACLE_DEPTH_RANGE = (5.0, 15.0)
 OXYGEN_BUBBLE_SPEED = 0.5
-NH3_AREA_RADIUS_RANGE = (12.0, 25.0)
+NH3_AREA_RADIUS_RANGE = (6.0, 14.0)
 NH3_AREA_SPEED = 0.2
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -235,7 +230,6 @@ PSO_PARASITE_WEIGHT = 3.0
 PSO_RELIEF_WEIGHT = 4.0
 PSO_RUN_WEIGHT = 5.0
 PSO_OBSTACLE_WEIGHT = 2.0
-PSO_OBSTACLE_ANTICIPATION_STEPS = 2
 
 STATE_OVERRIDE_PARASITE_CHANCE = 0.6
 

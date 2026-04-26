@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Largemouth Bass Aquaculture – 3D Visualization</title>
+    <title>Largemouth Bass Aquaculture - 3D Visualization</title>
     <style>
       * {
         margin: 0;
@@ -19,7 +19,6 @@
         min-height: 100vh;
         overflow: hidden;
       }
-
       h1 {
         font-size: 1.2em;
         margin: 6px 0 4px 0;
@@ -27,7 +26,6 @@
         text-align: center;
       }
 
-      /* ── Top bar ── */
       #top-bar {
         display: flex;
         flex-wrap: wrap;
@@ -36,7 +34,6 @@
         padding: 0 10px;
         z-index: 10;
       }
-
       #controls {
         display: flex;
         align-items: center;
@@ -184,7 +181,6 @@
         width: 0%;
       }
 
-      /* ── 3D canvas ── */
       #canvas-container {
         flex: 1;
         width: 100%;
@@ -194,7 +190,6 @@
         display: block;
       }
 
-      /* ── HUD overlay (alive count) ── */
       #hud {
         position: absolute;
         top: 8px;
@@ -209,7 +204,6 @@
         z-index: 5;
       }
 
-      /* ── Fish detail panel ── */
       #fish-panel {
         position: absolute;
         top: 8px;
@@ -324,7 +318,6 @@
         margin-top: 6px;
       }
 
-      /* ── Loading ── */
       #loading {
         position: fixed;
         top: 0;
@@ -365,7 +358,7 @@
       <div>Loading simulation data...</div>
     </div>
 
-    <h1>Largemouth Bass Aquaculture – 3D Visualization</h1>
+    <h1>Largemouth Bass Aquaculture - 3D Visualization</h1>
 
     <div id="top-bar">
       <div id="controls">
@@ -398,7 +391,7 @@
         <div class="legend-item">
           <div
             class="legend-swatch"
-            style="background: #3a5068; border-radius: 50%"
+            style="background: #7a9ab5; border-radius: 50%"
           ></div>
           Fish
         </div>
@@ -421,7 +414,7 @@
             class="legend-swatch circle"
             style="background: rgba(136, 204, 255, 0.6); border-color: #88ccff"
           ></div>
-          O₂
+          O2
         </div>
         <div class="legend-item">
           <div
@@ -449,7 +442,7 @@
             class="legend-swatch circle"
             style="background: rgba(0, 255, 100, 0.25); border-color: #00ff64"
           ></div>
-          NH₃
+          NH3
         </div>
         <div class="legend-item">
           <div
@@ -466,7 +459,10 @@
           Parasite
         </div>
         <div class="legend-item">
-          <div class="legend-swatch" style="background: #1a3050"></div>
+          <div
+            class="legend-swatch"
+            style="background: #5a3a28; border-color: #7a5a40"
+          ></div>
           Obstacle
         </div>
         <div class="legend-item">
@@ -491,42 +487,9 @@
           ></div>
           Parasitized
         </div>
-        <div class="legend-item">
-          <div
-            class="legend-swatch circle"
-            style="
-              background: transparent;
-              border: 2px solid #55ffcc;
-              box-shadow: 0 0 3px #55ffcc;
-            "
-          ></div>
-          Boosting
-        </div>
-        <div class="legend-item">
-          <div class="legend-bar" style="background: #e06070"></div>
-          HP
-        </div>
-        <div class="legend-item">
-          <div class="legend-bar" style="background: #f0a040"></div>
-          Energy
-        </div>
-        <div class="legend-item">
-          <div class="legend-bar" style="background: #88ccff"></div>
-          O₂
-        </div>
-        <div class="legend-item">
-          <div class="legend-bar" style="background: #ffee55"></div>
-          Fullness
-        </div>
-        <div class="legend-item">
-          <div class="legend-bar" style="background: #55ffcc"></div>
-          Immunity
-        </div>
       </div>
 
-      <div id="progress-bar-container">
-        <div id="progress-bar"></div>
-      </div>
+      <div id="progress-bar-container"><div id="progress-bar"></div></div>
     </div>
 
     <div id="canvas-container">
@@ -534,13 +497,12 @@
       <div id="fish-panel">
         <div id="fish-panel-header">
           <span id="fish-panel-title">Fish #0</span>
-          <button id="fish-panel-close">✕</button>
+          <button id="fish-panel-close">&times;</button>
         </div>
         <div id="fish-panel-body"></div>
       </div>
     </div>
 
-    <!-- Three.js from CDN -->
     <script type="importmap">
       {
         "imports": {

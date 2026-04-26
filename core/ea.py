@@ -46,6 +46,7 @@ def _run_timeline_worker(args):
 
     ponds = [PondGenotype.random() for _ in range(initial_pond_count)]
     best_result = None
+    last_result = None
     csv_rows = []
 
     for gen in range(pond_generations):
@@ -81,12 +82,16 @@ def _run_timeline_worker(args):
             csv_rows.append(_csv_row_data(tl_idx,gen,p_idx,r['status'],r,r['genotype']))
 
         gen_results.sort(key=lambda x: x['fitness'], reverse=True)
+        if gen_results:
+            last_result = gen_results[0]
 
-        # ── Progress log ──
         best_gen_fit = gen_results[0]['fitness'] if gen_results else 0
-        ok_count = sum(1 for r in gen_results if r.get('status') == 'OK')
+        n_ok = sum(1 for r in gen_results if r.get('status') == 'OK')
+        n_dead = sum(1 for r in gen_results if r.get('status') == 'ALL-DEAD')
+        n_over = sum(1 for r in gen_results if r.get('status') == 'OVER-BUDGET')
+        n_gate = sum(1 for r in gen_results if r.get('status') == 'GATEKEEPER')
         print(f"    TL {tl_idx+1} | Gen {gen+1:>2}/{pond_generations} | "
-              f"Best: {best_gen_fit:.4f} | OK: {ok_count}/{len(gen_results)}")
+              f"Best: {best_gen_fit:.4f} | OK: {n_ok} | Dead: {n_dead} | Over$: {n_over} | Gate: {n_gate}")
 
         if gen_results and gen_results[0]['fitness'] > 0:
             if best_result is None or gen_results[0]['fitness'] > best_result['fitness']:
@@ -95,13 +100,17 @@ def _run_timeline_worker(args):
         half = max(1, len(gen_results) // 2)
         survivors = gen_results[:half]
         if len(survivors) <= 1: break
-
         surv_genos = [r['genotype_obj'] for r in survivors]
         new_ponds = [copy.deepcopy(g) for g in surv_genos]
         while len(new_ponds) < len(ponds):
             child = random.choice(surv_genos).crossover(random.choice(surv_genos))
             child.mutate(); new_ponds.append(child)
         ponds = new_ponds
+
+    if best_result is None and last_result is not None:
+        best_result = last_result
+        best_result['is_latest_dead'] = True
+        print(f"    TL {tl_idx+1} | No valid champion -- using Latest Dead Champion")
 
     if best_result:
         best_result['timeline_idx'] = tl_idx
@@ -111,8 +120,9 @@ def _run_timeline_worker(args):
         best_result = {
             'timeline_idx':tl_idx,'fitness':0,'survival_rate':0,
             'avg_healthiness':0,'efficiency':0,'cost':0,
-            'genotype':{},'frames':[],'alive_count':0,
-            'initial_count':len(fish_data),'fish_data':fish_data}
+            'genotype':PondGenotype.random().to_dict(),'frames':[],'alive_count':0,
+            'initial_count':len(fish_data),'fish_data':fish_data,
+            'is_latest_dead':True}
     return {'champion': best_result, 'csv_rows': csv_rows}
 
 class EA:
@@ -149,9 +159,10 @@ class EA:
                 timeline_results[tl_idx] = result
                 champ = result['champion']
                 elapsed = _time.time() - wall_start
+                tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
                 print(f"\n  Timeline {tl_idx+1} finished ({elapsed:.1f}s) | "
                       f"Fitness={champ['fitness']:.4f} | "
-                      f"Survival={champ['survival_rate']*100:.2f}%")
+                      f"Survival={champ['survival_rate']*100:.2f}%{tag}")
 
         all_csv_rows = []
         timeline_champions = []
@@ -166,12 +177,18 @@ class EA:
 
         for champ in timeline_champions:
             tl = champ.get('timeline_idx', 0)
-            if champ['fitness'] > 0:
-                _print_champion_detail(f"Timeline {tl+1} Champion", champ)
+            tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+            if champ['fitness'] > 0 or champ.get('is_latest_dead'):
+                _print_champion_detail(f"Timeline {tl+1} Champion{tag}", champ)
             else:
                 print(f"\n  Timeline {tl+1}: No survivors.")
 
-        valid = [c for c in timeline_champions if c.get('fitness',0) > 0]
+        real_champs = [c for c in timeline_champions if c.get('fitness',0) > 0 and not c.get('is_latest_dead')]
+        if real_champs:
+            valid = real_champs
+        else:
+            valid = [c for c in timeline_champions if c.get('genotype')]
+
         if not valid:
             print(f"\n{'='*72}\n  No valid champions across all {RUN_TIMELINES} timelines.\n{'='*72}")
             return None
@@ -181,7 +198,8 @@ class EA:
         champ = timeline_champions[best_idx]
 
         if record_best and not champ.get('frames'):
-            print(f"\n  Re-running champion (Timeline {champ['timeline_idx']+1}) with frame recording...")
+            tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+            print(f"\n  Re-running champion{tag} (Timeline {champ['timeline_idx']+1}) with frame recording...")
             stored_fish_data = champ.get('fish_data', [])
             if stored_fish_data:
                 fishes = [_dict_to_fish(fd) for fd in stored_fish_data]
@@ -193,6 +211,7 @@ class EA:
             champ['frames'] = res['frames']
 
         wall_elapsed = _time.time() - wall_start
-        _print_champion_detail(f"GRAND CHAMPION  (Timeline {champ['timeline_idx']+1})", champ)
+        tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+        _print_champion_detail(f"GRAND CHAMPION{tag}  (Timeline {champ['timeline_idx']+1})", champ)
         print(f"\n  Total wall time: {wall_elapsed:.1f}s")
         return champ

@@ -1,5 +1,5 @@
 /**
- * entities.js -- Fish, obstacles, hazards. Selected fish highlight ring + glow.
+ * entities.js -- Fish, obstacles, hazards. NH3 without wireframe grid.
  */
 
 import * as THREE from "three";
@@ -20,7 +20,7 @@ const GLOW_PARASITE = 0xcc44ff;
 const GLOW_SELECTED = 0x44aaff;
 
 const HAZARD_COLORS = {
-  nh3: { color: 0x00ff64, opacity: 0.15 },
+  nh3: { color: 0x00ff64, opacity: 0.12 },
   disease: { color: 0xffb400, opacity: 0.18 },
   parasite: { color: 0xc850ff, opacity: 0.15 },
 };
@@ -39,6 +39,7 @@ export function initEntities(sceneCtx, pond) {
   selectionLight.visible = false;
   scene.add(selectionLight);
 
+  // Fish pool
   for (let i = 0; i < MAX_FISH; i++) {
     const g = new THREE.Group();
     g.visible = false;
@@ -74,7 +75,7 @@ export function initEntities(sceneCtx, pond) {
     fishPool.push(g);
   }
 
-  // Glow rings: 3 per fish (infected, parasite, selected)
+  // Glow rings: 3 per fish (selected, infected, parasite)
   for (let i = 0; i < MAX_FISH * 3; i++) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(1, 1.1, 32),
@@ -91,6 +92,7 @@ export function initEntities(sceneCtx, pond) {
     glowPool.push(ring);
   }
 
+  // Obstacles
   for (let i = 0; i < MAX_OBSTACLES; i++) {
     const box = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -112,31 +114,26 @@ export function initEntities(sceneCtx, pond) {
     obstaclePool.push(box);
   }
 
+  // NH3 sphere pool — NO wireframe grid, just clean translucent spheres
   for (let i = 0; i < MAX_HAZARDS; i++) {
     const s = new THREE.Mesh(
-      new THREE.SphereGeometry(1, 16, 12),
-      new THREE.MeshBasicMaterial({
-        color: 0xffffff,
+      new THREE.SphereGeometry(1, 20, 14),
+      new THREE.MeshPhongMaterial({
+        color: 0x00ff64,
         transparent: true,
-        opacity: 0.15,
+        opacity: 0.12,
         depthWrite: false,
+        shininess: 80,
+        emissive: 0x00ff64,
+        emissiveIntensity: 0.05,
       }),
     );
     s.visible = false;
-    s.add(
-      new THREE.LineSegments(
-        new THREE.EdgesGeometry(new THREE.SphereGeometry(1, 12, 8)),
-        new THREE.LineBasicMaterial({
-          color: 0xffffff,
-          transparent: true,
-          opacity: 0.3,
-        }),
-      ),
-    );
     scene.add(s);
     hazardSpherePool.push(s);
   }
 
+  // Floor hazard cylinders (disease/parasite)
   for (let i = 0; i < MAX_HAZARDS; i++) {
     const cyl = new THREE.Mesh(
       new THREE.CylinderGeometry(1, 1, 1, 24, 1, true),
@@ -228,6 +225,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     }
   }
 
+  // Selection light
   if (selectedGroup) {
     selectionLight.visible = true;
     selectionLight.position.copy(selectedGroup.position);
@@ -236,7 +234,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     selectionLight.visible = false;
   }
 
-  // Status rings: infected (bs+0.4), parasite (bs+0.9), selected (bs+0.2)
+  // Status rings
   let gi = 0;
   for (let i = 0; i < fishData.length && i < fishPool.length; i++) {
     const fd = fishData[i];
@@ -261,6 +259,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
   }
   for (let i = gi; i < glowPool.length; i++) glowPool[i].visible = false;
 
+  // Obstacles
   const obsData = frame.obstacles || [];
   for (let i = 0; i < obstaclePool.length; i++) {
     if (i < obsData.length) {
@@ -275,6 +274,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     } else obstaclePool[i].visible = false;
   }
 
+  // Hazards
   const hazData = frame.hazards || [];
   const sphHaz = [],
     flrHaz = [];
@@ -283,6 +283,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     else sphHaz.push(hd);
   }
 
+  // NH3 spheres (no wireframe)
   for (let i = 0; i < hazardSpherePool.length; i++) {
     const s = hazardSpherePool[i];
     if (i < sphHaz.length) {
@@ -293,13 +294,12 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
       s.position.set(hd.x, hd.y, hd.z);
       s.material.color.setHex(hc.color);
       s.material.opacity = hc.opacity;
-      if (s.children[0]) {
-        s.children[0].material.color.setHex(hc.color);
-        s.children[0].material.opacity = hc.opacity + 0.15;
-      }
+      s.material.emissive.setHex(hc.color);
+      s.material.emissiveIntensity = 0.05;
     } else s.visible = false;
   }
 
+  // Floor disc/cylinder hazards
   for (let i = 0; i < hazardDiscPool.length; i++) {
     const c = hazardDiscPool[i];
     if (i < flrHaz.length) {
