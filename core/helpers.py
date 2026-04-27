@@ -29,17 +29,32 @@ def _norm(vx, vy, vz):
 
 
 def _drop_pos(loc: int):
-    z = random.uniform(3, POND_DEPTH * 0.3)
-    if loc == DropLocation.MIDDLE:
-        return (POND_WIDTH / 2 + random.uniform(-15, 15),
-                POND_HEIGHT / 2 + random.uniform(-10, 10), z)
-    elif loc == DropLocation.CORNER:
-        cx, cy = random.choice([
-            (15, 15), (POND_WIDTH - 15, 15),
-            (15, POND_HEIGHT - 15), (POND_WIDTH - 15, POND_HEIGHT - 15)])
-        return (cx + random.uniform(-8, 8), cy + random.uniform(-5, 5), z)
-    return (random.uniform(10, POND_WIDTH - 10),
-            random.uniform(5, POND_HEIGHT - 5), z)
+    """Return (x, y) for a drop location. Z is handled by caller."""
+    W, H = POND_WIDTH, POND_HEIGHT
+    mx, my = W * 0.15, H * 0.15
+    jx = random.uniform(-mx * 0.3, mx * 0.3)
+    jy = random.uniform(-my * 0.3, my * 0.3)
+
+    if loc == DropLocation.CENTER:
+        return W / 2 + jx, H / 2 + jy
+    elif loc == DropLocation.TOP_LEFT:
+        return mx + jx, my + jy
+    elif loc == DropLocation.TOP_RIGHT:
+        return W - mx + jx, my + jy
+    elif loc == DropLocation.BOT_LEFT:
+        return mx + jx, H - my + jy
+    elif loc == DropLocation.BOT_RIGHT:
+        return W - mx + jx, H - my + jy
+    elif loc == DropLocation.TOP_CENTER:
+        return W / 2 + jx, my + jy
+    elif loc == DropLocation.BOT_CENTER:
+        return W / 2 + jx, H - my + jy
+    elif loc == DropLocation.LEFT_CENTER:
+        return mx + jx, H / 2 + jy
+    elif loc == DropLocation.RIGHT_CENTER:
+        return W - mx + jx, H / 2 + jy
+    else:
+        return random.uniform(10, W - 10), random.uniform(5, H - 5)
 
 
 def _make_fish(fid: int) -> Fish:
@@ -78,3 +93,53 @@ def _dict_to_fish(d: dict) -> Fish:
         if hasattr(f, k):
             setattr(f, k, v)
     return f
+
+# ════════════════════════════════════════════════════════════════
+# SPATIAL GRID — O(n²) → O(n×k) for neighbor queries
+# ════════════════════════════════════════════════════════════════
+
+class SpatialGrid:
+    """3D spatial hash grid for fast neighbor lookups."""
+
+    def __init__(self, cell_size=30.0):
+        self.cell_size = cell_size
+        self.cells = {}
+
+    def clear(self):
+        self.cells.clear()
+
+    def _key(self, x, y, z):
+        return (int(x // self.cell_size),
+                int(y // self.cell_size),
+                int(z // self.cell_size))
+
+    def insert(self, obj):
+        """Insert an object with .x, .y, .z attributes."""
+        k = self._key(obj.x, obj.y, obj.z)
+        if k not in self.cells:
+            self.cells[k] = []
+        self.cells[k].append(obj)
+
+    def insert_all(self, objects):
+        """Clear and insert all objects."""
+        self.clear()
+        for obj in objects:
+            self.insert(obj)
+
+    def get_nearby(self, x, y, z, radius):
+        """Yield all objects within radius of (x, y, z)."""
+        cs = self.cell_size
+        r_cells = int(radius // cs) + 1
+        cx, cy, cz = int(x // cs), int(y // cs), int(z // cs)
+        r2 = radius * radius
+        for dx in range(-r_cells, r_cells + 1):
+            for dy in range(-r_cells, r_cells + 1):
+                for dz in range(-r_cells, r_cells + 1):
+                    cell = self.cells.get((cx + dx, cy + dy, cz + dz))
+                    if cell:
+                        for obj in cell:
+                            ddx = obj.x - x
+                            ddy = obj.y - y
+                            ddz = obj.z - z
+                            if ddx * ddx + ddy * ddy + ddz * ddz <= r2:
+                                yield obj

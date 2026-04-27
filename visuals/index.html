@@ -69,13 +69,6 @@
         text-align: center;
         font-family: "Consolas", monospace;
       }
-      #speed-display {
-        font-size: 0.8em;
-        color: #8899aa;
-        min-width: 50px;
-        text-align: center;
-        font-family: "Consolas", monospace;
-      }
 
       #stats-bar {
         display: flex;
@@ -159,12 +152,6 @@
       .legend-swatch.circle {
         border-radius: 50%;
       }
-      .legend-bar {
-        width: 18px;
-        height: 4px;
-        border-radius: 1px;
-        flex-shrink: 0;
-      }
 
       #progress-bar-container {
         width: 100%;
@@ -209,7 +196,7 @@
         top: 8px;
         right: 12px;
         width: 240px;
-        background: rgba(17, 30, 48, 0.95);
+        background: rgba(17, 30, 48, 0.6);
         border: 1px solid #1e3a5f;
         border-radius: 8px;
         padding: 12px;
@@ -362,23 +349,34 @@
 
     <div id="top-bar">
       <div id="controls">
-        <button id="btn-play" class="active">Play</button>
-        <button id="btn-pause">Pause</button>
+        <button id="btn-playpause" class="active">Pause</button>
         <button id="btn-restart">Restart</button>
-        <button id="btn-slower">&lt;&lt;</button>
-        <span id="speed-display">3 fps</span>
-        <button id="btn-faster">&gt;&gt;</button>
+        <button id="btn-back5">&lt;&lt;&lt;</button>
+        <button id="btn-back3">&lt;&lt;</button>
+        <button id="btn-back1">&lt;</button>
+        <button id="btn-fwd1">&gt;</button>
+        <button id="btn-fwd3">&gt;&gt;</button>
+        <button id="btn-fwd5">&gt;&gt;&gt;</button>
         <div
           style="display: flex; align-items: center; gap: 5px; font-size: 0.8em"
         >
-          <label>Frame:</label>
+          <label>FPS:</label>
           <input
-            type="range"
-            id="frame-slider"
-            min="0"
-            max="100"
-            value="0"
-            style="width: 160px; accent-color: #5ec4ff"
+            type="number"
+            id="fps-input"
+            min="1"
+            max="120"
+            value="3"
+            style="
+              width: 50px;
+              background: #1a3a5c;
+              color: #5ec4ff;
+              border: 1px solid #2a5a8c;
+              border-radius: 3px;
+              padding: 2px 4px;
+              font-size: 0.9em;
+              text-align: center;
+            "
           />
         </div>
         <div id="time-display">Day 00 | Hour 00 | Frame 0000/0000</div>
@@ -486,6 +484,28 @@
             "
           ></div>
           Parasitized
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ff2222;
+              box-shadow: 0 0 3px #ff2222;
+            "
+          ></div>
+          &#9760; Death
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ffdd00;
+              box-shadow: 0 0 3px #ffdd00;
+            "
+          ></div>
+          &#129463; Cannibalized
         </div>
       </div>
 

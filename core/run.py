@@ -1,21 +1,14 @@
 #!/usr/bin/env python3
 """
 run.py -- Entry point for the Largemouth Bass Aquaculture Optimizer.
-
-Runs the EA, saves simulation_data.json, then automatically runs plot.py.
-
-Usage:  python core/run.py
 """
 
-import sys
-import json
-import subprocess
+import sys, json, subprocess
 from pathlib import Path
 
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
-    INITIAL_FISH_POPULATION, AQUACULTURE_DAYS,
-    SIMULATION_JSON_PATH, PROJECT_ROOT,
+    AQUACULTURE_DAYS, SIMULATION_JSON_PATH, PROJECT_ROOT,
 )
 from ea import EA
 
@@ -34,12 +27,11 @@ def main():
             'survival_rate': champ['survival_rate'],
             'avg_healthiness': champ.get('avg_healthiness', 0),
             'cost': champ['cost'],
-            'efficiency': champ['efficiency'],
-            'initial_fish': INITIAL_FISH_POPULATION,
+            'saving': champ.get('saving', 0),
+            'yield': champ.get('yield', 0),
             'aquaculture_days': AQUACULTURE_DAYS,
             'frames': champ['frames'],
         }
-
         with open(SIMULATION_JSON_PATH, 'w') as fp:
             json.dump(viz, fp)
         print(f"\n  Saved {SIMULATION_JSON_PATH} ({len(champ['frames'])} frames)")
@@ -48,7 +40,6 @@ def main():
     else:
         print("\n  No frames to export.")
 
-    # Automatically run plot.py
     plot_path = str(PROJECT_ROOT / 'core' / 'plot.py')
     print(f"\n  Running plot.py...")
     result = subprocess.run([sys.executable, plot_path])

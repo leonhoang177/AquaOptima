@@ -1,209 +1,219 @@
 /**
- * effects.js -- Glow rings (handled in entities.js) and cannibal kill animations.
- *
- * Kill effects: expanding red ring + skull sprite that fades out.
+ * effects.js -- Death and cannibal kill animations.
+ * Dead fish: red ring + skull
+ * Cannibal: yellow ring + jaw
+ * Effects freeze when simulation is paused.
  */
 
 import * as THREE from "three";
 
-// ── Config ──
-const MAX_KILL_EFFECTS = 20;
-const KILL_DURATION_FRAMES = 25;
+const MAX_EFFECTS = 30;
+const KILL_DURATION_FRAMES = 20;
 const KILL_MAX_RADIUS = 8;
-const KILL_COLOR = 0xff2222;
 
-let killEffects = [];
-let killPool = [];
-let prevFishIds = new Set();
+// Cannibal: bright yellow
+const CANNIBAL_COLOR = 0xffdd00;
+const CANNIBAL_FLASH = 0xffee44;
 
-/**
- * Initialize kill effect pool.
- */
-export function initEffects(sceneCtx, pond) {
-  const { scene } = sceneCtx;
+// Death: red
+const DEATH_COLOR = 0xff2222;
+const DEATH_FLASH = 0xff5050;
 
-  for (let i = 0; i < MAX_KILL_EFFECTS; i++) {
+let cannibalEffects = [];
+let deathEffects = [];
+let cannibalPool = [];
+let deathPool = [];
+
+function _createEffectPool(
+  scene,
+  count,
+  ringColor,
+  flashColor,
+  iconText,
+  iconColor,
+) {
+  const pool = [];
+  for (let i = 0; i < count; i++) {
     const group = new THREE.Group();
     group.visible = false;
 
-    // Expanding ring
     const ringGeo = new THREE.RingGeometry(1, 1.3, 24);
     const ringMat = new THREE.MeshBasicMaterial({
-      color: KILL_COLOR,
+      color: ringColor,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.8,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
-    const ring = new THREE.Mesh(ringGeo, ringMat);
-    ring.name = "killRing";
-    group.add(ring);
+    group.add(new THREE.Mesh(ringGeo, ringMat));
 
-    // Inner flash
     const flashGeo = new THREE.CircleGeometry(1, 16);
     const flashMat = new THREE.MeshBasicMaterial({
-      color: 0xff5050,
+      color: flashColor,
       transparent: true,
       opacity: 0.3,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
-    const flash = new THREE.Mesh(flashGeo, flashMat);
-    flash.name = "killFlash";
-    group.add(flash);
+    group.add(new THREE.Mesh(flashGeo, flashMat));
 
-    // Skull text sprite
     const canvas = document.createElement("canvas");
     canvas.width = 64;
     canvas.height = 64;
     const ctx = canvas.getContext("2d");
-    ctx.font = "48px serif";
+    ctx.font = "44px serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "#ff3333";
-    ctx.fillText("\u2620", 32, 32);
+    ctx.fillStyle = iconColor;
+    ctx.fillText(iconText, 32, 32);
     const tex = new THREE.CanvasTexture(canvas);
-    const spriteMat = new THREE.SpriteMaterial({
-      map: tex,
-      transparent: true,
-      opacity: 1,
-      depthWrite: false,
-    });
-    const sprite = new THREE.Sprite(spriteMat);
-    sprite.name = "killSkull";
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+      }),
+    );
     sprite.scale.set(3, 3, 1);
     group.add(sprite);
 
     scene.add(group);
-    killPool.push(group);
+    pool.push(group);
   }
-
-  return { killPool, killEffects };
+  return pool;
 }
 
-/**
- * Detect kills from frame data and spawn effects.
- */
+export function initEffects(sceneCtx, pond) {
+  const { scene } = sceneCtx;
+
+  cannibalPool = _createEffectPool(
+    scene,
+    MAX_EFFECTS,
+    CANNIBAL_COLOR,
+    CANNIBAL_FLASH,
+    "\uD83E\uDDB7",
+    "#ffdd00",
+  );
+  deathPool = _createEffectPool(
+    scene,
+    MAX_EFFECTS,
+    DEATH_COLOR,
+    DEATH_FLASH,
+    "\u2620",
+    "#ff3333",
+  );
+
+  return { cannibalPool, deathPool, cannibalEffects, deathEffects };
+}
+
 export function detectKills(effectsCtx, frame, prevFrame) {
-  // From cannibal_events in frame data
+  // Cannibal events from simulation
   if (frame.cannibal_events) {
     for (const ev of frame.cannibal_events) {
-      _spawnKill(effectsCtx, ev.x, ev.y, ev.z);
+      effectsCtx.cannibalEffects.push({
+        x: ev.x,
+        y: ev.y,
+        z: ev.z,
+        age: 0,
+        maxAge: KILL_DURATION_FRAMES,
+      });
     }
   }
 
-  // Detect disappearances (fish alive last frame, gone this frame)
+  // Detect deaths (fish disappeared but NOT from cannibalism)
   if (prevFrame) {
     const curIds = new Set(frame.fish.filter((f) => f.alive).map((f) => f.id));
+    const cannibalPreyIds = new Set();
+    if (frame.cannibal_events) {
+      for (const ev of frame.cannibal_events) {
+        cannibalPreyIds.add(ev.prey);
+      }
+    }
+
     for (const pf of prevFrame.fish) {
       if (!pf.alive) continue;
       if (curIds.has(pf.id)) continue;
-
-      // Check if near a current living fish (cannibal proxy)
-      let nearFish = false;
-      for (const cf of frame.fish) {
-        if (!cf.alive) continue;
-        const dx = cf.x - pf.x;
-        const dy = cf.y - pf.y;
-        const dz = cf.z - pf.z;
-        if (Math.sqrt(dx * dx + dy * dy + dz * dz) < 15) {
-          nearFish = true;
-          break;
-        }
-      }
-
-      // Only show kill effect if near another fish and not already from cannibal_events
-      if (nearFish) {
-        const alreadyLogged = frame.cannibal_events?.some(
-          (e) =>
-            Math.abs(e.x - pf.x) < 2 &&
-            Math.abs(e.y - pf.y) < 2 &&
-            Math.abs(e.z - pf.z) < 2,
-        );
-        if (!alreadyLogged) {
-          _spawnKill(effectsCtx, pf.x, pf.y, pf.z);
-        }
-      }
+      // This fish disappeared
+      if (cannibalPreyIds.has(pf.id)) continue; // Already handled as cannibal
+      // This is a natural death
+      effectsCtx.deathEffects.push({
+        x: pf.x,
+        y: pf.y,
+        z: pf.z,
+        age: 0,
+        maxAge: KILL_DURATION_FRAMES,
+      });
     }
   }
 }
 
-/**
- * Spawn a kill effect at position.
- */
-function _spawnKill(effectsCtx, x, y, z) {
-  effectsCtx.killEffects.push({
-    x,
-    y,
-    z,
-    age: 0,
-    maxAge: KILL_DURATION_FRAMES,
-  });
-}
+function _updatePool(effects, pool, camera, advancing) {
+  for (const group of pool) group.visible = false;
 
-/**
- * Update all active kill effects (animate and expire).
- */
-export function updateEffects(effectsCtx, sceneCtx) {
-  const { killEffects, killPool } = effectsCtx;
-  const camera = sceneCtx.camera;
-
-  // Hide all first
-  for (const group of killPool) {
-    group.visible = false;
-  }
-
-  // Advance and render active effects
   const kept = [];
   let poolIdx = 0;
 
-  for (const eff of killEffects) {
-    eff.age++;
+  for (const eff of effects) {
+    if (advancing) eff.age++;
     if (eff.age >= eff.maxAge) continue;
-    if (poolIdx >= killPool.length) {
+    if (poolIdx >= pool.length) {
       kept.push(eff);
       continue;
     }
 
-    const p = eff.age / eff.maxAge; // 0 → 1
+    const p = eff.age / eff.maxAge;
     const alpha = 1 - p;
-    const group = killPool[poolIdx++];
+    const group = pool[poolIdx++];
     group.visible = true;
     group.position.set(eff.x, eff.y, eff.z);
 
-    // Ring: expand and fade
     const ring = group.children[0];
     const radius = 2 + p * KILL_MAX_RADIUS;
     ring.scale.set(radius, radius, radius);
-    ring.material.opacity = alpha * 0.7;
+    ring.material.opacity = alpha * 0.8;
     ring.lookAt(camera.position);
 
-    // Flash: shrink and fade quickly
     const flash = group.children[1];
     if (p < 0.25) {
       flash.visible = true;
-      const flashAlpha = ((0.25 - p) / 0.25) * 0.35;
       flash.scale.setScalar(radius * 0.5);
-      flash.material.opacity = flashAlpha;
+      flash.material.opacity = ((0.25 - p) / 0.25) * 0.4;
       flash.lookAt(camera.position);
-    } else {
-      flash.visible = false;
-    }
+    } else flash.visible = false;
 
-    // Skull: rise and fade
-    const skull = group.children[2];
+    const icon = group.children[2];
     if (alpha > 0.15) {
-      skull.visible = true;
-      skull.position.set(0, 0, -(radius + 1));
-      const skullScale = 2 + p * 1.5;
-      skull.scale.set(skullScale, skullScale, 1);
-      skull.material.opacity = alpha;
-    } else {
-      skull.visible = false;
-    }
+      icon.visible = true;
+      icon.position.set(0, 0, -(radius + 1));
+      const s = 2 + p * 1.5;
+      icon.scale.set(s, s, 1);
+      icon.material.opacity = alpha;
+    } else icon.visible = false;
 
     kept.push(eff);
   }
 
-  effectsCtx.killEffects = kept;
+  return kept;
+}
+
+export function updateEffects(effectsCtx, sceneCtx, advancing) {
+  const camera = sceneCtx.camera;
+  effectsCtx.cannibalEffects = _updatePool(
+    effectsCtx.cannibalEffects,
+    effectsCtx.cannibalPool,
+    camera,
+    advancing,
+  );
+  effectsCtx.deathEffects = _updatePool(
+    effectsCtx.deathEffects,
+    effectsCtx.deathPool,
+    camera,
+    advancing,
+  );
+}
+
+export function clearEffects(effectsCtx) {
+  effectsCtx.cannibalEffects = [];
+  effectsCtx.deathEffects = [];
 }

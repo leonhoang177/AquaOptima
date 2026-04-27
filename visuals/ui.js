@@ -5,79 +5,99 @@
 export const state = {
   playing: true,
   fps: 3,
-  fpsIndex: 2,
   currentFrame: 0,
 };
 
-const FPS_STEPS = [1, 2, 3, 5, 10, 15, 30, 60, 120];
-
-let btnPlay, btnPause, btnRestart, btnSlower, btnFaster;
-let speedDisplay, frameSlider, timeDisplay, progressBar;
+let btnPlayPause, btnRestart;
+let btnBack5, btnBack3, btnBack1, btnFwd1, btnFwd3, btnFwd5;
+let fpsInput, timeDisplay, progressBar;
 let statsBar, genotypeBar, hudDiv;
+let totalFramesCount = 0;
 
 export function initUI(data) {
-  btnPlay = document.getElementById("btn-play");
-  btnPause = document.getElementById("btn-pause");
+  btnPlayPause = document.getElementById("btn-playpause");
   btnRestart = document.getElementById("btn-restart");
-  btnSlower = document.getElementById("btn-slower");
-  btnFaster = document.getElementById("btn-faster");
-  speedDisplay = document.getElementById("speed-display");
-  frameSlider = document.getElementById("frame-slider");
+  btnBack5 = document.getElementById("btn-back5");
+  btnBack3 = document.getElementById("btn-back3");
+  btnBack1 = document.getElementById("btn-back1");
+  btnFwd1 = document.getElementById("btn-fwd1");
+  btnFwd3 = document.getElementById("btn-fwd3");
+  btnFwd5 = document.getElementById("btn-fwd5");
+  fpsInput = document.getElementById("fps-input");
   timeDisplay = document.getElementById("time-display");
   progressBar = document.getElementById("progress-bar");
   statsBar = document.getElementById("stats-bar");
   genotypeBar = document.getElementById("genotype-bar");
   hudDiv = document.getElementById("hud");
 
-  const maxFrame =
-    data.frames && data.frames.length > 0 ? data.frames.length - 1 : 0;
-  frameSlider.max = maxFrame;
+  totalFramesCount =
+    data.frames && data.frames.length > 0 ? data.frames.length : 0;
 
-  btnPlay.addEventListener("click", () => {
-    state.playing = true;
-    btnPlay.classList.add("active");
-    btnPause.classList.remove("active");
+  btnPlayPause.addEventListener("click", () => {
+    state.playing = !state.playing;
+    btnPlayPause.textContent = state.playing ? "Pause" : "Play";
+    btnPlayPause.classList.toggle("active", state.playing);
   });
-  btnPause.addEventListener("click", () => {
-    state.playing = false;
-    btnPause.classList.add("active");
-    btnPlay.classList.remove("active");
-  });
+
   btnRestart.addEventListener("click", () => {
     state.currentFrame = 0;
-    frameSlider.value = 0;
   });
-  btnSlower.addEventListener("click", () => {
-    state.fpsIndex = Math.max(0, state.fpsIndex - 1);
-    state.fps = FPS_STEPS[state.fpsIndex];
-    speedDisplay.textContent = state.fps + " fps";
+
+  btnBack5.addEventListener("click", () => {
+    _step(-5);
   });
-  btnFaster.addEventListener("click", () => {
-    state.fpsIndex = Math.min(FPS_STEPS.length - 1, state.fpsIndex + 1);
-    state.fps = FPS_STEPS[state.fpsIndex];
-    speedDisplay.textContent = state.fps + " fps";
+  btnBack3.addEventListener("click", () => {
+    _step(-3);
   });
-  frameSlider.addEventListener("input", () => {
-    state.currentFrame = parseInt(frameSlider.value);
+  btnBack1.addEventListener("click", () => {
+    _step(-1);
   });
+  btnFwd1.addEventListener("click", () => {
+    _step(1);
+  });
+  btnFwd3.addEventListener("click", () => {
+    _step(3);
+  });
+  btnFwd5.addEventListener("click", () => {
+    _step(5);
+  });
+
+  fpsInput.addEventListener("change", () => {
+    const v = parseInt(fpsInput.value);
+    if (v >= 1 && v <= 120) state.fps = v;
+    else fpsInput.value = state.fps;
+  });
+
   document
     .getElementById("progress-bar-container")
     .addEventListener("click", (e) => {
       const rect = e.currentTarget.getBoundingClientRect();
-      state.currentFrame = Math.floor(
-        ((e.clientX - rect.left) / rect.width) * maxFrame,
+      const pct = (e.clientX - rect.left) / rect.width;
+      state.currentFrame = Math.max(
+        0,
+        Math.min(
+          totalFramesCount - 1,
+          Math.floor(pct * (totalFramesCount - 1)),
+        ),
       );
-      frameSlider.value = state.currentFrame;
     });
 
   _populateGenotype(data);
 }
 
-export function updateUI(frame, totalFrames) {
+function _step(delta) {
+  state.currentFrame = Math.max(
+    0,
+    Math.min(totalFramesCount - 1, state.currentFrame + delta),
+  );
+}
+
+export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
+  cannibalCount = cannibalCount || 0;
+  deathCount = deathCount || 0;
   const p2 = (n) => String(n).padStart(2, "0");
   const p4 = (n) => String(n).padStart(4, "0");
   timeDisplay.textContent = `Day ${p2(frame.day)} | Hour ${p2(frame.hour)} | Frame ${p4(state.currentFrame + 1)}/${p4(totalFrames)}`;
-  frameSlider.value = state.currentFrame;
   progressBar.style.width =
     (state.currentFrame / Math.max(1, totalFrames - 1)) * 100 + "%";
   hudDiv.textContent = `Alive: ${frame.alive_count} / ${frame.total_count}`;
@@ -110,9 +130,11 @@ export function updateUI(frame, totalFrames) {
     <div class="stat-chip"><span class="stat-chip-label">Energy</span><span class="stat-chip-value">${fm(sE)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">O₂</span><span class="stat-chip-value">${fm(sO)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">O2</span><span class="stat-chip-value">${fm(sO)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Infected</span><span class="stat-chip-value">${nInf}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Parasitized</span><span class="stat-chip-value">${nPar}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Deaths</span><span class="stat-chip-value">${deathCount}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Cannibalized</span><span class="stat-chip-value">${cannibalCount}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Objects</span><span class="stat-chip-value">${frame.objects.length}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Hazards</span><span class="stat-chip-value">${frame.hazards.length}</span></div>
   `;
@@ -121,13 +143,28 @@ export function updateUI(frame, totalFrames) {
 function _populateGenotype(data) {
   if (!data || !data.genotype) return;
   const g = data.genotype;
-  const L = (v) => ["Middle", "Corner", "Random"][v] || "?";
+  const L = (v) =>
+    [
+      "Center",
+      "Top-Left",
+      "Top-Right",
+      "Bot-Left",
+      "Bot-Right",
+      "Top-Center",
+      "Bot-Center",
+      "Left-Center",
+      "Right-Center",
+      "Random",
+    ][v] || "?";
   genotypeBar.innerHTML = `
     <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${data.fitness.toFixed(4)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Yield:</span><span class="geno-chip-value">${(data.yield || 0).toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Survival:</span><span class="geno-chip-value">${(data.survival_rate * 100).toFixed(1)}%</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${data.cost.toFixed(2)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}× / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}× / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">O₂:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Saving:</span><span class="geno-chip-value">$${(data.saving || 0).toFixed(2)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${g.fish_count}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">O2:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
   `;
 }

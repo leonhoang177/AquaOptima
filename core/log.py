@@ -13,7 +13,7 @@ def _print_gen_table(gen, max_gen, n_ponds, gen_results):
     print(f"  +-----+----------+-----------+-------------+--------------+------------+")
     for i, r in enumerate(gen_results):
         st = r.get('status', '?')
-        if st == 'GATEKEEPER':    st_s = 'GATE'
+        if st == 'GATEKEEPER':    st_s = 'REJECT'
         elif st == 'OVER-BUDGET': st_s = 'OVER$'
         elif st == 'ALL-DEAD':    st_s = 'DEAD'
         else:                     st_s = 'OK'
@@ -27,8 +27,9 @@ def _print_champion_detail(label: str, result: dict):
     fit = result.get('fitness', 0)
     sr = result.get('survival_rate', 0)
     hlth = result.get('avg_healthiness', 0)
-    eff = result.get('efficiency', 0)
+    sav = result.get('saving', 0)
     cost = result.get('cost', 0)
+    yld = result.get('yield', 0)
     ac = result.get('alive_count', 0)
     ic = result.get('initial_count', 0)
     W = 56; LW = 24; RW = W - LW - 3
@@ -38,12 +39,14 @@ def _print_champion_detail(label: str, result: dict):
     print(f"  | {'Metric':<{LW - 2}} | {'Value':>{RW}} |")
     print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
     print(f"  | {'Fitness':<{LW - 2}} | {fit:>{RW}.4f} |")
+    print(f"  | {'Yield':<{LW - 2}} | {yld:>{RW}.4f} |")
     print(f"  | {'Survival Rate':<{LW - 2}} | {sr * 100:>{RW - 1}.2f}% |")
     print(f"  | {'Healthiness':<{LW - 2}} | {hlth:>{RW}.4f} |")
-    print(f"  | {'Efficiency':<{LW - 2}} | {eff:>{RW}.4f} |")
+    print(f"  | {'Saving':<{LW - 2}} | {'${:.2f}'.format(sav):>{RW}} |")
     print(f"  | {'Cost':<{LW - 2}} | {'${:.2f}'.format(cost):>{RW}} |")
     print(f"  | {'Alive / Initial':<{LW - 2}} | {'{} / {}'.format(ac, ic):>{RW}} |")
     print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
+    print(f"  | {'Fish Count':<{LW - 2}} | {g.get('fish_count', '?'):>{RW}} |")
     print(f"  | {'Food Interval':<{LW - 2}} | {'{} h'.format(g.get('food_interval', '?')):>{RW}} |")
     print(f"  | {'Food Quantity':<{LW - 2}} | {'{} pellets'.format(g.get('food_quantity', '?')):>{RW}} |")
     print(f"  | {'Food Location':<{LW - 2}} | {LOC_NAMES.get(g.get('food_location', -1), '?'):>{RW}} |")
@@ -59,21 +62,22 @@ def _print_champion_detail(label: str, result: dict):
 def _print_champions_summary(champions: list) -> int:
     print(f"\n  +{'=' * 80}+")
     print(f"  | {'ALL TIMELINE CHAMPIONS -- SUMMARY':^78} |")
-    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 11}+{'-' * 13}+{'-' * 14}+{'-' * 14}+")
-    print(f"  | {'Timeline':>10} | {'Fitness':>8} | {'Survival':>9} | {'Healthiness':>11} | {'Cost':>12} | {'Efficiency':>12} |")
-    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 11}+{'-' * 13}+{'-' * 14}+{'-' * 14}+")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
+    print(f"  | {'Timeline':>10} | {'Fitness':>8} | {'Yield':>6} | {'Survival':>9} | {'Healthiness':>11} | {'Saving':>12} |")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
     best_idx = 0; best_fit = -1.0
     for i, c in enumerate(champions):
         tl = c.get('timeline_idx', i) + 1
         fit = c.get('fitness', 0)
+        yld = c.get('yield', 0)
         sr = c.get('survival_rate', 0)
         hlth = c.get('avg_healthiness', 0)
-        cost = c.get('cost', 0)
-        eff = c.get('efficiency', 0)
+        sav = c.get('saving', 0)
         if fit > best_fit:
             best_fit = fit; best_idx = i
-        print(f"  | {tl:>10} | {fit:>8.4f} | {sr * 100:>8.2f}% | {hlth:>11.4f} | ${cost:>11.2f} | {eff:>12.4f} |")
-    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 11}+{'-' * 13}+{'-' * 14}+{'-' * 14}+")
+        tag = " *" if c.get('is_latest_dead') else ""
+        print(f"  | {tl:>10} | {fit:>8.4f} | {yld:>6.4f} | {sr * 100:>8.2f}% | {hlth:>11.4f} | ${sav:>11.2f} |{tag}")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
     winner = champions[best_idx]
     print(f"\n  >>> Best overall: Timeline {winner.get('timeline_idx', best_idx) + 1} with Fitness = {winner['fitness']:.4f}")
     return best_idx

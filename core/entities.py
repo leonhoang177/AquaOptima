@@ -12,16 +12,19 @@ from constants import (
     FOOD_PRICE, PROBIOTIC_PRICE, OXYGEN_PRICE,
     VELOCITY_HP_THRESHOLD, VELOCITY_ENERGY_THRESHOLD, VELOCITY_FULLNESS_THRESHOLD,
     PARASITE_VELOCITY_MULT, FLOOR_HAZARD_HEIGHT,
+    PROBIOTIC_QUANTITY_RANGE, PROBIOTIC_INTERVAL_STEPS,
+    MAX_FISH_COUNT,
 )
 
 
 @dataclass
 class PondGenotype:
+    fish_count: int = 30
     food_interval: int = 6
     food_quantity: int = 3
     food_location: int = 0
-    probiotic_interval: int = 12
-    probiotic_quantity: int = 3
+    probiotic_interval: int = 24
+    probiotic_quantity: int = 2
     probiotic_location: int = 0
     oxygen_interval: int = 8
     oxygen_duration: int = 2
@@ -40,6 +43,7 @@ class PondGenotype:
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in [
+            'fish_count',
             'food_interval', 'food_quantity', 'food_location',
             'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
             'oxygen_interval', 'oxygen_duration', 'oxygen_location']}
@@ -47,15 +51,16 @@ class PondGenotype:
     @staticmethod
     def random() -> 'PondGenotype':
         return PondGenotype(
+            fish_count=random.randint(10, MAX_FISH_COUNT),
             food_interval=random.randint(*FOOD_INTERVAL_RANGE),
             food_quantity=random.randint(*FOOD_QUANTITY_RANGE),
-            food_location=random.randint(0, 2),
-            probiotic_interval=random.randint(1, 24),
-            probiotic_quantity=random.randint(1, 10),
-            probiotic_location=random.randint(0, 2),
+            food_location=random.randint(0, 9),
+            probiotic_interval=random.choice(PROBIOTIC_INTERVAL_STEPS),
+            probiotic_quantity=random.randint(*PROBIOTIC_QUANTITY_RANGE),
+            probiotic_location=random.randint(0, 9),
             oxygen_interval=random.randint(1, 24),
             oxygen_duration=random.randint(1, 4),
-            oxygen_location=random.randint(0, 2))
+            oxygen_location=random.randint(0, 9))
 
     def crossover(self, other: 'PondGenotype') -> 'PondGenotype':
         child = PondGenotype()
@@ -65,20 +70,20 @@ class PondGenotype:
 
     def mutate(self):
         r = EA_MUTATION_RATE
+        if random.random() < r: self.fish_count = random.randint(10, MAX_FISH_COUNT)
         if random.random() < r: self.food_interval = random.randint(*FOOD_INTERVAL_RANGE)
         if random.random() < r: self.food_quantity = random.randint(*FOOD_QUANTITY_RANGE)
-        if random.random() < r: self.food_location = random.randint(0, 2)
-        if random.random() < r: self.probiotic_interval = random.randint(1, 24)
-        if random.random() < r: self.probiotic_quantity = random.randint(1, 10)
-        if random.random() < r: self.probiotic_location = random.randint(0, 2)
+        if random.random() < r: self.food_location = random.randint(0, 9)
+        if random.random() < r: self.probiotic_interval = random.choice(PROBIOTIC_INTERVAL_STEPS)
+        if random.random() < r: self.probiotic_quantity = random.randint(*PROBIOTIC_QUANTITY_RANGE)
+        if random.random() < r: self.probiotic_location = random.randint(0, 9)
         if random.random() < r: self.oxygen_interval = random.randint(1, 24)
         if random.random() < r: self.oxygen_duration = random.randint(1, 4)
-        if random.random() < r: self.oxygen_location = random.randint(0, 2)
+        if random.random() < r: self.oxygen_location = random.randint(0, 9)
 
 
 @dataclass
 class Obstacle:
-    """Static obstacle grounded on the floor. Top surface at z, extends down to z+d (floor)."""
     x: float; y: float; z: float; w: float; h: float; d: float
 
     def contains(self, px, py, pz) -> bool:
@@ -96,11 +101,9 @@ class Obstacle:
         return self.x + self.w / 2, self.y + self.h / 2, self.z + self.d / 2
 
     def top_z(self) -> float:
-        """Z coordinate of the top surface."""
         return self.z
 
     def xy_contains(self, px, py) -> bool:
-        """Check if (px, py) is within the obstacle's footprint."""
         return self.x <= px <= self.x + self.w and self.y <= py <= self.y + self.h
 
 
@@ -119,6 +122,7 @@ class Hazard:
     age: int = 0; max_age: int = 50; alive: bool = True
     vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
     is_floor: bool = False
+    follow_dead_fish: bool = False
 
     def contains(self, px, py, pz) -> bool:
         if self.is_floor:

@@ -1,5 +1,5 @@
 /**
- * entities.js -- Fish, obstacles, hazards. NH3 without wireframe grid.
+ * entities.js -- Fish, obstacles, hazards.
  */
 
 import * as THREE from "three";
@@ -10,14 +10,13 @@ const MAX_FISH = 60,
   MAX_HAZARDS = 40;
 
 const FISH_COLOR = 0x7a9ab5;
-const FISH_COLOR_SELECTED = 0xaaddff;
-const FISH_EMISSIVE_SELECTED = 0x44aaff;
+const FISH_COLOR_SELECTED = 0xffffff;
+const FISH_EMISSIVE_SELECTED = 0xcccccc;
 const FISH_TAIL_COLOR = 0x6a8a9f;
 const OBSTACLE_COLOR = 0x5a3a28;
 const OBSTACLE_EDGE_COLOR = 0x7a5a40;
 const GLOW_INFECTED = 0xffaa00;
 const GLOW_PARASITE = 0xcc44ff;
-const GLOW_SELECTED = 0x44aaff;
 
 const HAZARD_COLORS = {
   nh3: { color: 0x00ff64, opacity: 0.12 },
@@ -35,11 +34,10 @@ let selectionLight = null;
 export function initEntities(sceneCtx, pond) {
   const { scene } = sceneCtx;
 
-  selectionLight = new THREE.PointLight(0x44aaff, 0, 30);
+  selectionLight = new THREE.PointLight(0xffffff, 0, 30);
   selectionLight.visible = false;
   scene.add(selectionLight);
 
-  // Fish pool
   for (let i = 0; i < MAX_FISH; i++) {
     const g = new THREE.Group();
     g.visible = false;
@@ -75,8 +73,7 @@ export function initEntities(sceneCtx, pond) {
     fishPool.push(g);
   }
 
-  // Glow rings: 3 per fish (selected, infected, parasite)
-  for (let i = 0; i < MAX_FISH * 3; i++) {
+  for (let i = 0; i < MAX_FISH * 2; i++) {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(1, 1.1, 32),
       new THREE.MeshBasicMaterial({
@@ -92,7 +89,6 @@ export function initEntities(sceneCtx, pond) {
     glowPool.push(ring);
   }
 
-  // Obstacles
   for (let i = 0; i < MAX_OBSTACLES; i++) {
     const box = new THREE.Mesh(
       new THREE.BoxGeometry(1, 1, 1),
@@ -114,7 +110,6 @@ export function initEntities(sceneCtx, pond) {
     obstaclePool.push(box);
   }
 
-  // NH3 sphere pool — NO wireframe grid, just clean translucent spheres
   for (let i = 0; i < MAX_HAZARDS; i++) {
     const s = new THREE.Mesh(
       new THREE.SphereGeometry(1, 20, 14),
@@ -133,7 +128,6 @@ export function initEntities(sceneCtx, pond) {
     hazardSpherePool.push(s);
   }
 
-  // Floor hazard cylinders (disease/parasite)
   for (let i = 0; i < MAX_HAZARDS; i++) {
     const cyl = new THREE.Mesh(
       new THREE.CylinderGeometry(1, 1, 1, 24, 1, true),
@@ -185,7 +179,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
   } = entitiesCtx;
   const camera = sceneCtx.camera;
   const selectedId = getSelectedFishId();
-  const FLOOR_HAZ_H = 8.0;
+  const FLOOR_HAZ_H = 12.0;
 
   const fishData = frame.fish || [];
   let selectedGroup = null;
@@ -206,7 +200,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
       const isSel = fd.id === selectedId;
       body.material.color.setHex(isSel ? FISH_COLOR_SELECTED : FISH_COLOR);
       body.material.emissive.setHex(isSel ? FISH_EMISSIVE_SELECTED : 0);
-      body.material.emissiveIntensity = isSel ? 0.4 : 0;
+      body.material.emissiveIntensity = isSel ? 0.5 : 0;
       if (isSel) selectedGroup = g;
 
       g.children[1].position.set(-bs - 0.5, 0, 0);
@@ -225,7 +219,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     }
   }
 
-  // Selection light
   if (selectedGroup) {
     selectionLight.visible = true;
     selectionLight.position.copy(selectedGroup.position);
@@ -234,7 +227,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     selectionLight.visible = false;
   }
 
-  // Status rings
   let gi = 0;
   for (let i = 0; i < fishData.length && i < fishPool.length; i++) {
     const fd = fishData[i];
@@ -242,8 +234,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     if (!fd.alive || !grp.visible) continue;
     const bs = grp.userData.bodySize;
     const rings = [];
-    if (fd.id === selectedId)
-      rings.push({ color: GLOW_SELECTED, radius: bs + 0.2 });
     if (fd.is_infected) rings.push({ color: GLOW_INFECTED, radius: bs + 0.4 });
     if (fd.has_parasite) rings.push({ color: GLOW_PARASITE, radius: bs + 0.9 });
     for (const r of rings) {
@@ -259,7 +249,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
   }
   for (let i = gi; i < glowPool.length; i++) glowPool[i].visible = false;
 
-  // Obstacles
   const obsData = frame.obstacles || [];
   for (let i = 0; i < obstaclePool.length; i++) {
     if (i < obsData.length) {
@@ -274,7 +263,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     } else obstaclePool[i].visible = false;
   }
 
-  // Hazards
   const hazData = frame.hazards || [];
   const sphHaz = [],
     flrHaz = [];
@@ -283,7 +271,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     else sphHaz.push(hd);
   }
 
-  // NH3 spheres (no wireframe)
   for (let i = 0; i < hazardSpherePool.length; i++) {
     const s = hazardSpherePool[i];
     if (i < sphHaz.length) {
@@ -299,7 +286,6 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
     } else s.visible = false;
   }
 
-  // Floor disc/cylinder hazards
   for (let i = 0; i < hazardDiscPool.length; i++) {
     const c = hazardDiscPool[i];
     if (i < flrHaz.length) {
