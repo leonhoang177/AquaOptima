@@ -1,0 +1,4164 @@
+====================
+Directory Tree (selected)
+====================
+
+AquaOptima/
+├── core/
+│   ├── constants.py
+│   ├── ea.py
+│   ├── entities.py
+│   ├── helpers.py
+│   ├── log.py
+│   ├── plot.py
+│   ├── pond.py
+│   └── run.py
+├── logs/
+│   ├── results.csv
+│   └── simulation_data.json
+├── visuals/
+│   ├── effects.js
+│   ├── entities.js
+│   ├── index.html
+│   ├── legend.js
+│   ├── loop.js
+│   ├── main.js
+│   ├── objects.js
+│   ├── scene.js
+│   ├── selection.js
+│   └── ui.js
+├── .gitignore
+├── LICENSE
+├── README.md
+└── tree.txt
+
+--------------------
+File: /AquaOptima/visuals/ui.js
+--------------------
+
+/**
+ * ui.js -- Controls, stats bar, genotype bar.
+ */
+
+export const state = {
+  playing: true,
+  fps: 3,
+  currentFrame: 0,
+};
+
+let btnPlayPause, btnRestart;
+let btnBack5, btnBack3, btnBack1, btnFwd1, btnFwd3, btnFwd5;
+let fpsInput, timeDisplay, progressBar;
+let statsBar, genotypeBar, hudDiv;
+let totalFramesCount = 0;
+
+export function initUI(data) {
+  btnPlayPause = document.getElementById("btn-playpause");
+  btnRestart = document.getElementById("btn-restart");
+  btnBack5 = document.getElementById("btn-back5");
+  btnBack3 = document.getElementById("btn-back3");
+  btnBack1 = document.getElementById("btn-back1");
+  btnFwd1 = document.getElementById("btn-fwd1");
+  btnFwd3 = document.getElementById("btn-fwd3");
+  btnFwd5 = document.getElementById("btn-fwd5");
+  fpsInput = document.getElementById("fps-input");
+  timeDisplay = document.getElementById("time-display");
+  progressBar = document.getElementById("progress-bar");
+  statsBar = document.getElementById("stats-bar");
+  genotypeBar = document.getElementById("genotype-bar");
+  hudDiv = document.getElementById("hud");
+
+  totalFramesCount =
+    data.frames && data.frames.length > 0 ? data.frames.length : 0;
+
+  btnPlayPause.addEventListener("click", () => {
+    state.playing = !state.playing;
+    btnPlayPause.textContent = state.playing ? "Pause" : "Play";
+    btnPlayPause.classList.toggle("active", state.playing);
+  });
+
+  btnRestart.addEventListener("click", () => {
+    state.currentFrame = 0;
+  });
+
+  btnBack5.addEventListener("click", () => {
+    _step(-5);
+  });
+  btnBack3.addEventListener("click", () => {
+    _step(-3);
+  });
+  btnBack1.addEventListener("click", () => {
+    _step(-1);
+  });
+  btnFwd1.addEventListener("click", () => {
+    _step(1);
+  });
+  btnFwd3.addEventListener("click", () => {
+    _step(3);
+  });
+  btnFwd5.addEventListener("click", () => {
+    _step(5);
+  });
+
+  fpsInput.addEventListener("change", () => {
+    const v = parseInt(fpsInput.value);
+    if (v >= 1 && v <= 120) state.fps = v;
+    else fpsInput.value = state.fps;
+  });
+
+  document
+    .getElementById("progress-bar-container")
+    .addEventListener("click", (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pct = (e.clientX - rect.left) / rect.width;
+      state.currentFrame = Math.max(
+        0,
+        Math.min(
+          totalFramesCount - 1,
+          Math.floor(pct * (totalFramesCount - 1)),
+        ),
+      );
+    });
+
+  _populateGenotype(data);
+}
+
+function _step(delta) {
+  state.currentFrame = Math.max(
+    0,
+    Math.min(totalFramesCount - 1, state.currentFrame + delta),
+  );
+}
+
+export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
+  cannibalCount = cannibalCount || 0;
+  deathCount = deathCount || 0;
+  const p2 = (n) => String(n).padStart(2, "0");
+  const p4 = (n) => String(n).padStart(4, "0");
+  timeDisplay.textContent = `Day ${p2(frame.day)} | Hour ${p2(frame.hour)} | Frame ${p4(state.currentFrame + 1)}/${p4(totalFrames)}`;
+  progressBar.style.width =
+    (state.currentFrame / Math.max(1, totalFrames - 1)) * 100 + "%";
+  hudDiv.textContent = `Alive: ${frame.alive_count} / ${frame.total_count}`;
+
+  const alive = frame.fish.filter((f) => f.alive);
+  const n = alive.length || 1;
+  const total = frame.total_count;
+  const sp = (alive.length / total) * 100;
+  let sH = 0,
+    sE = 0,
+    sF = 0,
+    sI = 0,
+    sO = 0,
+    nInf = 0,
+    nPar = 0;
+  for (const f of alive) {
+    sH += f.hp;
+    sE += f.energy;
+    sF += f.fullness;
+    sI += f.immunity;
+    sO += f.oxygen;
+    if (f.is_infected) nInf++;
+    if (f.has_parasite) nPar++;
+  }
+  const fm = (v) => (v / n).toFixed(1);
+
+  statsBar.innerHTML = `
+    <div class="stat-chip"><span class="stat-chip-label">Survival</span><span class="stat-chip-value">${sp.toFixed(1)}% (${alive.length}/${total})</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">HP</span><span class="stat-chip-value">${fm(sH)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Energy</span><span class="stat-chip-value">${fm(sE)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">O2</span><span class="stat-chip-value">${fm(sO)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Infected</span><span class="stat-chip-value">${nInf}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Parasitized</span><span class="stat-chip-value">${nPar}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Deaths</span><span class="stat-chip-value">${deathCount}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Cannibalized</span><span class="stat-chip-value">${cannibalCount}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Objects</span><span class="stat-chip-value">${frame.objects.length}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Hazards</span><span class="stat-chip-value">${frame.hazards.length}</span></div>
+  `;
+}
+
+function _populateGenotype(data) {
+  if (!data || !data.genotype) return;
+  const g = data.genotype;
+  const L = (v) =>
+    [
+      "Center",
+      "Top-Left",
+      "Top-Right",
+      "Bot-Left",
+      "Bot-Right",
+      "Top-Center",
+      "Bot-Center",
+      "Left-Center",
+      "Right-Center",
+      "Random",
+    ][v] || "?";
+  genotypeBar.innerHTML = `
+    <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${data.fitness.toFixed(4)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Yield:</span><span class="geno-chip-value">${(data.yield || 0).toFixed(4)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Survival:</span><span class="geno-chip-value">${(data.survival_rate * 100).toFixed(1)}%</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${data.cost.toFixed(2)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Saving:</span><span class="geno-chip-value">$${(data.saving || 0).toFixed(2)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${g.fish_count}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">O2:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
+  `;
+}
+
+
+--------------------
+File: /AquaOptima/visuals/index.html
+--------------------
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Largemouth Bass Aquaculture - 3D Visualization</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #0d1a2e;
+        color: #e0e8f0;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100vh;
+        overflow: hidden;
+      }
+      h1 {
+        font-size: 1.2em;
+        margin: 6px 0 4px 0;
+        color: #5ec4ff;
+        text-align: center;
+      }
+
+      #top-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        width: 100%;
+        padding: 0 10px;
+        z-index: 10;
+      }
+      #controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        flex-wrap: wrap;
+        justify-content: center;
+        width: 100%;
+      }
+      button {
+        background: #1a3a5c;
+        color: #5ec4ff;
+        border: 1px solid #2a5a8c;
+        border-radius: 4px;
+        padding: 4px 12px;
+        cursor: pointer;
+        font-size: 0.82em;
+      }
+      button:hover {
+        background: #2a5a8c;
+      }
+      button.active {
+        background: #2a7acc;
+        color: #fff;
+      }
+      #time-display {
+        font-size: 0.82em;
+        color: #5ec4ff;
+        min-width: 180px;
+        text-align: center;
+        font-family: "Consolas", monospace;
+      }
+
+      #stats-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 5px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+      }
+      .stat-chip {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.75em;
+      }
+      .stat-chip-label {
+        color: #8899aa;
+      }
+      .stat-chip-value {
+        color: #e0e8f0;
+        font-weight: bold;
+        font-family: "Consolas", monospace;
+        font-size: 0.88em;
+      }
+
+      #genotype-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding: 4px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+        font-size: 0.7em;
+      }
+      .geno-chip {
+        display: flex;
+        align-items: center;
+        gap: 3px;
+      }
+      .geno-chip-label {
+        color: #667788;
+      }
+      .geno-chip-value {
+        color: #aabbcc;
+        font-family: "Consolas", monospace;
+      }
+
+      #legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 4px 12px;
+        background: #111e30;
+        border: 1px solid #1e3a5f;
+        border-radius: 6px;
+        width: 100%;
+        justify-content: center;
+        align-items: center;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 0.68em;
+      }
+      .legend-swatch {
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        border: 1px solid #3a5a7c;
+        flex-shrink: 0;
+      }
+      .legend-swatch.circle {
+        border-radius: 50%;
+      }
+
+      #progress-bar-container {
+        width: 100%;
+        height: 4px;
+        background: #1e3a5f;
+        border-radius: 2px;
+        cursor: pointer;
+        margin-top: 2px;
+      }
+      #progress-bar {
+        height: 100%;
+        background: #5ec4ff;
+        border-radius: 2px;
+        width: 0%;
+      }
+
+      #canvas-container {
+        flex: 1;
+        width: 100%;
+        position: relative;
+      }
+      #canvas-container canvas {
+        display: block;
+      }
+
+      #hud {
+        position: absolute;
+        top: 8px;
+        left: 12px;
+        background: rgba(10, 22, 40, 0.75);
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 0.85em;
+        font-family: "Consolas", monospace;
+        color: #5ec4ff;
+        pointer-events: none;
+        z-index: 5;
+      }
+
+      #fish-panel {
+        position: absolute;
+        top: 8px;
+        right: 12px;
+        width: 240px;
+        background: rgba(17, 30, 48, 0.6);
+        border: 1px solid #1e3a5f;
+        border-radius: 8px;
+        padding: 12px;
+        z-index: 20;
+        display: none;
+        font-size: 0.8em;
+      }
+      #fish-panel.visible {
+        display: block;
+      }
+      #fish-panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        border-bottom: 1px solid #1e3a5f;
+        padding-bottom: 6px;
+      }
+      #fish-panel-title {
+        color: #5ec4ff;
+        font-weight: bold;
+        font-size: 1.05em;
+      }
+      #fish-panel-close {
+        background: none;
+        border: none;
+        color: #667788;
+        font-size: 1.2em;
+        cursor: pointer;
+        padding: 0 4px;
+      }
+      #fish-panel-close:hover {
+        color: #ff4c6a;
+      }
+      .fp-section {
+        margin-bottom: 8px;
+      }
+      .fp-section-title {
+        color: #5ec4ff;
+        font-size: 0.85em;
+        font-weight: bold;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .fp-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1px 0;
+      }
+      .fp-label {
+        color: #8899aa;
+        font-size: 0.9em;
+      }
+      .fp-value {
+        color: #e0e8f0;
+        font-family: "Consolas", monospace;
+        font-size: 0.88em;
+      }
+      .fp-bar-row {
+        margin: 3px 0;
+      }
+      .fp-bar-label-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1px;
+      }
+      .fp-bar-name {
+        color: #8899aa;
+        font-size: 0.85em;
+      }
+      .fp-bar-nums {
+        color: #ccc;
+        font-family: "Consolas", monospace;
+        font-size: 0.82em;
+      }
+      .fp-bar-track {
+        width: 100%;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border-radius: 3px;
+        overflow: hidden;
+      }
+      .fp-bar-fill {
+        height: 100%;
+        border-radius: 3px;
+        transition: width 0.15s ease;
+      }
+      .fp-status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        margin-right: 4px;
+        vertical-align: middle;
+      }
+      .fp-dead-banner {
+        text-align: center;
+        color: #ff4c6a;
+        font-weight: bold;
+        font-size: 1.1em;
+        padding: 8px 0;
+        border: 1px solid #ff4c6a;
+        border-radius: 4px;
+        margin-top: 6px;
+      }
+
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(10, 22, 40, 0.95);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 100;
+        font-size: 1.2em;
+        color: #5ec4ff;
+      }
+      #loading.hidden {
+        display: none;
+      }
+      .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid #1e3a5f;
+        border-top: 4px solid #5ec4ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="loading">
+      <div class="spinner"></div>
+      <div>Loading simulation data...</div>
+    </div>
+
+    <h1>Largemouth Bass Aquaculture - 3D Visualization</h1>
+
+    <div id="top-bar">
+      <div id="controls">
+        <button id="btn-playpause" class="active">Pause</button>
+        <button id="btn-restart">Restart</button>
+        <button id="btn-back5">&lt;&lt;&lt;</button>
+        <button id="btn-back3">&lt;&lt;</button>
+        <button id="btn-back1">&lt;</button>
+        <button id="btn-fwd1">&gt;</button>
+        <button id="btn-fwd3">&gt;&gt;</button>
+        <button id="btn-fwd5">&gt;&gt;&gt;</button>
+        <div
+          style="display: flex; align-items: center; gap: 5px; font-size: 0.8em"
+        >
+          <label>FPS:</label>
+          <input
+            type="number"
+            id="fps-input"
+            min="1"
+            max="120"
+            value="3"
+            style="
+              width: 50px;
+              background: #1a3a5c;
+              color: #5ec4ff;
+              border: 1px solid #2a5a8c;
+              border-radius: 3px;
+              padding: 2px 4px;
+              font-size: 0.9em;
+              text-align: center;
+            "
+          />
+        </div>
+        <div id="time-display">Day 00 | Hour 00 | Frame 0000/0000</div>
+      </div>
+
+      <div id="stats-bar"></div>
+      <div id="genotype-bar"></div>
+
+      <div id="legend">
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: #7a9ab5; border-radius: 50%"
+          ></div>
+          Fish
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: #ffee55; border-color: #ccaa22"
+          ></div>
+          Food
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: #55ffcc; border-color: #22aa88"
+          ></div>
+          Probiotic
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(136, 204, 255, 0.6); border-color: #88ccff"
+          ></div>
+          O2
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: #8b6914; border-color: #6a5010"
+          ></div>
+          Fecal
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: #cc2222; border-color: #881111"
+          ></div>
+          Dead Fish
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: rgba(204, 102, 0, 0.7); border-color: #cc6600"
+          ></div>
+          Pollutant
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(0, 255, 100, 0.25); border-color: #00ff64"
+          ></div>
+          NH3
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(255, 180, 0, 0.25); border-color: #ffb400"
+          ></div>
+          Disease
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="background: rgba(200, 80, 255, 0.2); border-color: #c850ff"
+          ></div>
+          Parasite
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch"
+            style="background: #5a3a28; border-color: #7a5a40"
+          ></div>
+          Obstacle
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ffaa00;
+              box-shadow: 0 0 3px #ffaa00;
+            "
+          ></div>
+          Infected
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #cc44ff;
+              box-shadow: 0 0 3px #cc44ff;
+            "
+          ></div>
+          Parasitized
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ff2222;
+              box-shadow: 0 0 3px #ff2222;
+            "
+          ></div>
+          &#9760; Death
+        </div>
+        <div class="legend-item">
+          <div
+            class="legend-swatch circle"
+            style="
+              background: transparent;
+              border: 2px solid #ffdd00;
+              box-shadow: 0 0 3px #ffdd00;
+            "
+          ></div>
+          &#129463; Cannibalized
+        </div>
+      </div>
+
+      <div id="progress-bar-container"><div id="progress-bar"></div></div>
+    </div>
+
+    <div id="canvas-container">
+      <div id="hud">Alive: 0 / 0</div>
+      <div id="fish-panel">
+        <div id="fish-panel-header">
+          <span id="fish-panel-title">Fish #0</span>
+          <button id="fish-panel-close">&times;</button>
+        </div>
+        <div id="fish-panel-body"></div>
+      </div>
+    </div>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+        }
+      }
+    </script>
+
+    <script type="module" src="main.js"></script>
+  </body>
+</html>
+
+
+--------------------
+File: /AquaOptima/visuals/scene.js
+--------------------
+
+/**
+ * scene.js -- Three.js scene: renderer, camera, controls, lights, pond, dense plants.
+ * Default view: fish tank perspective (front-facing, surface top, floor bottom).
+ */
+
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+export function initScene(container, pond) {
+  const { width: W, height: H, depth: D } = pond;
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x0a1628, 1);
+  _resize(renderer, container);
+  container.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x0a1628, 0.002);
+
+  const aspect = container.clientWidth / container.clientHeight;
+  const camera = new THREE.PerspectiveCamera(50, aspect, 1, 1000);
+
+  // Fish tank view: looking straight at front face
+  // X = width (left-right), Y = depth (into screen), Z = height (up-down)
+  // But our sim uses: X = width, Y = height, Z = depth (0=surface, D=floor)
+  // So camera looks along -Y axis, with Z going "up" in screen
+  camera.up.set(0, 0, -1); // Z=0 (surface) at top, Z=D (floor) at bottom
+  camera.position.set(W * 0.5, -H * 1.5, D * 0.5);
+  camera.lookAt(W * 0.5, H * 0.5, D * 0.5);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(W * 0.5, H * 0.5, D * 0.5);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.minDistance = 20;
+  controls.maxDistance = 600;
+  // No angle constraints — full rotation freedom
+  controls.minPolarAngle = 0;
+  controls.maxPolarAngle = Math.PI;
+  controls.minAzimuthAngle = -Infinity;
+  controls.maxAzimuthAngle = Infinity;
+  controls.update();
+
+  scene.add(new THREE.AmbientLight(0x4466aa, 0.7));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(W * 0.5, -H, D * 0.3);
+  scene.add(dirLight);
+  const fillLight = new THREE.DirectionalLight(0x88aacc, 0.3);
+  fillLight.position.set(W * 0.5, H * 2, D * 0.5);
+  scene.add(fillLight);
+  // Bottom light to illuminate floor/plants
+  const bottomLight = new THREE.DirectionalLight(0x665544, 0.2);
+  bottomLight.position.set(W * 0.5, H * 0.5, D * 2);
+  scene.add(bottomLight);
+
+  // Pond wireframe
+  const pondLine = new THREE.LineSegments(
+    new THREE.EdgesGeometry(new THREE.BoxGeometry(W, H, D)),
+    new THREE.LineBasicMaterial({ color: 0x1e5080 }),
+  );
+  pondLine.position.set(W / 2, H / 2, D / 2);
+  scene.add(pondLine);
+
+  // Water surface (z=0) — lighter blue, top of tank
+  const surfMat = new THREE.MeshBasicMaterial({
+    color: 0x2a6699,
+    transparent: true,
+    opacity: 0.2,
+    side: THREE.DoubleSide,
+  });
+  const surf = new THREE.Mesh(new THREE.PlaneGeometry(W, H), surfMat);
+  surf.position.set(W / 2, H / 2, 0);
+  scene.add(surf);
+
+  // Floor (z=D) — dark sandy, bottom of tank
+  const floorMat = new THREE.MeshBasicMaterial({
+    color: 0x2a2018,
+    transparent: true,
+    opacity: 0.5,
+    side: THREE.DoubleSide,
+  });
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat);
+  floor.position.set(W / 2, H / 2, D);
+  scene.add(floor);
+
+  // Floor grid
+  const gridGroup = new THREE.Group();
+  const gridMat = new THREE.LineBasicMaterial({
+    color: 0x3a2a1a,
+    transparent: true,
+    opacity: 0.15,
+  });
+  for (let x = 0; x <= W; x += 25) {
+    gridGroup.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(x, 0, D),
+          new THREE.Vector3(x, H, D),
+        ]),
+        gridMat,
+      ),
+    );
+  }
+  for (let y = 0; y <= H; y += 25) {
+    gridGroup.add(
+      new THREE.LineSegments(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, y, D),
+          new THREE.Vector3(W, y, D),
+        ]),
+        gridMat,
+      ),
+    );
+  }
+  scene.add(gridGroup);
+
+  _createPlants(scene, W, H, D);
+
+  window.addEventListener("resize", () => {
+    _resize(renderer, container);
+    camera.aspect = container.clientWidth / container.clientHeight;
+    camera.updateProjectionMatrix();
+  });
+
+  return { renderer, scene, camera, controls, pond };
+}
+
+export function getRenderer(ctx) {
+  return ctx.renderer;
+}
+
+function _resize(renderer, container) {
+  const w = container.clientWidth;
+  const h = container.clientHeight || window.innerHeight - container.offsetTop;
+  renderer.setSize(w, h);
+}
+
+function _createPlants(scene, W, H, D) {
+  const group = new THREE.Group();
+  const grassColors = [0x1a6633, 0x228844, 0x2a7744, 0x1a5533, 0x1e7040];
+  const kelpColors = [0x0f4422, 0x1a5530, 0x0d3318, 0x145528];
+
+  const spacing = 5;
+  for (let gx = 3; gx < W - 3; gx += spacing) {
+    for (let gy = 2; gy < H - 2; gy += spacing) {
+      if (Math.random() > 0.9) continue;
+      const px = gx + (Math.random() - 0.5) * spacing * 0.8;
+      const py = gy + (Math.random() - 0.5) * spacing * 0.8;
+      const height = 3 + Math.random() * 8;
+      const width = 0.3 + Math.random() * 0.5;
+      const color = grassColors[Math.floor(Math.random() * grassColors.length)];
+      const mat = new THREE.MeshPhongMaterial({
+        color,
+        transparent: true,
+        opacity: 0.6 + Math.random() * 0.15,
+        side: THREE.DoubleSide,
+        emissive: color,
+        emissiveIntensity: 0.08,
+      });
+      // PlaneGeometry is in XY plane by default. We need it standing upright:
+      // Z axis is depth (vertical in fish tank view), so rotate plane to stand along Z
+      const blade = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
+      // Position base at floor, blade extends upward (toward surface = -Z)
+      blade.position.set(px, py, D - height * 0.5);
+      // Rotate so the plane stands upright in the XZ plane
+      blade.rotation.x = Math.PI / 2;
+      // Random facing direction
+      blade.rotation.z = Math.random() * Math.PI;
+      // Slight lean (80% upright, 20% leaning)
+      if (Math.random() < 0.2) {
+        blade.rotation.y = (Math.random() - 0.5) * 1.2; // strong lean
+      } else {
+        blade.rotation.y = (Math.random() - 0.5) * 0.2; // slight lean
+      }
+      group.add(blade);
+
+      // Companion blade
+      if (Math.random() > 0.3) {
+        const b2 = blade.clone();
+        b2.material = mat.clone();
+        b2.position.x += (Math.random() - 0.5) * 1.5;
+        b2.position.y += (Math.random() - 0.5) * 1.2;
+        const h2 = 2 + Math.random() * 6;
+        b2.position.z = D - h2 * 0.5;
+        b2.rotation.z = Math.random() * Math.PI;
+        if (Math.random() < 0.2) {
+          b2.rotation.y = (Math.random() - 0.5) * 1.2;
+        } else {
+          b2.rotation.y = (Math.random() - 0.5) * 0.2;
+        }
+        group.add(b2);
+      }
+    }
+  }
+
+  // Kelp clusters
+  for (let i = 0; i < 30; i++) {
+    const cx = Math.random() * (W - 30) + 15;
+    const cy = Math.random() * (H - 15) + 7;
+    const count = 3 + Math.floor(Math.random() * 5);
+    for (let j = 0; j < count; j++) {
+      const kx = cx + (Math.random() - 0.5) * 6;
+      const ky = cy + (Math.random() - 0.5) * 4;
+      const kh = 2 + Math.random() * 5;
+      const kw = 0.7 + Math.random() * 1.0;
+      const kColor = kelpColors[Math.floor(Math.random() * kelpColors.length)];
+      const kMat = new THREE.MeshPhongMaterial({
+        color: kColor,
+        transparent: true,
+        opacity: 0.55,
+        side: THREE.DoubleSide,
+        emissive: kColor,
+        emissiveIntensity: 0.05,
+      });
+      const kelp = new THREE.Mesh(new THREE.PlaneGeometry(kw, kh), kMat);
+      kelp.position.set(kx, ky, D - kh * 0.5);
+      kelp.rotation.x = Math.PI / 2;
+      kelp.rotation.z = Math.random() * Math.PI;
+      if (Math.random() < 0.15) {
+        kelp.rotation.y = (Math.random() - 0.5) * 1.0;
+      } else {
+        kelp.rotation.y = (Math.random() - 0.5) * 0.15;
+      }
+      group.add(kelp);
+    }
+  }
+
+  scene.add(group);
+}
+
+
+--------------------
+File: /AquaOptima/visuals/legend.js
+--------------------
+
+/**
+ * legend.js -- Legend initialization.
+ *
+ * The legend is pure HTML defined in index.html.
+ * This module exists as a placeholder for any future
+ * dynamic legend behavior (e.g., toggling visibility of entity types).
+ *
+ * Currently a no-op.
+ */
+
+/**
+ * Initialize legend. Currently nothing to do — legend is static HTML.
+ */
+export function initLegend() {
+  // Legend is fully defined in index.html as static markup.
+  // This function exists so main.js has a consistent init pattern
+  // and so we have a place to add dynamic legend features later
+  // (e.g., click a legend item to hide/show that entity type).
+}
+
+
+--------------------
+File: /AquaOptima/visuals/effects.js
+--------------------
+
+/**
+ * effects.js -- Death and cannibal kill animations.
+ * Dead fish: red ring + skull
+ * Cannibal: yellow ring + jaw
+ * Effects freeze when simulation is paused.
+ */
+
+import * as THREE from "three";
+
+const MAX_EFFECTS = 30;
+const KILL_DURATION_FRAMES = 20;
+const KILL_MAX_RADIUS = 8;
+
+// Cannibal: bright yellow
+const CANNIBAL_COLOR = 0xffdd00;
+const CANNIBAL_FLASH = 0xffee44;
+
+// Death: red
+const DEATH_COLOR = 0xff2222;
+const DEATH_FLASH = 0xff5050;
+
+let cannibalEffects = [];
+let deathEffects = [];
+let cannibalPool = [];
+let deathPool = [];
+
+function _createEffectPool(
+  scene,
+  count,
+  ringColor,
+  flashColor,
+  iconText,
+  iconColor,
+) {
+  const pool = [];
+  for (let i = 0; i < count; i++) {
+    const group = new THREE.Group();
+    group.visible = false;
+
+    const ringGeo = new THREE.RingGeometry(1, 1.3, 24);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: ringColor,
+      transparent: true,
+      opacity: 0.8,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    group.add(new THREE.Mesh(ringGeo, ringMat));
+
+    const flashGeo = new THREE.CircleGeometry(1, 16);
+    const flashMat = new THREE.MeshBasicMaterial({
+      color: flashColor,
+      transparent: true,
+      opacity: 0.3,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    group.add(new THREE.Mesh(flashGeo, flashMat));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext("2d");
+    ctx.font = "44px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = iconColor;
+    ctx.fillText(iconText, 32, 32);
+    const tex = new THREE.CanvasTexture(canvas);
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        opacity: 1,
+        depthWrite: false,
+      }),
+    );
+    sprite.scale.set(3, 3, 1);
+    group.add(sprite);
+
+    scene.add(group);
+    pool.push(group);
+  }
+  return pool;
+}
+
+export function initEffects(sceneCtx, pond) {
+  const { scene } = sceneCtx;
+
+  cannibalPool = _createEffectPool(
+    scene,
+    MAX_EFFECTS,
+    CANNIBAL_COLOR,
+    CANNIBAL_FLASH,
+    "\uD83E\uDDB7",
+    "#ffdd00",
+  );
+  deathPool = _createEffectPool(
+    scene,
+    MAX_EFFECTS,
+    DEATH_COLOR,
+    DEATH_FLASH,
+    "\u2620",
+    "#ff3333",
+  );
+
+  return { cannibalPool, deathPool, cannibalEffects, deathEffects };
+}
+
+export function detectKills(effectsCtx, frame, prevFrame) {
+  // Cannibal events from simulation
+  if (frame.cannibal_events) {
+    for (const ev of frame.cannibal_events) {
+      effectsCtx.cannibalEffects.push({
+        x: ev.x,
+        y: ev.y,
+        z: ev.z,
+        age: 0,
+        maxAge: KILL_DURATION_FRAMES,
+      });
+    }
+  }
+
+  // Detect deaths (fish disappeared but NOT from cannibalism)
+  if (prevFrame) {
+    const curIds = new Set(frame.fish.filter((f) => f.alive).map((f) => f.id));
+    const cannibalPreyIds = new Set();
+    if (frame.cannibal_events) {
+      for (const ev of frame.cannibal_events) {
+        cannibalPreyIds.add(ev.prey);
+      }
+    }
+
+    for (const pf of prevFrame.fish) {
+      if (!pf.alive) continue;
+      if (curIds.has(pf.id)) continue;
+      // This fish disappeared
+      if (cannibalPreyIds.has(pf.id)) continue; // Already handled as cannibal
+      // This is a natural death
+      effectsCtx.deathEffects.push({
+        x: pf.x,
+        y: pf.y,
+        z: pf.z,
+        age: 0,
+        maxAge: KILL_DURATION_FRAMES,
+      });
+    }
+  }
+}
+
+function _updatePool(effects, pool, camera, advancing) {
+  for (const group of pool) group.visible = false;
+
+  const kept = [];
+  let poolIdx = 0;
+
+  for (const eff of effects) {
+    if (advancing) eff.age++;
+    if (eff.age >= eff.maxAge) continue;
+    if (poolIdx >= pool.length) {
+      kept.push(eff);
+      continue;
+    }
+
+    const p = eff.age / eff.maxAge;
+    const alpha = 1 - p;
+    const group = pool[poolIdx++];
+    group.visible = true;
+    group.position.set(eff.x, eff.y, eff.z);
+
+    const ring = group.children[0];
+    const radius = 2 + p * KILL_MAX_RADIUS;
+    ring.scale.set(radius, radius, radius);
+    ring.material.opacity = alpha * 0.8;
+    ring.lookAt(camera.position);
+
+    const flash = group.children[1];
+    if (p < 0.25) {
+      flash.visible = true;
+      flash.scale.setScalar(radius * 0.5);
+      flash.material.opacity = ((0.25 - p) / 0.25) * 0.4;
+      flash.lookAt(camera.position);
+    } else flash.visible = false;
+
+    const icon = group.children[2];
+    if (alpha > 0.15) {
+      icon.visible = true;
+      icon.position.set(0, 0, -(radius + 1));
+      const s = 2 + p * 1.5;
+      icon.scale.set(s, s, 1);
+      icon.material.opacity = alpha;
+    } else icon.visible = false;
+
+    kept.push(eff);
+  }
+
+  return kept;
+}
+
+export function updateEffects(effectsCtx, sceneCtx, advancing) {
+  const camera = sceneCtx.camera;
+  effectsCtx.cannibalEffects = _updatePool(
+    effectsCtx.cannibalEffects,
+    effectsCtx.cannibalPool,
+    camera,
+    advancing,
+  );
+  effectsCtx.deathEffects = _updatePool(
+    effectsCtx.deathEffects,
+    effectsCtx.deathPool,
+    camera,
+    advancing,
+  );
+}
+
+export function clearEffects(effectsCtx) {
+  effectsCtx.cannibalEffects = [];
+  effectsCtx.deathEffects = [];
+}
+
+
+--------------------
+File: /AquaOptima/visuals/main.js
+--------------------
+
+/**
+ * main.js -- Entry point: fetch data, initialize all modules, start loop.
+ */
+
+import { initEffects } from "./effects.js";
+import { initEntities } from "./entities.js";
+import { initLegend } from "./legend.js";
+import { startLoop } from "./loop.js";
+import { initObjects } from "./objects.js";
+import { initScene } from "./scene.js";
+import { initSelection } from "./selection.js";
+import { initUI } from "./ui.js";
+
+const loadingDiv = document.getElementById("loading");
+
+async function main() {
+  let data;
+  try {
+    const resp = await fetch("../logs/simulation_data.json");
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    data = await resp.json();
+  } catch (err) {
+    loadingDiv.innerHTML = `
+      <div style="color:#ff4c6a;">Could not load simulation_data.json<br>
+      <span style="font-size:0.7em;color:#8899aa;">${err.message}</span></div>`;
+    return;
+  }
+
+  const pond = {
+    width: data.pond_width,
+    height: data.pond_height,
+    depth: data.pond_depth,
+  };
+
+  const frames = data.frames;
+  if (!frames || frames.length === 0) {
+    loadingDiv.innerHTML = `
+      <div style="color:#ff4c6a;">No frames in simulation data.</div>`;
+    return;
+  }
+
+  const container = document.getElementById("canvas-container");
+
+  // Initialize all modules
+  const sceneCtx = initScene(container, pond);
+  const entitiesCtx = initEntities(sceneCtx, pond);
+  const objectsCtx = initObjects(sceneCtx, pond);
+  const effectsCtx = initEffects(sceneCtx, pond);
+  initUI(data);
+  initSelection(sceneCtx, container);
+  initLegend();
+
+  // Hide loading
+  loadingDiv.classList.add("hidden");
+
+  // Start the render/animation loop
+  startLoop(sceneCtx, entitiesCtx, objectsCtx, effectsCtx, frames, pond);
+}
+
+main();
+
+
+--------------------
+File: /AquaOptima/visuals/objects.js
+--------------------
+
+/**
+ * objects.js -- Food, probiotic, O2, fecal, dead fish, pollutant, plant meshes.
+ */
+
+import * as THREE from "three";
+
+const MAX_FOOD = 60,
+  MAX_PROBIOTIC = 60,
+  MAX_OXYGEN = 80,
+  MAX_FECAL = 40;
+const MAX_DEAD_FISH = 20,
+  MAX_POLLUTANT = 30,
+  MAX_PLANT = 40;
+
+let pools = {};
+
+function _pool(scene, n, fn) {
+  const a = [];
+  for (let i = 0; i < n; i++) {
+    const m = fn();
+    m.visible = false;
+    scene.add(m);
+    a.push(m);
+  }
+  return a;
+}
+
+export function initObjects(sceneCtx, pond) {
+  const { scene } = sceneCtx;
+
+  pools.food = _pool(
+    scene,
+    MAX_FOOD,
+    () =>
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 8, 6),
+        new THREE.MeshPhongMaterial({
+          color: 0xffee55,
+          emissive: 0xccaa22,
+          emissiveIntensity: 0.2,
+        }),
+      ),
+  );
+
+  pools.probiotic = _pool(scene, MAX_PROBIOTIC, () => {
+    const g = new THREE.Group();
+    g.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.8, 8, 6),
+        new THREE.MeshPhongMaterial({
+          color: 0x55ffcc,
+          emissive: 0x22aa88,
+          emissiveIntensity: 0.2,
+        }),
+      ),
+    );
+    const cm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(1, 0.15, 0.15), cm));
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(0.15, 1, 0.15), cm));
+    return g;
+  });
+
+  pools.oxygen = _pool(
+    scene,
+    MAX_OXYGEN,
+    () =>
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.5, 8, 6),
+        new THREE.MeshPhongMaterial({
+          color: 0x88ccff,
+          transparent: true,
+          opacity: 0.45,
+          emissive: 0x88ccff,
+          emissiveIntensity: 0.15,
+        }),
+      ),
+  );
+
+  pools.fecal = _pool(
+    scene,
+    MAX_FECAL,
+    () =>
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.6, 6, 5),
+        new THREE.MeshPhongMaterial({ color: 0x8b6914, shininess: 5 }),
+      ),
+  );
+
+  pools.dead_fish = _pool(scene, MAX_DEAD_FISH, () => {
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 8, 6),
+      new THREE.MeshPhongMaterial({
+        color: 0xcc2222,
+        emissive: 0x881111,
+        emissiveIntensity: 0.2,
+      }),
+    );
+    body.scale.set(1.5, 0.6, 0.6);
+    g.add(body);
+    const tail = new THREE.Mesh(
+      new THREE.ConeGeometry(0.4, 0.8, 5),
+      new THREE.MeshPhongMaterial({ color: 0xaa1111 }),
+    );
+    tail.rotation.z = Math.PI / 2;
+    tail.position.set(-1.8, 0, 0);
+    g.add(tail);
+    const xm = new THREE.MeshBasicMaterial({ color: 0xff8888 });
+    const x1 = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.08), xm);
+    x1.position.set(0.6, 0.2, 0.35);
+    x1.rotation.z = Math.PI / 4;
+    g.add(x1);
+    const x2 = x1.clone();
+    x2.rotation.z = -Math.PI / 4;
+    g.add(x2);
+    g.rotation.z = 0.4;
+    g.rotation.x = 0.2;
+    return g;
+  });
+
+  pools.pollutant = _pool(
+    scene,
+    MAX_POLLUTANT,
+    () =>
+      new THREE.Mesh(
+        new THREE.OctahedronGeometry(1, 0),
+        new THREE.MeshPhongMaterial({
+          color: 0xcc6600,
+          transparent: true,
+          opacity: 0.7,
+          emissive: 0xcc6600,
+          emissiveIntensity: 0.15,
+        }),
+      ),
+  );
+
+  // Plants spawned by pollutant transformation
+  const plantColors = [0x1a6633, 0x228844, 0x2a7744, 0x1a5533];
+  pools.plant = _pool(scene, MAX_PLANT, () => {
+    const g = new THREE.Group();
+    const color = plantColors[Math.floor(Math.random() * plantColors.length)];
+    const mat = new THREE.MeshPhongMaterial({
+      color,
+      transparent: true,
+      opacity: 0.65,
+      side: THREE.DoubleSide,
+      emissive: color,
+      emissiveIntensity: 0.08,
+    });
+    const h = 3 + Math.random() * 6;
+    const blade = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.4 + Math.random() * 0.4, h),
+      mat,
+    );
+    blade.rotation.y = Math.random() * Math.PI;
+    blade.rotation.z = (Math.random() - 0.5) * 0.3;
+    g.add(blade);
+    if (Math.random() > 0.4) {
+      const b2 = blade.clone();
+      b2.material = mat.clone();
+      b2.position.x += (Math.random() - 0.5) * 1.2;
+      b2.rotation.y = Math.random() * Math.PI;
+      g.add(b2);
+    }
+    return g;
+  });
+
+  return { pools };
+}
+
+export function updateObjects(objectsCtx, frame) {
+  const objData = frame.objects || [];
+  const byType = {
+    food: [],
+    probiotic: [],
+    oxygen: [],
+    fecal: [],
+    dead_fish: [],
+    pollutant: [],
+    plant: [],
+  };
+  for (const obj of objData) {
+    if (byType[obj.type]) byType[obj.type].push(obj);
+  }
+
+  _upd(pools.food, byType.food, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.6 + d.value * 0.1);
+  });
+  _upd(pools.probiotic, byType.probiotic, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.6 + d.value * 0.08);
+  });
+  _upd(pools.oxygen, byType.oxygen, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.5);
+  });
+  _upd(pools.fecal, byType.fecal, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.5 + d.value * 0.12);
+  });
+  _upd(pools.dead_fish, byType.dead_fish, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.8 + d.value * 0.1);
+  });
+  _upd(pools.pollutant, byType.pollutant, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+    m.scale.setScalar(0.6 + d.value * 0.15);
+    m.rotation.y += 0.05;
+    m.rotation.x += 0.03;
+  });
+  _upd(pools.plant, byType.plant, (m, d) => {
+    m.position.set(d.x, d.y, d.z);
+  });
+}
+
+function _upd(pool, data, fn) {
+  for (let i = 0; i < pool.length; i++) {
+    if (i < data.length) {
+      pool[i].visible = true;
+      fn(pool[i], data[i]);
+    } else pool[i].visible = false;
+  }
+}
+
+
+--------------------
+File: /AquaOptima/visuals/entities.js
+--------------------
+
+/**
+ * entities.js -- Fish, obstacles, hazards.
+ */
+
+import * as THREE from "three";
+import { getSelectedFishId } from "./selection.js";
+
+const MAX_FISH = 60,
+  MAX_OBSTACLES = 30,
+  MAX_HAZARDS = 40;
+
+const FISH_COLOR = 0x7a9ab5;
+const FISH_COLOR_SELECTED = 0xffffff;
+const FISH_EMISSIVE_SELECTED = 0xcccccc;
+const FISH_TAIL_COLOR = 0x6a8a9f;
+const OBSTACLE_COLOR = 0x5a3a28;
+const OBSTACLE_EDGE_COLOR = 0x7a5a40;
+const GLOW_INFECTED = 0xffaa00;
+const GLOW_PARASITE = 0xcc44ff;
+
+const HAZARD_COLORS = {
+  nh3: { color: 0x00ff64, opacity: 0.12 },
+  disease: { color: 0xffb400, opacity: 0.18 },
+  parasite: { color: 0xc850ff, opacity: 0.15 },
+};
+
+let fishPool = [],
+  obstaclePool = [],
+  hazardSpherePool = [],
+  hazardDiscPool = [],
+  glowPool = [];
+let selectionLight = null;
+
+export function initEntities(sceneCtx, pond) {
+  const { scene } = sceneCtx;
+
+  selectionLight = new THREE.PointLight(0xffffff, 0, 30);
+  selectionLight.visible = false;
+  scene.add(selectionLight);
+
+  for (let i = 0; i < MAX_FISH; i++) {
+    const g = new THREE.Group();
+    g.visible = false;
+    const bodyMat = new THREE.MeshPhongMaterial({
+      color: FISH_COLOR,
+      shininess: 50,
+      emissive: 0,
+      emissiveIntensity: 0,
+    });
+    g.add(new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), bodyMat));
+    const tailMat = new THREE.MeshPhongMaterial({
+      color: FISH_TAIL_COLOR,
+      transparent: true,
+      opacity: 0.85,
+    });
+    const tail = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1, 6), tailMat);
+    tail.rotation.z = Math.PI / 2;
+    g.add(tail);
+    g.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.15, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0xdddddd }),
+      ),
+    );
+    g.add(
+      new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 6, 6),
+        new THREE.MeshBasicMaterial({ color: 0x111111 }),
+      ),
+    );
+    g.userData = { fishId: -1, bodySize: 1, fishData: null };
+    scene.add(g);
+    fishPool.push(g);
+  }
+
+  for (let i = 0; i < MAX_FISH * 2; i++) {
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(1, 1.1, 32),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.6,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    ring.visible = false;
+    scene.add(ring);
+    glowPool.push(ring);
+  }
+
+  for (let i = 0; i < MAX_OBSTACLES; i++) {
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshPhongMaterial({
+        color: OBSTACLE_COLOR,
+        transparent: true,
+        opacity: 0.75,
+        shininess: 10,
+      }),
+    );
+    box.visible = false;
+    box.add(
+      new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(1, 1, 1)),
+        new THREE.LineBasicMaterial({ color: OBSTACLE_EDGE_COLOR }),
+      ),
+    );
+    scene.add(box);
+    obstaclePool.push(box);
+  }
+
+  for (let i = 0; i < MAX_HAZARDS; i++) {
+    const s = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 20, 14),
+      new THREE.MeshPhongMaterial({
+        color: 0x00ff64,
+        transparent: true,
+        opacity: 0.12,
+        depthWrite: false,
+        shininess: 80,
+        emissive: 0x00ff64,
+        emissiveIntensity: 0.05,
+      }),
+    );
+    s.visible = false;
+    scene.add(s);
+    hazardSpherePool.push(s);
+  }
+
+  for (let i = 0; i < MAX_HAZARDS; i++) {
+    const cyl = new THREE.Mesh(
+      new THREE.CylinderGeometry(1, 1, 1, 24, 1, true),
+      new THREE.MeshBasicMaterial({
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.12,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      }),
+    );
+    cyl.visible = false;
+    const capMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.18,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const cap1 = new THREE.Mesh(new THREE.CircleGeometry(1, 24), capMat);
+    cap1.rotation.x = Math.PI / 2;
+    cap1.position.y = 0.5;
+    cyl.add(cap1);
+    const cap2 = cap1.clone();
+    cap2.position.y = -0.5;
+    cyl.add(cap2);
+    scene.add(cyl);
+    hazardDiscPool.push(cyl);
+  }
+
+  return {
+    fishPool,
+    obstaclePool,
+    hazardSpherePool,
+    hazardDiscPool,
+    glowPool,
+    selectionLight,
+  };
+}
+
+export function updateEntities(entitiesCtx, frame, sceneCtx) {
+  const {
+    fishPool,
+    obstaclePool,
+    hazardSpherePool,
+    hazardDiscPool,
+    glowPool,
+    selectionLight,
+  } = entitiesCtx;
+  const camera = sceneCtx.camera;
+  const selectedId = getSelectedFishId();
+  const FLOOR_HAZ_H = 12.0;
+
+  const fishData = frame.fish || [];
+  let selectedGroup = null;
+
+  for (let i = 0; i < fishPool.length; i++) {
+    const g = fishPool[i];
+    if (i < fishData.length && fishData[i].alive) {
+      const fd = fishData[i];
+      const bs = Math.max(1.5, fd.body_size * 0.35);
+      g.visible = true;
+      g.position.set(fd.x, fd.y, fd.z);
+      g.userData.fishId = fd.id;
+      g.userData.bodySize = bs;
+      g.userData.fishData = fd;
+
+      const body = g.children[0];
+      body.scale.set(bs, bs * 0.55, bs * 0.55);
+      const isSel = fd.id === selectedId;
+      body.material.color.setHex(isSel ? FISH_COLOR_SELECTED : FISH_COLOR);
+      body.material.emissive.setHex(isSel ? FISH_EMISSIVE_SELECTED : 0);
+      body.material.emissiveIntensity = isSel ? 0.5 : 0;
+      if (isSel) selectedGroup = g;
+
+      g.children[1].position.set(-bs - 0.5, 0, 0);
+      g.children[1].scale.set(bs * 0.4, bs * 0.5, bs * 0.4);
+      g.children[2].position.set(bs * 0.5, bs * 0.15, bs * 0.3);
+      g.children[2].scale.setScalar(bs * 0.8);
+      g.children[3].position.set(bs * 0.55, bs * 0.15, bs * 0.35);
+      g.children[3].scale.setScalar(bs * 0.8);
+
+      if (Math.abs(fd.vx) > 0.01 || Math.abs(fd.vy) > 0.01)
+        g.rotation.z = Math.atan2(fd.vy, fd.vx);
+    } else {
+      g.visible = false;
+      g.userData.fishId = -1;
+      g.userData.fishData = null;
+    }
+  }
+
+  if (selectedGroup) {
+    selectionLight.visible = true;
+    selectionLight.position.copy(selectedGroup.position);
+    selectionLight.intensity = 1.5;
+  } else {
+    selectionLight.visible = false;
+  }
+
+  let gi = 0;
+  for (let i = 0; i < fishData.length && i < fishPool.length; i++) {
+    const fd = fishData[i];
+    const grp = fishPool[i];
+    if (!fd.alive || !grp.visible) continue;
+    const bs = grp.userData.bodySize;
+    const rings = [];
+    if (fd.is_infected) rings.push({ color: GLOW_INFECTED, radius: bs + 0.4 });
+    if (fd.has_parasite) rings.push({ color: GLOW_PARASITE, radius: bs + 0.9 });
+    for (const r of rings) {
+      if (gi >= glowPool.length) break;
+      const ring = glowPool[gi++];
+      ring.visible = true;
+      ring.scale.set(r.radius, r.radius, r.radius);
+      ring.position.copy(grp.position);
+      ring.material.color.setHex(r.color);
+      ring.material.opacity = 0.6;
+      ring.lookAt(camera.position);
+    }
+  }
+  for (let i = gi; i < glowPool.length; i++) glowPool[i].visible = false;
+
+  const obsData = frame.obstacles || [];
+  for (let i = 0; i < obstaclePool.length; i++) {
+    if (i < obsData.length) {
+      const od = obsData[i];
+      obstaclePool[i].visible = true;
+      obstaclePool[i].scale.set(od.w, od.h, od.d);
+      obstaclePool[i].position.set(
+        od.x + od.w / 2,
+        od.y + od.h / 2,
+        od.z + od.d / 2,
+      );
+    } else obstaclePool[i].visible = false;
+  }
+
+  const hazData = frame.hazards || [];
+  const sphHaz = [],
+    flrHaz = [];
+  for (const hd of hazData) {
+    if (hd.is_floor) flrHaz.push(hd);
+    else sphHaz.push(hd);
+  }
+
+  for (let i = 0; i < hazardSpherePool.length; i++) {
+    const s = hazardSpherePool[i];
+    if (i < sphHaz.length) {
+      const hd = sphHaz[i];
+      const hc = HAZARD_COLORS[hd.type] || HAZARD_COLORS.nh3;
+      s.visible = true;
+      s.scale.setScalar(hd.r);
+      s.position.set(hd.x, hd.y, hd.z);
+      s.material.color.setHex(hc.color);
+      s.material.opacity = hc.opacity;
+      s.material.emissive.setHex(hc.color);
+      s.material.emissiveIntensity = 0.05;
+    } else s.visible = false;
+  }
+
+  for (let i = 0; i < hazardDiscPool.length; i++) {
+    const c = hazardDiscPool[i];
+    if (i < flrHaz.length) {
+      const hd = flrHaz[i];
+      const hc = HAZARD_COLORS[hd.type] || HAZARD_COLORS.disease;
+      c.visible = true;
+      c.scale.set(hd.r, FLOOR_HAZ_H, hd.r);
+      c.rotation.x = Math.PI / 2;
+      c.position.set(hd.x, hd.y, hd.z - FLOOR_HAZ_H * 0.5);
+      c.material.color.setHex(hc.color);
+      c.material.opacity = hc.opacity;
+      for (const ch of c.children) {
+        ch.material.color.setHex(hc.color);
+        ch.material.opacity = hc.opacity + 0.06;
+      }
+    } else c.visible = false;
+  }
+}
+
+export function getFishBodies() {
+  return fishPool.filter((g) => g.visible && g.children[0]);
+}
+
+
+--------------------
+File: /AquaOptima/visuals/selection.js
+--------------------
+
+/**
+ * selection.js -- Raycaster click detection + selected fish detail panel.
+ */
+
+import * as THREE from "three";
+import { getFishBodies } from "./entities.js";
+
+let selectedFishId = null;
+let sceneRef = null;
+let containerRef = null;
+let raycaster = new THREE.Raycaster();
+let mouse = new THREE.Vector2();
+
+let panel, panelBody, panelTitle, panelClose;
+
+const BAR_COLORS = {
+  hp: "#e06070",
+  energy: "#f0a040",
+  oxygen: "#88ccff",
+  fullness: "#ffee55",
+  immunity: "#55ffcc",
+};
+
+const STATUS_COLORS = {
+  infected: "#ffaa00",
+  parasitized: "#cc44ff",
+};
+
+export function initSelection(sceneCtx, container) {
+  sceneRef = sceneCtx;
+  containerRef = container;
+  panel = document.getElementById("fish-panel");
+  panelBody = document.getElementById("fish-panel-body");
+  panelTitle = document.getElementById("fish-panel-title");
+  panelClose = document.getElementById("fish-panel-close");
+
+  container.addEventListener("click", _onClick);
+  panelClose.addEventListener("click", (e) => {
+    e.stopPropagation();
+    _deselect();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") _deselect();
+  });
+}
+
+export function getSelectedFishId() {
+  return selectedFishId;
+}
+
+export function updateSelection(frame) {
+  if (selectedFishId === null) return;
+  const fd = frame.fish.find((f) => f.id === selectedFishId);
+  if (!fd || !fd.alive) {
+    _renderDeadPanel();
+    return;
+  }
+  _renderPanel(fd);
+}
+
+function _onClick(e) {
+  if (panel.contains(e.target)) return;
+  const rect = containerRef.getBoundingClientRect();
+  mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+  mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(mouse, sceneRef.camera);
+
+  const fishGroups = getFishBodies();
+  const bodyMeshes = [];
+  const meshToGroup = new Map();
+  for (const group of fishGroups) {
+    const body = group.children[0];
+    if (body) {
+      bodyMeshes.push(body);
+      meshToGroup.set(body, group);
+    }
+  }
+
+  const intersects = raycaster.intersectObjects(bodyMeshes, false);
+  if (intersects.length > 0) {
+    const group = meshToGroup.get(intersects[0].object);
+    if (group && group.userData.fishId >= 0) {
+      selectedFishId = group.userData.fishId;
+      panelTitle.textContent = `Fish #${selectedFishId}`;
+      panel.classList.add("visible");
+      return;
+    }
+  }
+  _deselect();
+}
+
+function _deselect() {
+  selectedFishId = null;
+  panel.classList.remove("visible");
+}
+
+function _renderPanel(fd) {
+  const bars = [
+    { key: "hp", label: "HP", cur: fd.hp, max: fd.max_hp },
+    { key: "energy", label: "Energy", cur: fd.energy, max: fd.max_energy },
+    { key: "oxygen", label: "Oxygen", cur: fd.oxygen, max: fd.max_oxygen },
+    {
+      key: "fullness",
+      label: "Fullness",
+      cur: fd.fullness,
+      max: fd.max_fullness,
+    },
+    {
+      key: "immunity",
+      label: "Immunity",
+      cur: fd.immunity,
+      max: fd.max_immunity,
+    },
+  ];
+
+  let barsHTML = "";
+  for (const b of bars) {
+    const pct = Math.max(0, Math.min(100, (b.cur / b.max) * 100));
+    barsHTML += `
+      <div class="fp-bar-row">
+        <div class="fp-bar-label-row">
+          <span class="fp-bar-name">${b.label}</span>
+          <span class="fp-bar-nums">${b.cur.toFixed(1)} / ${b.max.toFixed(1)}</span>
+        </div>
+        <div class="fp-bar-track">
+          <div class="fp-bar-fill" style="width:${pct}%;background:${BAR_COLORS[b.key]}"></div>
+        </div>
+      </div>`;
+  }
+
+  const statuses = [
+    {
+      label: "Infected",
+      active: fd.is_infected,
+      color: STATUS_COLORS.infected,
+    },
+    {
+      label: "Parasitized",
+      active: fd.has_parasite,
+      color: STATUS_COLORS.parasitized,
+    },
+  ];
+
+  let statusHTML = "";
+  for (const s of statuses) {
+    const dotColor = s.active ? s.color : "#333";
+    const textColor = s.active ? "#e0e8f0" : "#556677";
+    statusHTML += `
+      <div class="fp-row">
+        <span class="fp-label">
+          <span class="fp-status-dot" style="background:${dotColor};box-shadow:${s.active ? "0 0 4px " + s.color : "none"}"></span>
+          ${s.label}
+        </span>
+        <span class="fp-value" style="color:${textColor}">${s.active ? "Yes" : "No"}</span>
+      </div>`;
+  }
+
+  const effVel = Math.sqrt(fd.vx * fd.vx + fd.vy * fd.vy + fd.vz * fd.vz);
+
+  panelBody.innerHTML = `
+    <div class="fp-section">
+      <div class="fp-section-title">Traits</div>
+      <div class="fp-row"><span class="fp-label">Body Size</span><span class="fp-value">${fd.body_size}</span></div>
+      <div class="fp-row"><span class="fp-label">Mouth Size</span><span class="fp-value">${fd.mouth_size}</span></div>
+      <div class="fp-row"><span class="fp-label">Base Velocity</span><span class="fp-value">${fd.base_velocity}</span></div>
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Vitals</div>
+      ${barsHTML}
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Status</div>
+      ${statusHTML}
+    </div>
+    <div class="fp-section">
+      <div class="fp-section-title">Dynamics</div>
+      <div class="fp-row"><span class="fp-label">Eff. Speed</span><span class="fp-value">${effVel.toFixed(2)}</span></div>
+    </div>
+  `;
+}
+
+function _renderDeadPanel() {
+  panelBody.innerHTML = `
+    <div class="fp-dead-banner">☠ DEAD</div>
+    <div class="fp-section" style="margin-top:8px;">
+      <div class="fp-row"><span class="fp-label">This fish is no longer alive.</span></div>
+      <div class="fp-row"><span class="fp-label" style="font-size:0.85em;color:#556677;">Click another fish or press Escape.</span></div>
+    </div>
+  `;
+}
+
+
+--------------------
+File: /AquaOptima/visuals/loop.js
+--------------------
+
+/**
+ * loop.js -- Main render/animation loop and frame advancement.
+ */
+
+import { clearEffects, detectKills, updateEffects } from "./effects.js";
+import { updateEntities } from "./entities.js";
+import { updateObjects } from "./objects.js";
+import { updateSelection } from "./selection.js";
+import { state, updateUI } from "./ui.js";
+
+let sceneCtx = null;
+let entitiesCtx = null;
+let objectsCtx = null;
+let effectsCtx = null;
+let frames = [];
+let totalFrames = 0;
+let lastTime = 0;
+let prevFrameIdx = -1;
+let cumulativeCannibalCount = 0;
+let cumulativeDeathCount = 0;
+
+export function startLoop(sc, ec, oc, efc, framesData, pond) {
+  sceneCtx = sc;
+  entitiesCtx = ec;
+  objectsCtx = oc;
+  effectsCtx = efc;
+  frames = framesData;
+  totalFrames = frames.length;
+  requestAnimationFrame(tick);
+}
+
+function _countEvents(upTo) {
+  let cannibals = 0,
+    deaths = 0;
+  let prevFishIds = null;
+  for (let i = 0; i <= upTo && i < frames.length; i++) {
+    const f = frames[i];
+    if (f.cannibal_events) cannibals += f.cannibal_events.length;
+
+    // Count deaths (disappeared fish not from cannibalism)
+    if (i > 0 && prevFishIds) {
+      const curIds = new Set(
+        f.fish.filter((fi) => fi.alive).map((fi) => fi.id),
+      );
+      const cannibalPreyIds = new Set();
+      if (f.cannibal_events) {
+        for (const ev of f.cannibal_events) cannibalPreyIds.add(ev.prey);
+      }
+      for (const pid of prevFishIds) {
+        if (!curIds.has(pid) && !cannibalPreyIds.has(pid)) deaths++;
+      }
+    }
+    prevFishIds = new Set(f.fish.filter((fi) => fi.alive).map((fi) => fi.id));
+  }
+  return { cannibals, deaths };
+}
+
+function _countFrameDeaths(frame, prevFrame) {
+  if (!prevFrame) return 0;
+  const curIds = new Set(frame.fish.filter((f) => f.alive).map((f) => f.id));
+  const cannibalPreyIds = new Set();
+  if (frame.cannibal_events) {
+    for (const ev of frame.cannibal_events) cannibalPreyIds.add(ev.prey);
+  }
+  let deaths = 0;
+  for (const pf of prevFrame.fish) {
+    if (!pf.alive) continue;
+    if (!curIds.has(pf.id) && !cannibalPreyIds.has(pf.id)) deaths++;
+  }
+  return deaths;
+}
+
+function tick(timestamp) {
+  requestAnimationFrame(tick);
+  if (!frames.length) return;
+
+  const interval = 1000 / state.fps;
+  if (timestamp - lastTime < interval) {
+    _render();
+    return;
+  }
+  lastTime = timestamp;
+
+  // Detect rewind
+  if (state.currentFrame < prevFrameIdx) {
+    clearEffects(effectsCtx);
+    const counts = _countEvents(state.currentFrame);
+    cumulativeCannibalCount = counts.cannibals;
+    cumulativeDeathCount = counts.deaths;
+  }
+
+  // Manual frame stepping while paused
+  if (!state.playing && state.currentFrame !== prevFrameIdx) {
+    if (state.currentFrame > prevFrameIdx) {
+      for (let i = prevFrameIdx + 1; i <= state.currentFrame; i++) {
+        const f = frames[i];
+        const prev = i > 0 ? frames[i - 1] : null;
+        if (f.cannibal_events)
+          cumulativeCannibalCount += f.cannibal_events.length;
+        cumulativeDeathCount += _countFrameDeaths(f, prev);
+        detectKills(effectsCtx, f, prev);
+      }
+      updateEffects(effectsCtx, sceneCtx, true);
+    }
+    prevFrameIdx = state.currentFrame;
+    const frame = frames[state.currentFrame];
+    updateEntities(entitiesCtx, frame, sceneCtx);
+    updateObjects(objectsCtx, frame);
+    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateSelection(frame);
+    _render();
+    return;
+  }
+
+  if (state.playing) {
+    prevFrameIdx = state.currentFrame;
+    state.currentFrame = Math.min(state.currentFrame + 1, totalFrames - 1);
+
+    const frame = frames[state.currentFrame];
+    const prev = state.currentFrame > 0 ? frames[state.currentFrame - 1] : null;
+
+    if (frame.cannibal_events) {
+      cumulativeCannibalCount += frame.cannibal_events.length;
+    }
+    cumulativeDeathCount += _countFrameDeaths(frame, prev);
+
+    updateEntities(entitiesCtx, frame, sceneCtx);
+    updateObjects(objectsCtx, frame);
+    detectKills(effectsCtx, frame, prev);
+    updateEffects(effectsCtx, sceneCtx, true);
+    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateSelection(frame);
+  } else {
+    const frame = frames[state.currentFrame];
+    updateEntities(entitiesCtx, frame, sceneCtx);
+    updateObjects(objectsCtx, frame);
+    updateEffects(effectsCtx, sceneCtx, false);
+    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateSelection(frame);
+  }
+
+  _render();
+}
+
+function _render() {
+  sceneCtx.controls.update();
+  sceneCtx.renderer.render(sceneCtx.scene, sceneCtx.camera);
+}
+
+
+--------------------
+File: /AquaOptima/core/run.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+run.py -- Entry point for the Largemouth Bass Aquaculture Optimizer.
+"""
+
+import sys, json, subprocess
+from pathlib import Path
+
+from constants import (
+    POND_WIDTH, POND_HEIGHT, POND_DEPTH,
+    AQUACULTURE_DAYS, SIMULATION_JSON_PATH, PROJECT_ROOT,
+)
+from ea import EA
+
+
+def main():
+    ea = EA()
+    champ = ea.run(record_best=True)
+
+    if champ and champ.get('frames'):
+        viz = {
+            'pond_width': POND_WIDTH,
+            'pond_height': POND_HEIGHT,
+            'pond_depth': POND_DEPTH,
+            'genotype': champ['genotype'],
+            'fitness': champ['fitness'],
+            'survival_rate': champ['survival_rate'],
+            'avg_healthiness': champ.get('avg_healthiness', 0),
+            'cost': champ['cost'],
+            'saving': champ.get('saving', 0),
+            'yield': champ.get('yield', 0),
+            'aquaculture_days': AQUACULTURE_DAYS,
+            'frames': champ['frames'],
+        }
+        with open(SIMULATION_JSON_PATH, 'w') as fp:
+            json.dump(viz, fp)
+        print(f"\n  Saved {SIMULATION_JSON_PATH} ({len(champ['frames'])} frames)")
+        print(f"  Open visuals/index.html in browser")
+        print(f"  (serve from project root: python -m http.server)")
+    else:
+        print("\n  No frames to export.")
+
+    plot_path = str(PROJECT_ROOT / 'core' / 'plot.py')
+    print(f"\n  Running plot.py...")
+    result = subprocess.run([sys.executable, plot_path])
+    if result.returncode != 0:
+        print(f"  Warning: plot.py exited with code {result.returncode}")
+
+
+if __name__ == '__main__':
+    main()
+
+--------------------
+File: /AquaOptima/core/plot.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+plot.py -- Visualize EA evolution from results.csv
+"""
+
+import sys, os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
+import matplotlib.colors as mcolors
+from pathlib import Path
+
+from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET
+
+CSV_PATH = RESULTS_CSV_PATH
+OUTPUT_DIR = PLOTS_DIR
+
+DPI = 180
+SINGLE_FIG_SIZE = (12, 7)
+
+TL_COLORS = [
+    '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+]
+
+STATUS_COLORS = {
+    'OK': '#2ca02c', 'ALL-DEAD': '#d62728',
+    'OVER-BUDGET': '#ff7f0e', 'GATEKEEPER': '#7f7f7f',
+}
+
+STATUS_LABELS = {
+    'OK': 'OK', 'ALL-DEAD': 'All Dead',
+    'OVER-BUDGET': 'Over Budget', 'GATEKEEPER': 'Reject',
+}
+
+
+def _apply_theme():
+    plt.rcParams.update({
+        'figure.facecolor': 'white', 'axes.facecolor': 'white',
+        'axes.edgecolor': '#333333', 'axes.labelcolor': '#222222',
+        'axes.grid': True, 'grid.color': '#dddddd', 'grid.linestyle': '--', 'grid.alpha': 0.7,
+        'text.color': '#222222', 'xtick.color': '#333333', 'ytick.color': '#333333',
+        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.9,
+        'font.size': 11, 'axes.titlesize': 14, 'axes.labelsize': 12,
+    })
+
+
+def load_data(path: str) -> pd.DataFrame:
+    if not Path(path).exists():
+        print(f"  ERROR: File not found: {path}")
+        sys.exit(1)
+    df = pd.read_csv(path)
+    for col in ['fitness', 'survival_rate', 'healthiness', 'cost', 'saving', 'yield']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    if 'survival_rate' in df.columns:
+        df['survival_pct'] = df['survival_rate'] * 100
+    if 'fish_count' in df.columns:
+        df['fish_count'] = pd.to_numeric(df['fish_count'], errors='coerce').fillna(0).astype(int)
+    if 'saving' in df.columns:
+        df['saving_rate'] = df['saving'] / MAX_BUDGET
+    print(f"  Loaded {path}: {len(df)} rows, "
+          f"{df['timeline'].nunique()} timelines, "
+          f"{df['generation'].max()} max generations")
+    return df
+
+
+def _save(fig, filename):
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    path = Path(OUTPUT_DIR) / filename
+    fig.savefig(str(path), dpi=DPI, facecolor='white', edgecolor='none', bbox_inches='tight')
+    plt.close(fig)
+    print(f"    Saved {path}")
+
+
+# ════════════════════════════════════════════════════════════════
+# METRIC VS GENERATION
+# ════════════════════════════════════════════════════════════════
+
+def _plot_metric_vs_gen(ax, df, col, ylabel, title, fmt=None, ylim=None):
+    for tl in sorted(df['timeline'].unique()):
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        gens = sorted(sdf['generation'].unique())
+        means, bests, gl = [], [], []
+        for g in gens:
+            vals = sdf[sdf['generation'] == g][col].values
+            jitter = np.random.uniform(-0.18, 0.18, size=len(vals))
+            ax.scatter(g + jitter, vals, color=color, alpha=0.12, s=10, edgecolors='none', zorder=2)
+            means.append(vals.mean()); bests.append(vals.max()); gl.append(g)
+        ax.plot(gl, means, color=color, linewidth=2, alpha=0.9, marker='o', markersize=4,
+                label=f"TL {tl} Mean", zorder=3)
+        ax.plot(gl, bests, color=color, linewidth=1.2, alpha=0.5, linestyle='--', marker='^',
+                markersize=3, label=f"TL {tl} Best", zorder=3)
+    ax.set_xlabel('Generation', fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
+    ax.set_title(title, fontweight='bold', pad=12)
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    if ylim: ax.set_ylim(ylim)
+    if fmt: ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt))
+    ax.legend(fontsize=7, loc='best', ncol=2)
+
+
+# ════════════════════════════════════════════════════════════════
+# HEATMAP PAIR PLOT
+# ════════════════════════════════════════════════════════════════
+
+def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
+    """Scatter plot of two factors, colored by fitness."""
+    ok = df[df['fitness'] > 0].copy()
+    if ok.empty or len(ok) < 3:
+        print(f"    Skipped {filename} (not enough data)")
+        return
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+
+    x = ok[col_x].values
+    y = ok[col_y].values
+    c = ok['fitness'].values
+
+    sc = ax.scatter(x, y, c=c, cmap='RdYlGn', s=30, alpha=0.7,
+                    edgecolors='#333333', linewidth=0.3, zorder=2)
+
+    cbar = fig.colorbar(sc, ax=ax, shrink=0.8)
+    cbar.set_label('Fitness', fontweight='bold')
+
+    ax.set_xlabel(xlabel, fontweight='bold')
+    ax.set_ylabel(ylabel, fontweight='bold')
+    ax.set_title(title, fontweight='bold', pad=12)
+
+    fig.tight_layout(); _save(fig, filename)
+
+
+# ════════════════════════════════════════════════════════════════
+# INDIVIDUAL PLOTS
+# ════════════════════════════════════════════════════════════════
+
+def plot_fitness(df):
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    _plot_metric_vs_gen(ax, df, 'fitness', 'Fitness', 'Fitness vs Generation',
+                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+    fig.tight_layout(); _save(fig, 'plot_01_fitness_vs_gen.png')
+
+def plot_yield(df):
+    if 'yield' not in df.columns: return
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    _plot_metric_vs_gen(ax, df, 'yield', 'Yield', 'Yield vs Generation',
+                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+    fig.tight_layout(); _save(fig, 'plot_02_yield_vs_gen.png')
+
+def plot_saving(df):
+    if 'saving' not in df.columns: return
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    _plot_metric_vs_gen(ax, df, 'saving', 'Saving ($)', 'Saving vs Generation',
+                        fmt=lambda x, _: f'${x:,.0f}')
+    fig.tight_layout(); _save(fig, 'plot_03_saving_vs_gen.png')
+
+def plot_healthiness(df):
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    _plot_metric_vs_gen(ax, df, 'healthiness', 'Healthiness', 'Healthiness vs Generation',
+                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+    fig.tight_layout(); _save(fig, 'plot_04_healthiness_vs_gen.png')
+
+def plot_yield_vs_saving(df):
+    _plot_pair_fitness(df, 'yield', 'saving', 'Yield', 'Saving ($)',
+                       'Yield vs Saving (colored by Fitness)', 'plot_05_yield_vs_saving.png')
+
+def plot_yield_vs_healthiness(df):
+    _plot_pair_fitness(df, 'yield', 'healthiness', 'Yield', 'Healthiness',
+                       'Yield vs Healthiness (colored by Fitness)', 'plot_06_yield_vs_healthiness.png')
+
+def plot_saving_vs_healthiness(df):
+    _plot_pair_fitness(df, 'saving', 'healthiness', 'Saving ($)', 'Healthiness',
+                       'Saving vs Healthiness (colored by Fitness)', 'plot_07_saving_vs_healthiness.png')
+
+def plot_fitness_vs_saving(df):
+    _plot_pair_fitness(df, 'fitness', 'saving', 'Fitness', 'Saving ($)',
+                       'Fitness vs Saving (colored by Fitness)', 'plot_08_fitness_vs_saving.png')
+
+def plot_fitness_vs_yield(df):
+    _plot_pair_fitness(df, 'fitness', 'yield', 'Fitness', 'Yield',
+                       'Fitness vs Yield (colored by Fitness)', 'plot_09_fitness_vs_yield.png')
+
+def plot_fitness_vs_healthiness(df):
+    _plot_pair_fitness(df, 'fitness', 'healthiness', 'Fitness', 'Healthiness',
+                       'Fitness vs Healthiness (colored by Fitness)', 'plot_10_fitness_vs_healthiness.png')
+    
+def plot_fish_count(df):
+    if 'fish_count' not in df.columns: return
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    _plot_metric_vs_gen(ax, df, 'fish_count', 'Fish Count',
+                        'Initial Fish Count vs Generation', ylim=(0, 110))
+    fig.tight_layout(); _save(fig, 'plot_11_fish_count_vs_gen.png')
+
+def plot_status(df):
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    status_order = ['OK', 'ALL-DEAD', 'OVER-BUDGET', 'GATEKEEPER']
+    gens = sorted(df['generation'].unique())
+    bottom = np.zeros(len(gens))
+    for status in status_order:
+        counts = np.array([len(df[(df['generation'] == g) & (df['status'] == status)])
+                           for g in gens], dtype=float)
+        label = STATUS_LABELS.get(status, status)
+        ax.bar(gens, counts, bottom=bottom, color=STATUS_COLORS.get(status, '#aaa'),
+               label=label, alpha=0.85, edgecolor='white', linewidth=0.5)
+        bottom += counts
+    ax.set_xlabel('Generation', fontweight='bold')
+    ax.set_ylabel('Pond Count', fontweight='bold')
+    ax.set_title('Pond Status Distribution per Generation', fontweight='bold', pad=12)
+    ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax.legend(fontsize=10, loc='upper right')
+    fig.tight_layout(); _save(fig, 'plot_12_status.png')
+
+def plot_champion_comparison(df):
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    timelines = sorted(df['timeline'].unique())
+    best_fit, best_yld, best_hlth, best_sav_rate, labels = [], [], [], [], []
+    for tl in timelines:
+        sdf = df[df['timeline'] == tl]
+        last_gen = sdf['generation'].max()
+        last_df = sdf[sdf['generation'] == last_gen]
+        row = last_df.loc[last_df['fitness'].idxmax()]
+        best_fit.append(row['fitness'])
+        best_yld.append(row.get('yield', 0))
+        best_hlth.append(row['healthiness'])
+        # Saving rate = saving / budget (0-1 scale, matches fitness formula)
+        sav = row.get('saving', 0)
+        best_sav_rate.append(sav / MAX_BUDGET if MAX_BUDGET > 0 else 0)
+        labels.append(f"TL {tl}")
+    x = np.arange(len(timelines)); w = 0.18
+    b1 = ax.bar(x - 1.5*w, best_fit, w, label='Fitness', color='#1f77b4', alpha=0.9, edgecolor='white')
+    b2 = ax.bar(x - 0.5*w, best_yld, w, label='Yield', color='#2ca02c', alpha=0.9, edgecolor='white')
+    b3 = ax.bar(x + 0.5*w, best_hlth, w, label='Healthiness', color='#ff7f0e', alpha=0.9, edgecolor='white')
+    b4 = ax.bar(x + 1.5*w, best_sav_rate, w, label='Saving Rate', color='#9467bd', alpha=0.9, edgecolor='white')
+    for bars in [b1, b2, b3, b4]:
+        for bar in bars:
+            h = bar.get_height()
+            if h > 0.01:
+                ax.text(bar.get_x() + bar.get_width()/2, h + 0.012, f'{h:.3f}',
+                        ha='center', va='bottom', fontsize=6, color='#333')
+    best_tl_idx = int(np.argmax(best_fit))
+    ax.annotate('BEST', xy=(best_tl_idx - 1.5*w, best_fit[best_tl_idx]),
+                xytext=(best_tl_idx - 1.5*w, best_fit[best_tl_idx] + 0.08),
+                ha='center', fontsize=10, fontweight='bold', color='#d62728',
+                arrowprops=dict(arrowstyle='->', color='#d62728', lw=1.5))
+    ax.set_xticks(x); ax.set_xticklabels(labels, fontsize=10)
+    ax.set_ylabel('Score (0 - 1)', fontweight='bold')
+    ax.set_title('Converged Champions Comparison', fontweight='bold', pad=12)
+    ax.legend(fontsize=9, loc='upper right'); ax.set_ylim(0, 1.15)
+    fig.tight_layout(); _save(fig, 'plot_13_champion_comparison.png')
+
+
+# ════════════════════════════════════════════════════════════════
+# MAIN
+# ════════════════════════════════════════════════════════════════
+
+def main():
+    print(f"\n{'=' * 60}")
+    print(f"  Largemouth Bass Aquaculture -- Evolution Plotter")
+    print(f"{'=' * 60}")
+    _apply_theme()
+    df = load_data(CSV_PATH)
+    print(f"\n  Generating plots into {OUTPUT_DIR}/...")
+
+    plot_fitness(df)
+    plot_yield(df)
+    plot_saving(df)
+    plot_healthiness(df)
+
+    plot_yield_vs_saving(df)
+    plot_yield_vs_healthiness(df)
+    plot_saving_vs_healthiness(df)
+    plot_fitness_vs_saving(df)
+    plot_fitness_vs_yield(df)
+    plot_fitness_vs_healthiness(df)
+
+    plot_fish_count(df)
+    plot_status(df)
+    plot_champion_comparison(df)
+
+    print(f"\n  All plots saved to {OUTPUT_DIR}/")
+    print(f"{'=' * 60}")
+
+
+if __name__ == '__main__':
+    main()
+
+--------------------
+File: /AquaOptima/core/log.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+log.py -- Print/table formatting helpers for console output.
+"""
+
+from constants import LOC_NAMES
+
+
+def _print_gen_table(gen, max_gen, n_ponds, gen_results):
+    print(f"\n  Gen {gen + 1:>2}/{max_gen} | {n_ponds} ponds")
+    print(f"  +-----+----------+-----------+-------------+--------------+------------+")
+    print(f"  |  #  | Fitness  | Survival  | Healthiness |     Cost     |   Status   |")
+    print(f"  +-----+----------+-----------+-------------+--------------+------------+")
+    for i, r in enumerate(gen_results):
+        st = r.get('status', '?')
+        if st == 'GATEKEEPER':    st_s = 'REJECT'
+        elif st == 'OVER-BUDGET': st_s = 'OVER$'
+        elif st == 'ALL-DEAD':    st_s = 'DEAD'
+        else:                     st_s = 'OK'
+        print(f"  | {i:>3} | {r['fitness']:>8.4f} | {r['survival_rate'] * 100:>8.2f}% | "
+              f"{r.get('avg_healthiness', 0):>11.4f} | ${r['cost']:>10.2f} | {st_s:>10} |")
+    print(f"  +-----+----------+-----------+-------------+--------------+------------+")
+
+
+def _print_champion_detail(label: str, result: dict):
+    g = result.get('genotype', {})
+    fit = result.get('fitness', 0)
+    sr = result.get('survival_rate', 0)
+    hlth = result.get('avg_healthiness', 0)
+    sav = result.get('saving', 0)
+    cost = result.get('cost', 0)
+    yld = result.get('yield', 0)
+    ac = result.get('alive_count', 0)
+    ic = result.get('initial_count', 0)
+    W = 56; LW = 24; RW = W - LW - 3
+    print(f"\n  +{'-' * W}+")
+    print(f"  | {label:^{W - 2}} |")
+    print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
+    print(f"  | {'Metric':<{LW - 2}} | {'Value':>{RW}} |")
+    print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
+    print(f"  | {'Fitness':<{LW - 2}} | {fit:>{RW}.4f} |")
+    print(f"  | {'Yield':<{LW - 2}} | {yld:>{RW}.4f} |")
+    print(f"  | {'Survival Rate':<{LW - 2}} | {sr * 100:>{RW - 1}.2f}% |")
+    print(f"  | {'Healthiness':<{LW - 2}} | {hlth:>{RW}.4f} |")
+    print(f"  | {'Saving':<{LW - 2}} | {'${:.2f}'.format(sav):>{RW}} |")
+    print(f"  | {'Cost':<{LW - 2}} | {'${:.2f}'.format(cost):>{RW}} |")
+    print(f"  | {'Alive / Initial':<{LW - 2}} | {'{} / {}'.format(ac, ic):>{RW}} |")
+    print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
+    print(f"  | {'Fish Count':<{LW - 2}} | {g.get('fish_count', '?'):>{RW}} |")
+    print(f"  | {'Food Interval':<{LW - 2}} | {'{} h'.format(g.get('food_interval', '?')):>{RW}} |")
+    print(f"  | {'Food Quantity':<{LW - 2}} | {'{} pellets'.format(g.get('food_quantity', '?')):>{RW}} |")
+    print(f"  | {'Food Location':<{LW - 2}} | {LOC_NAMES.get(g.get('food_location', -1), '?'):>{RW}} |")
+    print(f"  | {'Probiotic Interval':<{LW - 2}} | {'{} h'.format(g.get('probiotic_interval', '?')):>{RW}} |")
+    print(f"  | {'Probiotic Quantity':<{LW - 2}} | {'{} pellets'.format(g.get('probiotic_quantity', '?')):>{RW}} |")
+    print(f"  | {'Probiotic Location':<{LW - 2}} | {LOC_NAMES.get(g.get('probiotic_location', -1), '?'):>{RW}} |")
+    print(f"  | {'O2 Interval':<{LW - 2}} | {'{} h'.format(g.get('oxygen_interval', '?')):>{RW}} |")
+    print(f"  | {'O2 Duration':<{LW - 2}} | {'{} h'.format(g.get('oxygen_duration', '?')):>{RW}} |")
+    print(f"  | {'O2 Location':<{LW - 2}} | {LOC_NAMES.get(g.get('oxygen_location', -1), '?'):>{RW}} |")
+    print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
+
+
+def _print_champions_summary(champions: list) -> int:
+    print(f"\n  +{'=' * 80}+")
+    print(f"  | {'ALL TIMELINE CHAMPIONS -- SUMMARY':^78} |")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
+    print(f"  | {'Timeline':>10} | {'Fitness':>8} | {'Yield':>6} | {'Survival':>9} | {'Healthiness':>11} | {'Saving':>12} |")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
+    best_idx = 0; best_fit = -1.0
+    for i, c in enumerate(champions):
+        tl = c.get('timeline_idx', i) + 1
+        fit = c.get('fitness', 0)
+        yld = c.get('yield', 0)
+        sr = c.get('survival_rate', 0)
+        hlth = c.get('avg_healthiness', 0)
+        sav = c.get('saving', 0)
+        if fit > best_fit:
+            best_fit = fit; best_idx = i
+        tag = " *" if c.get('is_latest_dead') else ""
+        print(f"  | {tl:>10} | {fit:>8.4f} | {yld:>6.4f} | {sr * 100:>8.2f}% | {hlth:>11.4f} | ${sav:>11.2f} |{tag}")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
+    winner = champions[best_idx]
+    print(f"\n  >>> Best overall: Timeline {winner.get('timeline_idx', best_idx) + 1} with Fitness = {winner['fitness']:.4f}")
+    return best_idx
+
+--------------------
+File: /AquaOptima/core/pond.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+pond.py -- PondSim: the aquaculture simulation engine (3D).
+"""
+
+import random, math, copy
+
+from constants import (
+    POND_WIDTH, POND_HEIGHT, POND_DEPTH, BODY_SIZE_RANGE,
+    W1_YIELD, W2_SAVING, W3_HEALTHINESS, MAX_FISH_COUNT,
+    NUM_OBSTACLES, OBSTACLE_AREA_RANGE, OBSTACLE_ASPECT_RANGE,
+    OBSTACLE_MAX_WIDTH, OBSTACLE_MAX_HEIGHT, OBSTACLE_MAX_DEPTH,
+    OBSTACLE_DEPTH_RANGE,
+    OXYGEN_BUBBLE_SPEED, NH3_AREA_RADIUS_RANGE, NH3_AREA_SPEED,
+    FOOD_PRICE, PROBIOTIC_PRICE, OXYGEN_PRICE,
+    FOOD_VALUE, PROBIOTIC_VALUE, OXYGEN_BUBBLE_GAIN,
+    FOOD_EXPIRE_TIMESTEPS, PROBIOTIC_EXPIRE_TIMESTEPS,
+    FECAL_EXPIRE_TIMESTEPS, DEAD_FISH_DECAY_TIMESTEPS,
+    NH3_EXPIRE_TIMESTEPS, DISEASE_AREA_DECAY, PARASITE_AREA_DECAY,
+    POLLUTANT_TO_HAZARD_TIMESTEPS, DISEASE_AREA_RADIUS_DECAY,
+    POLLUTANT_TO_NH3_CHANCE, POLLUTANT_TO_DISEASE_CHANCE,
+    POLLUTANT_TO_PARASITE_CHANCE, POLLUTANT_TO_BOTH_CHANCE,
+    POLLUTANT_TO_PLANT_CHANCE, POLLUTANT_TO_OBSTACLE_CHANCE,
+    POLLUTANT_RADIUS_SCALE, DEAD_FISH_POLLUTANT_MULT,
+    POLLUTANT_OBSTACLE_AREA_RANGE,
+    FOOD_ENERGY_GAIN, FOOD_FULLNESS_GAIN, PROBIOTIC_IMMUNITY_GAIN,
+    NATURAL_OXYGEN_SPAWN_RATE, NATURAL_NH3_SPAWN_RATE, OXYGEN_BUBBLES_PER_PUMP,
+    OXYGEN_DECAY, OXYGEN_DECAY_NH3_MULT, OXYGEN_PASSIVE_REGEN,
+    ENERGY_DECAY, FULLNESS_DECAY, ENERGY_COST_MOVE,
+    HP_DECAY_NO_ENERGY, HP_DECAY_NO_FULLNESS, HP_DECAY_INFECTED, HP_DECAY_PARASITE,
+    HP_DECAY_IN_NH3, HP_REGEN, DISEASE_SELF_CURE_CHANCE,
+    IMMUNITY_DECAY_IN_DISEASE, IMMUNITY_REGEN, PARASITE_CONTACT_CHANCE,
+    PARASITE_FULLNESS_EFFICIENCY, PARASITE_EXTRA_FULLNESS_DRAIN,
+    PARASITE_EXTRA_ENERGY_DRAIN, PARASITE_SCRUB_CHANCE,
+    FECAL_DROP_INTERVAL, FECAL_BASE_CHANCE, FECAL_VALUE, FECAL_STACK_RADIUS,
+    CANNIBAL_FULLNESS_THRESHOLD, CANNIBAL_BASE_CHANCE, CANNIBAL_HUNGER_MULT,
+    CANNIBAL_FULLNESS_GAIN_MULT, CANNIBAL_COLLISION_RADIUS_MULT,
+    FISH_EAT_RANGE, INFECTED_FISH_DISEASE_RADIUS_MULT,
+    SENSITIVE_DISTANCE, SOCIAL_DISTANCE, SELFISH_DISTANCE,
+    PSO_INERTIA, PSO_FOOD_WEIGHT, PSO_FOOD_URGENT_MULT,
+    PSO_PROBIOTIC_WEIGHT, PSO_OXYGEN_WEIGHT, PSO_OXYGEN_CRITICAL_MULT,
+    PSO_OXYGEN_THRESHOLD, PSO_OXYGEN_CRITICAL_THRESHOLD, PSO_OXYGEN_INTERCEPT_STEPS,
+    PSO_SOCIAL_WEIGHT, PSO_SELFISH_WEIGHT,
+    PSO_NH3_WEIGHT, PSO_NH3_HUNGRY_OVERRIDE,
+    PSO_DISEASE_WEIGHT, PSO_PARASITE_WEIGHT,
+    PSO_RELIEF_WEIGHT, PSO_RUN_WEIGHT, PSO_OBSTACLE_WEIGHT,
+    STATE_OVERRIDE_PARASITE_CHANCE,
+    SINK_SPEED, SINK_SPEED_HEAVY, DEAD_FISH_NH3_RADIUS,
+)
+from entities import Obstacle, DynObj, Hazard, Fish
+from helpers import _dist, _clamp, _norm, _drop_pos, SpatialGrid
+
+_WALL = 2.0
+_FLOOR_Z = POND_DEPTH - _WALL
+
+
+class PondSim:
+    __slots__ = ('geno', 'runtime', 'max_budget', 'record', 'fskip',
+                 'fish', 'n0', 'ts', 'objs', 'hazards', 'obstacles',
+                 'oxy_pump', 'frames', 'accum_cost', 'budget_exceeded',
+                 'cannibal_events', '_fish_grid', '_obj_grid')
+
+    def __init__(self, geno, fish_templates, runtime, max_budget, record=False, fskip=1):
+        self.geno = geno; self.runtime = runtime; self.max_budget = max_budget
+        self.record = record; self.fskip = fskip
+        self.fish = copy.deepcopy(fish_templates); self.n0 = len(self.fish)
+        self.ts = 0; self.objs = []; self.hazards = []; self.obstacles = []
+        self.oxy_pump = 0; self.frames = []; self.accum_cost = 0.0
+        self.budget_exceeded = False; self.cannibal_events = []
+        self._fish_grid = SpatialGrid(cell_size=max(SOCIAL_DISTANCE, SENSITIVE_DISTANCE))
+        self._obj_grid = SpatialGrid(cell_size=SENSITIVE_DISTANCE)
+        self._make_obs()
+
+    def _make_obs(self):
+        for _ in range(NUM_OBSTACLES):
+            area = random.uniform(*OBSTACLE_AREA_RANGE)
+            aspect = random.uniform(*OBSTACLE_ASPECT_RANGE)
+            w = math.sqrt(area * aspect)
+            h = area / w if w > 0 else math.sqrt(area)
+            w = min(w, OBSTACLE_MAX_WIDTH); h = min(h, OBSTACLE_MAX_HEIGHT)
+            d = random.uniform(*OBSTACLE_DEPTH_RANGE); d = min(d, OBSTACLE_MAX_DEPTH)
+            x = random.uniform(5, POND_WIDTH - 5 - w)
+            y = random.uniform(3, POND_HEIGHT - 3 - h)
+            z = _FLOOR_Z - d
+            self.obstacles.append(Obstacle(x, y, z, w, h, d))
+
+    def _cp(self, x, y, z):
+        return (_clamp(x, _WALL, POND_WIDTH - _WALL),
+                _clamp(y, _WALL, POND_HEIGHT - _WALL),
+                _clamp(z, _WALL, POND_DEPTH - _WALL))
+
+    def _resting_z(self, ox, oy):
+        best_z = _FLOOR_Z
+        for obs in self.obstacles:
+            if obs.xy_contains(ox, oy):
+                top = obs.top_z()
+                if top < best_z:
+                    best_z = top
+        return best_z
+
+    def run(self):
+        for t in range(self.runtime):
+            self.ts = t; self.cannibal_events = []
+            self._step()
+            if self.record and t % self.fskip == 0:
+                self.frames.append(self._frame())
+            if self.budget_exceeded: break
+            if not any(f.alive for f in self.fish): break
+        alive = [f for f in self.fish if f.alive]
+        sr = len(alive) / self.n0 if self.n0 else 0
+        hlth = sum(f.norm_stats() for f in alive) / len(alive) if alive else 0
+        cost = self.accum_cost
+        saving = max(0, self.max_budget - cost) if not self.budget_exceeded else 0
+        saving_ratio = saving / self.max_budget if self.max_budget > 0 else 0
+        yld = len(alive) / MAX_FISH_COUNT
+        fit = (W1_YIELD * yld + W2_SAVING * saving_ratio + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
+        return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving': saving,
+                'fitness': fit, 'cost': cost, 'alive_count': len(alive),
+                'initial_count': self.n0, 'yield': yld, 'frames': self.frames,
+                'genotype': self.geno.to_dict(), 'budget_exceeded': self.budget_exceeded}
+
+    def _step(self):
+        t = self.ts
+        self._spawn_food(t); self._spawn_prob(t); self._pump_oxy(t); self._nat_spawn()
+        self._upd_objs(); self._upd_haz()
+        self._decay(); self._eat(); self._pso(); self._cannibal(); self._fecal(); self._death()
+
+    def _add_cost(self, a):
+        self.accum_cost += a
+        if self.accum_cost > self.max_budget: self.budget_exceeded = True
+
+    def _spawn_food(self, t):
+        if t % self.geno.food_interval == 0:
+            self._add_cost(self.geno.food_quantity * FOOD_PRICE)
+            if self.budget_exceeded: return
+            for _ in range(self.geno.food_quantity):
+                x, y = _drop_pos(self.geno.food_location)
+                self.objs.append(DynObj(x, y, _WALL, 'food', FOOD_VALUE, max_age=FOOD_EXPIRE_TIMESTEPS))
+
+    def _spawn_prob(self, t):
+        if t % self.geno.probiotic_interval == 0:
+            self._add_cost(self.geno.probiotic_quantity * PROBIOTIC_PRICE)
+            if self.budget_exceeded: return
+            for _ in range(self.geno.probiotic_quantity):
+                x, y = _drop_pos(self.geno.probiotic_location)
+                self.objs.append(DynObj(x, y, _WALL, 'probiotic', PROBIOTIC_VALUE, max_age=PROBIOTIC_EXPIRE_TIMESTEPS))
+
+    def _pump_oxy(self, t):
+        if t % self.geno.oxygen_interval == 0:
+            self.oxy_pump = self.geno.oxygen_duration
+        if self.oxy_pump > 0:
+            self._add_cost(OXYGEN_PRICE)
+            if self.budget_exceeded: return
+            for _ in range(OXYGEN_BUBBLES_PER_PUMP):
+                x, y = _drop_pos(self.geno.oxygen_location)
+                z = random.uniform(_WALL, POND_DEPTH * 0.5)
+                self.objs.append(DynObj(x, y, z, 'oxygen', 1.0, max_age=99999,
+                    vx=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED),
+                    vy=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED),
+                    vz=random.uniform(-OXYGEN_BUBBLE_SPEED*0.5, OXYGEN_BUBBLE_SPEED*0.5)))
+            self.oxy_pump -= 1
+
+    def _nat_spawn(self):
+        if random.random() < NATURAL_OXYGEN_SPAWN_RATE:
+            x, y = random.uniform(10, POND_WIDTH-10), random.uniform(5, POND_HEIGHT-5)
+            z = random.uniform(5, POND_DEPTH-5)
+            self.objs.append(DynObj(x, y, z, 'oxygen', 1.0, max_age=99999,
+                vx=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED),
+                vy=random.uniform(-OXYGEN_BUBBLE_SPEED, OXYGEN_BUBBLE_SPEED),
+                vz=random.uniform(-OXYGEN_BUBBLE_SPEED*0.5, OXYGEN_BUBBLE_SPEED*0.5)))
+        if random.random() < NATURAL_NH3_SPAWN_RATE:
+            x, y = random.uniform(10, POND_WIDTH-10), random.uniform(5, POND_HEIGHT-5)
+            z = random.uniform(5, POND_DEPTH-5)
+            self.hazards.append(Hazard(x, y, z, random.uniform(*NH3_AREA_RADIUS_RANGE), 'nh3',
+                max_age=NH3_EXPIRE_TIMESTEPS,
+                vx=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
+                vy=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
+                vz=random.uniform(-NH3_AREA_SPEED*0.5, NH3_AREA_SPEED*0.5)))
+
+    def _upd_objs(self):
+        keep = []
+        for o in self.objs:
+            if o.kind == 'oxygen':
+                o.age += 1
+                o.x += o.vx; o.y += o.vy; o.z += o.vz
+                if o.x < _WALL or o.x > POND_WIDTH-_WALL: o.vx *= -1
+                if o.y < _WALL or o.y > POND_HEIGHT-_WALL: o.vy *= -1
+                if o.z < _WALL or o.z > POND_DEPTH-_WALL: o.vz *= -1
+                o.x, o.y, o.z = self._cp(o.x, o.y, o.z)
+                if any(h.contains(o.x, o.y, o.z) and h.kind == 'nh3' and h.alive for h in self.hazards):
+                    continue
+                keep.append(o); continue
+
+            if o.kind == 'plant':
+                keep.append(o); continue
+
+            if o.kind in ('food', 'probiotic', 'fecal', 'dead_fish'):
+                rest_z = self._resting_z(o.x, o.y)
+                if o.z < rest_z:
+                    speed = SINK_SPEED if o.kind in ('food', 'probiotic') else SINK_SPEED_HEAVY
+                    o.z = min(o.z + speed, rest_z)
+                if o.kind == 'dead_fish':
+                    for h in self.hazards:
+                        if h.follow_dead_fish and h.kind == 'nh3':
+                            if _dist(h.x, h.y, h.z, o.x, o.y, o.z) < DEAD_FISH_NH3_RADIUS + 5:
+                                h.x, h.y, h.z = o.x, o.y, o.z
+
+            o.on_floor = o.z >= self._resting_z(o.x, o.y) - 0.1
+            if o.on_floor: o.age += 1
+
+            if o.age >= o.max_age and o.alive:
+                if o.kind in ('food', 'probiotic', 'fecal', 'dead_fish'):
+                    if o.value > 0:
+                        pv = o.value * (DEAD_FISH_POLLUTANT_MULT if o.kind == 'dead_fish' else 1.0)
+                        if not any(h.contains(o.x, o.y, o.z) and h.kind == 'nh3' and h.alive for h in self.hazards):
+                            keep.append(DynObj(o.x, o.y, o.z, 'pollutant', pv,
+                                               max_age=POLLUTANT_TO_HAZARD_TIMESTEPS, on_floor=True))
+                    continue
+                elif o.kind == 'pollutant':
+                    self._transform_pollutant(o)
+                    continue
+            if o.alive: keep.append(o)
+        self.objs = keep
+
+    def _transform_pollutant(self, o):
+        r = o.value * POLLUTANT_RADIUS_SCALE
+        roll = random.random()
+        cumul = 0.0
+        cumul += POLLUTANT_TO_NH3_CHANCE
+        if roll < cumul:
+            self.hazards.append(Hazard(o.x, o.y, o.z, r, 'nh3', max_age=NH3_EXPIRE_TIMESTEPS,
+                vx=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
+                vy=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
+                vz=random.uniform(-NH3_AREA_SPEED*0.5, NH3_AREA_SPEED*0.5)))
+            return
+        cumul += POLLUTANT_TO_DISEASE_CHANCE
+        if roll < cumul:
+            self.hazards.append(Hazard(o.x, o.y, _FLOOR_Z, r, 'disease', max_age=DISEASE_AREA_DECAY, is_floor=True))
+            return
+        cumul += POLLUTANT_TO_PARASITE_CHANCE
+        if roll < cumul:
+            self.hazards.append(Hazard(o.x, o.y, _FLOOR_Z, r, 'parasite', max_age=PARASITE_AREA_DECAY, is_floor=True))
+            return
+        cumul += POLLUTANT_TO_BOTH_CHANCE
+        if roll < cumul:
+            self.hazards.append(Hazard(o.x, o.y, _FLOOR_Z, r, 'disease', max_age=DISEASE_AREA_DECAY, is_floor=True))
+            self.hazards.append(Hazard(o.x, o.y, _FLOOR_Z, r*0.8, 'parasite', max_age=PARASITE_AREA_DECAY, is_floor=True))
+            return
+        cumul += POLLUTANT_TO_PLANT_CHANCE
+        if roll < cumul:
+            self.objs.append(DynObj(o.x, o.y, _FLOOR_Z, 'plant', 0, max_age=999999))
+            return
+        cumul += POLLUTANT_TO_OBSTACLE_CHANCE
+        if roll < cumul:
+            area = random.uniform(*POLLUTANT_OBSTACLE_AREA_RANGE)
+            aspect = random.uniform(0.5, 2.0)
+            w = math.sqrt(area * aspect)
+            h = area / w if w > 0 else math.sqrt(area)
+            w = min(w, OBSTACLE_MAX_WIDTH); h = min(h, OBSTACLE_MAX_HEIGHT)
+            d = random.uniform(2, 5); d = min(d, OBSTACLE_MAX_DEPTH)
+            ox = _clamp(o.x - w/2, _WALL, POND_WIDTH - _WALL - w)
+            oy = _clamp(o.y - h/2, _WALL, POND_HEIGHT - _WALL - h)
+            oz = _FLOOR_Z - d
+            self.obstacles.append(Obstacle(ox, oy, oz, w, h, d))
+            return
+
+    def _upd_haz(self):
+        keep = []
+        for h in self.hazards:
+            h.age += 1
+            if h.kind == 'nh3' and not h.follow_dead_fish:
+                h.x += h.vx; h.y += h.vy; h.z += h.vz
+                if h.x < 5 or h.x > POND_WIDTH-5: h.vx *= -1
+                if h.y < 3 or h.y > POND_HEIGHT-3: h.vy *= -1
+                if h.z < 3 or h.z > POND_DEPTH-3: h.vz *= -1
+                h.x = _clamp(h.x, 5, POND_WIDTH-5)
+                h.y = _clamp(h.y, 3, POND_HEIGHT-3)
+                h.z = _clamp(h.z, 3, POND_DEPTH-3)
+            if h.age >= h.max_age:
+                if h.kind == 'nh3':
+                    self.objs.append(DynObj(h.x, h.y, _FLOOR_Z, 'pollutant', h.radius*0.5,
+                                            max_age=POLLUTANT_TO_HAZARD_TIMESTEPS, on_floor=True))
+                continue
+            if h.kind in ('disease', 'parasite'):
+                h.radius = max(0.5, h.radius * DISEASE_AREA_RADIUS_DECAY)
+            keep.append(h)
+        self.hazards = keep
+
+    def _decay(self):
+        for f in self.fish:
+            if not f.alive: continue
+
+            f.oxygen -= OXYGEN_DECAY
+            f.energy -= ENERGY_DECAY * (PARASITE_EXTRA_ENERGY_DRAIN if f.has_parasite else 1.0)
+            f.fullness -= FULLNESS_DECAY * (PARASITE_EXTRA_FULLNESS_DRAIN if f.has_parasite else 1.0)
+
+            # Passive oxygen regen (not in NH3)
+            in_nh3 = any(h.kind == 'nh3' and h.contains(f.x, f.y, f.z) for h in self.hazards)
+            if not in_nh3 and f.oxygen < f.max_oxygen:
+                f.oxygen = min(f.max_oxygen, f.oxygen + OXYGEN_PASSIVE_REGEN)
+
+            # NH3 effects: drain oxygen AND HP
+            for h in self.hazards:
+                if h.kind == 'nh3' and h.contains(f.x, f.y, f.z):
+                    f.oxygen -= OXYGEN_DECAY * OXYGEN_DECAY_NH3_MULT
+                    f.hp -= HP_DECAY_IN_NH3
+
+            if f.energy <= 0: f.hp -= HP_DECAY_NO_ENERGY
+            if f.fullness <= 0: f.hp -= HP_DECAY_NO_FULLNESS
+            if f.is_infected: f.hp -= HP_DECAY_INFECTED
+            if f.has_parasite and self.ts % 3 == 0: f.hp -= HP_DECAY_PARASITE
+
+            # HP regen when healthy
+            fr = f.fullness / f.max_fullness
+            or_ = f.oxygen / f.max_oxygen
+            er = f.energy / f.max_energy
+            ir = f.immunity / f.max_immunity
+            if (not f.is_infected and not f.has_parasite and
+                    fr >= 0.7 and or_ >= 0.7 and er >= 0.3 and ir > 0.7):
+                f.hp = min(f.max_hp, f.hp + HP_REGEN)
+
+            # Immunity regen (non-infected)
+            if not f.is_infected and f.immunity < f.max_immunity:
+                f.immunity = min(f.max_immunity, f.immunity + IMMUNITY_REGEN)
+
+            # Disease self-cure
+            if f.is_infected:
+                if fr >= 0.8 and or_ >= 0.8 and er >= 0.3 and ir >= 0.9:
+                    if random.random() < DISEASE_SELF_CURE_CHANCE:
+                        f.is_infected = False
+
+            # Disease/parasite zone effects
+            for h in self.hazards:
+                if h.kind == 'disease' and h.contains(f.x, f.y, f.z):
+                    f.immunity -= IMMUNITY_DECAY_IN_DISEASE
+                    if f.immunity <= 0: f.is_infected = True; f.immunity = 0
+                if h.kind == 'parasite' and h.contains(f.x, f.y, f.z):
+                    if random.random() < PARASITE_CONTACT_CHANCE: f.has_parasite = True
+
+            # Clamp stats
+            f.hp = max(0, f.hp)
+            f.oxygen = max(0, f.oxygen)
+            f.energy = max(0, f.energy)
+            f.fullness = max(0, f.fullness)
+            f.immunity = max(0, f.immunity)
+
+    def _eat(self):
+        self._obj_grid.insert_all([o for o in self.objs if o.alive and o.kind != 'plant'])
+        for f in self.fish:
+            if not f.alive: continue
+            for o in self._obj_grid.get_nearby(f.x, f.y, f.z, f.body_size + FISH_EAT_RANGE):
+                if not o.alive or o.value <= 0: continue
+                if o.kind == 'food' and f.fullness < f.max_fullness:
+                    o.value -= 1
+                    g = FOOD_FULLNESS_GAIN * (PARASITE_FULLNESS_EFFICIENCY if f.has_parasite else 1.0)
+                    f.fullness = min(f.max_fullness, f.fullness + g)
+                    f.energy = min(f.max_energy, f.energy + FOOD_ENERGY_GAIN)
+                    if o.value <= 0: o.alive = False
+                elif o.kind == 'probiotic' and f.immunity < f.max_immunity:
+                    o.value -= 1
+                    f.immunity = min(f.max_immunity, f.immunity + PROBIOTIC_IMMUNITY_GAIN)
+                    if o.value <= 0: o.alive = False
+                elif o.kind == 'oxygen':
+                    f.oxygen = min(f.max_oxygen, f.oxygen + OXYGEN_BUBBLE_GAIN)
+                    o.alive = False
+
+    def _pso(self):
+        alive = [f for f in self.fish if f.alive]
+        if not alive: return
+        self._fish_grid.insert_all(alive)
+        self._obj_grid.insert_all([o for o in self.objs if o.alive and o.kind != 'plant'])
+        for f in alive:
+            vel = f.eff_vel()
+            nvx, nvy, nvz = PSO_INERTIA*f.vx, PSO_INERTIA*f.vy, PSO_INERTIA*f.vz
+            for w, dx, dy, dz in self._vecs(f, alive):
+                nvx += w*dx; nvy += w*dy; nvz += w*dz
+            m = math.sqrt(nvx**2 + nvy**2 + nvz**2)
+            if m > 0.01: nvx = nvx/m*vel; nvy = nvy/m*vel; nvz = nvz/m*vel
+            if f.has_parasite and random.random() < STATE_OVERRIDE_PARASITE_CHANCE:
+                sv = self._scrub(f)
+                if sv: nvx, nvy, nvz = sv[0]*vel, sv[1]*vel, sv[2]*vel
+            f.vx, f.vy, f.vz = nvx, nvy, nvz
+            nx, ny, nz = f.x+f.vx, f.y+f.vy, f.z+f.vz
+
+            for obs in self.obstacles:
+                if obs.contains(nx, ny, nz):
+                    ssx, ssy, ssz = obs.nearest_surface(nx, ny, nz)
+                    norm_x, norm_y, norm_z = _norm(nx-ssx, ny-ssy, nz-ssz)
+                    if abs(norm_x)<1e-8 and abs(norm_y)<1e-8 and abs(norm_z)<1e-8:
+                        ocx, ocy, ocz = obs.center()
+                        norm_x, norm_y, norm_z = _norm(f.x-ocx, f.y-ocy, f.z-ocz)
+                        if abs(norm_x)<1e-8 and abs(norm_y)<1e-8 and abs(norm_z)<1e-8:
+                            norm_x, norm_y, norm_z = _norm(random.uniform(-1,1), random.uniform(-1,1), random.uniform(-1,1))
+                    nx = ssx+norm_x*0.5; ny = ssy+norm_y*0.5; nz = ssz+norm_z*0.5
+                    dot = f.vx*norm_x + f.vy*norm_y + f.vz*norm_z
+                    f.vx -= dot*norm_x; f.vy -= dot*norm_y; f.vz -= dot*norm_z
+                    if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+
+            if nx < _WALL:
+                nx = _WALL; f.vx = 0
+                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+            elif nx > POND_WIDTH-_WALL:
+                nx = POND_WIDTH-_WALL; f.vx = 0
+                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+            if ny < _WALL:
+                ny = _WALL; f.vy = 0
+                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+            elif ny > POND_HEIGHT-_WALL:
+                ny = POND_HEIGHT-_WALL; f.vy = 0
+                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+            if nz < _WALL:
+                nz = _WALL; f.vz = 0
+                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+            elif nz > POND_DEPTH-_WALL:
+                nz = POND_DEPTH-_WALL; f.vz = 0
+                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
+
+            f.x, f.y, f.z = self._cp(nx, ny, nz)
+            mc = ENERGY_COST_MOVE * vel
+            if f.has_parasite: mc *= PARASITE_EXTRA_ENERGY_DRAIN
+            f.energy -= mc
+
+    def _vecs(self, f, alive):
+        vecs = []; fr = max(0, f.fullness) / f.max_fullness
+
+        # cFood — use obj grid
+        if fr < 1.0:
+            fw = PSO_FOOD_WEIGHT*(1.0-fr)
+            if max(0, f.energy)/f.max_energy < 0.3: fw *= PSO_FOOD_URGENT_MULT
+            nd, no = float('inf'), None
+            for o in self._obj_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
+                if o.alive and o.kind == 'food' and o.value > 0:
+                    d = _dist(f.x,f.y,f.z,o.x,o.y,o.z)
+                    if d < nd: nd, no = d, o
+            if no:
+                dx,dy,dz = _norm(no.x-f.x,no.y-f.y,no.z-f.z); vecs.append((fw,dx,dy,dz))
+
+        # cProbiotic — use obj grid
+        ir = max(0, f.immunity)/f.max_immunity
+        if ir < 1.0:
+            pw = PSO_PROBIOTIC_WEIGHT*(1.0-ir)
+            nd, no = float('inf'), None
+            for o in self._obj_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
+                if o.alive and o.kind == 'probiotic' and o.value > 0:
+                    d = _dist(f.x,f.y,f.z,o.x,o.y,o.z)
+                    if d < nd: nd, no = d, o
+            if no:
+                dx,dy,dz = _norm(no.x-f.x,no.y-f.y,no.z-f.z); vecs.append((pw,dx,dy,dz))
+
+        # cOxygen — use obj grid
+        orr = max(0, f.oxygen)/f.max_oxygen
+        if orr < PSO_OXYGEN_THRESHOLD:
+            ow = PSO_OXYGEN_WEIGHT*(1.0-orr)
+            if orr < PSO_OXYGEN_CRITICAL_THRESHOLD: ow *= PSO_OXYGEN_CRITICAL_MULT
+            nd, no = float('inf'), None
+            for o in self._obj_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
+                if o.alive and o.kind == 'oxygen':
+                    fx2=o.x+o.vx*PSO_OXYGEN_INTERCEPT_STEPS; fy2=o.y+o.vy*PSO_OXYGEN_INTERCEPT_STEPS
+                    fz2=o.z+o.vz*PSO_OXYGEN_INTERCEPT_STEPS
+                    d = min(_dist(f.x,f.y,f.z,o.x,o.y,o.z), _dist(f.x,f.y,f.z,fx2,fy2,fz2))
+                    if d < nd: nd, no = d, o
+            if no:
+                tx=no.x+no.vx*PSO_OXYGEN_INTERCEPT_STEPS; ty=no.y+no.vy*PSO_OXYGEN_INTERCEPT_STEPS
+                tz=no.z+no.vz*PSO_OXYGEN_INTERCEPT_STEPS
+                dx,dy,dz = _norm(tx-f.x,ty-f.y,tz-f.z); vecs.append((ow,dx,dy,dz))
+
+        # cSocial & cSelfish — use fish grid
+        svx,svy,svz,sc = 0,0,0,0; rvx,rvy,rvz,rc = 0,0,0,0
+        for o in self._fish_grid.get_nearby(f.x, f.y, f.z, SOCIAL_DISTANCE):
+            if o.fid == f.fid: continue
+            d = _dist(f.x,f.y,f.z,o.x,o.y,o.z)
+            if d < SELFISH_DISTANCE and d > 0.1:
+                dx,dy,dz = _norm(f.x-o.x,f.y-o.y,f.z-o.z)
+                rvx += dx/d; rvy += dy/d; rvz += dz/d; rc += 1
+            elif d < SOCIAL_DISTANCE:
+                svx += o.x-f.x; svy += o.y-f.y; svz += o.z-f.z; sc += 1
+        if sc > 0:
+            dx,dy,dz = _norm(svx/sc,svy/sc,svz/sc); vecs.append((PSO_SOCIAL_WEIGHT,dx,dy,dz))
+        if rc > 0:
+            dx,dy,dz = _norm(rvx,rvy,rvz); vecs.append((PSO_SELFISH_WEIGHT,dx,dy,dz))
+
+        # cNH3 — hazards are few, no grid needed
+        for h in self.hazards:
+            if h.kind == 'nh3':
+                d = _dist(f.x,f.y,f.z,h.x,h.y,h.z)
+                if d < h.radius+SENSITIVE_DISTANCE*0.5:
+                    w = PSO_NH3_WEIGHT
+                    if fr < 0.1 and any(o.alive and o.kind=='food' and h.contains(o.x,o.y,o.z) for o in self.objs):
+                        w = PSO_NH3_HUNGRY_OVERRIDE
+                    dx,dy,dz = _norm(f.x-h.x,f.y-h.y,f.z-h.z); vecs.append((w,dx,dy,dz))
+        for h in self.hazards:
+            if h.kind == 'disease':
+                d = _dist(f.x,f.y,f.z,h.x,h.y,h.z)
+                if d < h.radius+SENSITIVE_DISTANCE*0.5:
+                    dx,dy,dz = _norm(f.x-h.x,f.y-h.y,f.z-h.z); vecs.append((PSO_DISEASE_WEIGHT,dx,dy,dz))
+        for h in self.hazards:
+            if h.kind == 'parasite':
+                d = _dist(f.x,f.y,f.z,h.x,h.y,h.z)
+                if d < h.radius+SENSITIVE_DISTANCE*0.5:
+                    dx,dy,dz = _norm(f.x-h.x,f.y-h.y,f.z-h.z); vecs.append((PSO_PARASITE_WEIGHT,dx,dy,dz))
+
+        # cRun — use fish grid
+        for o in self._fish_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
+            if o.fid == f.fid: continue
+            if o.mouth_size > f.body_size:
+                d = _dist(f.x,f.y,f.z,o.x,o.y,o.z)
+                if 0.1 < d < SENSITIVE_DISTANCE:
+                    w = PSO_RUN_WEIGHT*(SENSITIVE_DISTANCE/(d+1))
+                    dx,dy,dz = _norm(f.x-o.x,f.y-o.y,f.z-o.z); vecs.append((w,dx,dy,dz))
+
+        # cObstacle — obstacles are few, no grid needed
+        if not f.has_parasite:
+            for obs in self.obstacles:
+                ssx,ssy,ssz = obs.nearest_surface(f.x,f.y,f.z)
+                d = _dist(f.x,f.y,f.z,ssx,ssy,ssz)
+                if 0 < d < SENSITIVE_DISTANCE:
+                    w = PSO_OBSTACLE_WEIGHT*(1.0-d/SENSITIVE_DISTANCE)
+                    dx,dy,dz = _norm(f.x-ssx,f.y-ssy,f.z-ssz); vecs.append((w,dx,dy,dz))
+                elif d < 0.01:
+                    ocx,ocy,ocz = obs.center()
+                    dx,dy,dz = _norm(f.x-ocx,f.y-ocy,f.z-ocz); vecs.append((PSO_OBSTACLE_WEIGHT,dx,dy,dz))
+
+        # cRelief
+        if f.has_parasite:
+            sv = self._scrub(f)
+            if sv: vecs.append((PSO_RELIEF_WEIGHT,sv[0],sv[1],sv[2]))
+
+        # cWander — lost fish seek the swarm
+        if sc == 0 and rc == 0:
+            # No social neighbors — fish is isolated
+            # Pull toward pond center (where swarm likely is)
+            cx, cy, cz = POND_WIDTH/2, POND_HEIGHT/2, POND_DEPTH*0.4
+            dx,dy,dz = _norm(cx-f.x, cy-f.y, cz-f.z)
+            vecs.append((PSO_SOCIAL_WEIGHT * 0.5, dx, dy, dz))
+            # Random wander component
+            wx = random.uniform(-1, 1)
+            wy = random.uniform(-1, 1)
+            wz = random.uniform(-0.5, 0.5)
+            dx,dy,dz = _norm(wx, wy, wz)
+            vecs.append((0.3, dx, dy, dz))
+
+        return vecs
+
+    def _scrub(self, f):
+        bd, bo = float('inf'), None
+        for o in self.obstacles:
+            ssx,ssy,ssz = o.nearest_surface(f.x,f.y,f.z)
+            d = _dist(f.x,f.y,f.z,ssx,ssy,ssz)
+            if d < bd: bd, bo = d, o
+        if bo:
+            ssx,ssy,ssz = bo.nearest_surface(f.x,f.y,f.z)
+            return _norm(ssx-f.x,ssy-f.y,ssz-f.z)
+        wall_targets = []
+        if f.x > _WALL: wall_targets.append((_WALL,f.y,f.z,f.x-_WALL))
+        if f.x < POND_WIDTH-_WALL: wall_targets.append((POND_WIDTH-_WALL,f.y,f.z,POND_WIDTH-_WALL-f.x))
+        if f.y > _WALL: wall_targets.append((f.x,_WALL,f.z,f.y-_WALL))
+        if f.y < POND_HEIGHT-_WALL: wall_targets.append((f.x,POND_HEIGHT-_WALL,f.z,POND_HEIGHT-_WALL-f.y))
+        if f.z > _WALL: wall_targets.append((f.x,f.y,_WALL,f.z-_WALL))
+        if f.z < POND_DEPTH-_WALL: wall_targets.append((f.x,f.y,POND_DEPTH-_WALL,POND_DEPTH-_WALL-f.z))
+        if wall_targets:
+            wall_targets.sort(key=lambda t: t[3])
+            tx,ty,tz,_ = wall_targets[0]
+            return _norm(tx-f.x,ty-f.y,tz-f.z)
+        return None
+
+    def _cannibal(self):
+        alive = [f for f in self.fish if f.alive]
+        self._fish_grid.insert_all(alive)
+        for f in alive:
+            if not f.alive: continue
+            fr = f.fullness / f.max_fullness if f.max_fullness > 0 else 1.0
+            if fr >= CANNIBAL_FULLNESS_THRESHOLD: continue
+            eat_range = f.body_size + FISH_EAT_RANGE
+            has_food = False
+            for o in self._obj_grid.get_nearby(f.x, f.y, f.z, eat_range * 2):
+                if o.alive and o.kind == 'food' and o.value > 0:
+                    has_food = True; break
+            if has_food: continue
+            chance = CANNIBAL_BASE_CHANCE + (1.0 - fr) * CANNIBAL_HUNGER_MULT
+            if random.random() > chance: continue
+            for t in self._fish_grid.get_nearby(f.x, f.y, f.z, 
+                        max(BODY_SIZE_RANGE[1] * CANNIBAL_COLLISION_RADIUS_MULT, 20)):
+                if t.fid == f.fid or not t.alive: continue
+                if f.mouth_size > t.body_size:
+                    d = _dist(f.x, f.y, f.z, t.x, t.y, t.z)
+                    if d <= t.body_size * CANNIBAL_COLLISION_RADIUS_MULT:
+                        t.hp = 0; t.alive = False
+                        f.fullness = min(f.max_fullness, f.fullness + t.body_size * CANNIBAL_FULLNESS_GAIN_MULT)
+                        self.cannibal_events.append({'x':t.x,'y':t.y,'z':t.z,'predator':f.fid,'prey':t.fid})
+                        break
+
+    def _fecal(self):
+        for f in self.fish:
+            if not f.alive: continue
+            f.fecal_timer += 1
+            if f.fecal_timer >= FECAL_DROP_INTERVAL and f.fullness > 0:
+                f.fecal_timer = 0
+                if random.random() < (f.fullness/f.max_fullness)*FECAL_BASE_CHANCE:
+                    stacked = False
+                    for o in self.objs:
+                        if o.alive and o.kind=='fecal' and _dist(f.x,f.y,f.z,o.x,o.y,o.z)<FECAL_STACK_RADIUS:
+                            o.value += FECAL_VALUE; stacked = True; break
+                    if not stacked:
+                        self.objs.append(DynObj(f.x+random.uniform(-3,3),f.y+random.uniform(-2,2),
+                            f.z+random.uniform(-1,1),'fecal',FECAL_VALUE,max_age=FECAL_EXPIRE_TIMESTEPS))
+
+    def _death(self):
+        for f in self.fish:
+            if not f.alive: continue
+            if f.hp <= 0 or f.oxygen <= 0:
+                f.alive = False
+                self.objs.append(DynObj(f.x, f.y, f.z, 'dead_fish', f.body_size,
+                                        max_age=DEAD_FISH_DECAY_TIMESTEPS))
+                self.hazards.append(Hazard(f.x, f.y, f.z, DEAD_FISH_NH3_RADIUS, 'nh3',
+                    max_age=DEAD_FISH_DECAY_TIMESTEPS, follow_dead_fish=True))
+                if f.is_infected:
+                    self.hazards.append(Hazard(f.x, f.y, f.z,
+                        f.body_size*INFECTED_FISH_DISEASE_RADIUS_MULT, 'disease',
+                        max_age=DISEASE_AREA_DECAY))
+
+    def _frame(self):
+        alive = [f for f in self.fish if f.alive]
+        return {
+            't': self.ts, 'day': self.ts//24, 'hour': self.ts%24,
+            'fish': [f.snapshot() for f in alive],
+            'objects': [{'x':round(o.x,1),'y':round(o.y,1),'z':round(o.z,1),
+                         'type':o.kind,'value':round(o.value,1)} for o in self.objs if o.alive],
+            'hazards': [{'x':round(h.x,1),'y':round(h.y,1),'z':round(h.z,1),
+                         'r':round(h.radius,1),'type':h.kind,'is_floor':h.is_floor}
+                        for h in self.hazards],
+            'obstacles': [{'x':round(o.x,1),'y':round(o.y,1),'z':round(o.z,1),
+                           'w':round(o.w,1),'h':round(o.h,1),'d':round(o.d,1)}
+                          for o in self.obstacles],
+            'alive_count': len(alive), 'total_count': self.n0,
+            'cannibal_events': list(self.cannibal_events)}
+
+--------------------
+File: /AquaOptima/core/constants.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+constants.py -- All configuration constants for the aquaculture simulation.
+"""
+
+from enum import IntEnum
+from pathlib import Path
+import math
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    PROJECT PATHS                            ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+RESULTS_CSV_PATH = str(PROJECT_ROOT / 'logs' / 'results.csv')
+SIMULATION_JSON_PATH = str(PROJECT_ROOT / 'logs' / 'simulation_data.json')
+PLOTS_DIR = str(PROJECT_ROOT / 'plots')
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    USER CONFIGURATION                       ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+MAX_BUDGET = 500.0
+AQUACULTURE_DAYS = 60
+POND_GENERATIONS = 20
+RUN_TIMELINES = 3
+INITIAL_POND_COUNT = 10
+FRAME_SKIP = 1
+NUM_WORKERS = None
+MAX_FISH_COUNT = 50
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    ECONOMIC CONSTANTS                       ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FOOD_PRICE = 0.05
+PROBIOTIC_PRICE = 0.75
+OXYGEN_PRICE = 2.50
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                  EA FITNESS WEIGHTS                         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+W1_YIELD = 0.55
+W2_SAVING = 0.33
+W3_HEALTHINESS = 0.12
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                    POND DIMENSIONS                          ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+POND_WIDTH = 200.0
+POND_HEIGHT = 75.0
+POND_DEPTH = 50.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FISH TRAIT RANGES (FIXED)                   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+MOUTH_SIZE_RANGE = (3.0, 8.0)
+BODY_SIZE_RANGE = (4.0, 10.0)
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FISH STAT RANGES (DYNAMIC)                  ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+HP_RANGE = (80.0, 100.0)
+ENERGY_RANGE = (60.0, 100.0)
+FULLNESS_RANGE = (50.0, 100.0)
+IMMUNITY_RANGE = (70.0, 100.0)
+OXYGEN_RANGE = (80.0, 100.0)
+VELOCITY_RANGE = (2.0, 6.0)
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                   PSO DISTANCE RADII                        ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+SENSITIVE_DISTANCE = 40.0
+SOCIAL_DISTANCE = 60.0
+SELFISH_DISTANCE = 10.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                STAT DECAY RATES (PER TIMESTEP)              ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+OXYGEN_DECAY = 0.10
+OXYGEN_DECAY_NH3_MULT = 2.0
+OXYGEN_PASSIVE_REGEN = 0.04
+ENERGY_DECAY = 0.10
+FULLNESS_DECAY = 0.15
+ENERGY_COST_MOVE = 0.06
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              HP DRAIN RATES (WHEN STATS DEPLETED)           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+HP_DECAY_NO_ENERGY = 0.4
+HP_DECAY_NO_FULLNESS = 1.0
+HP_DECAY_INFECTED = 0.6
+HP_DECAY_PARASITE = 0.8
+HP_DECAY_IN_NH3 = 0.3
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              HP REGEN                                       ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+HP_REGEN = 0.1
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              DISEASE & PARASITE MECHANICS                   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+IMMUNITY_DECAY_IN_DISEASE = 1.5
+IMMUNITY_REGEN = 0.02
+DISEASE_SELF_CURE_CHANCE = 0.08
+PARASITE_CONTACT_CHANCE = 0.05
+PARASITE_FULLNESS_EFFICIENCY = 0.5
+PARASITE_EXTRA_FULLNESS_DRAIN = 1.5
+PARASITE_EXTRA_ENERGY_DRAIN = 1.5
+PARASITE_VELOCITY_MULT = 0.75
+PARASITE_SCRUB_CHANCE = 0.03
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              VELOCITY REDUCTION THRESHOLDS                  ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+VELOCITY_HP_THRESHOLD = 0.5
+VELOCITY_ENERGY_THRESHOLD = 0.5
+VELOCITY_FULLNESS_THRESHOLD = 0.5
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 OBJECT LIFETIMES (TIMESTEPS)                ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FOOD_EXPIRE_TIMESTEPS = 48
+PROBIOTIC_EXPIRE_TIMESTEPS = 18
+FECAL_EXPIRE_TIMESTEPS = 36
+DEAD_FISH_DECAY_TIMESTEPS = 24
+NH3_EXPIRE_TIMESTEPS = 60
+DISEASE_AREA_DECAY = 36
+PARASITE_AREA_DECAY = 36
+POLLUTANT_TO_HAZARD_TIMESTEPS = 48
+DISEASE_AREA_RADIUS_DECAY = 0.990
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 POLLUTANT TRANSFORMATION                    ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+POLLUTANT_TO_NH3_CHANCE = 0.30
+POLLUTANT_TO_DISEASE_CHANCE = 0.10
+POLLUTANT_TO_PARASITE_CHANCE = 0.10
+POLLUTANT_TO_BOTH_CHANCE = 0.05
+POLLUTANT_TO_PLANT_CHANCE = 0.10
+POLLUTANT_TO_OBSTACLE_CHANCE = 0.20
+POLLUTANT_RADIUS_SCALE = 1.5
+DEAD_FISH_POLLUTANT_MULT = 1.5
+POLLUTANT_OBSTACLE_AREA_RANGE = (3, 8)
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 DEAD FISH NH3                               ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+DEAD_FISH_NH3_RADIUS = 10.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FOOD & HEALING GAINS                        ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FOOD_ENERGY_GAIN = 25.0
+FOOD_FULLNESS_GAIN = 20.0
+FOOD_VALUE = 5.0
+PROBIOTIC_VALUE = 3.0
+PROBIOTIC_IMMUNITY_GAIN = 40.0
+OXYGEN_BUBBLE_GAIN = 30.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 NATURAL SPAWN RATES                         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+NATURAL_OXYGEN_SPAWN_RATE = 0.12
+NATURAL_NH3_SPAWN_RATE = 0.04
+OXYGEN_BUBBLES_PER_PUMP = 10
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 ENVIRONMENT OBJECTS                         ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+OBSTACLE_DENSITY_FACTOR = 0.15
+OBSTACLE_MAX_DIM_FRAC = 0.10
+OBSTACLE_AREA_RANGE = (30, 150)
+OBSTACLE_ASPECT_RANGE = (0.3, 3.0)
+OBSTACLE_DEPTH_RANGE = (5.0, 15.0)
+OXYGEN_BUBBLE_SPEED = 0.5
+NH3_AREA_RADIUS_RANGE = (6.0, 14.0)
+NH3_AREA_SPEED = 0.2
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 SINKING MECHANICS                           ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+SINK_SPEED = 0.3
+SINK_SPEED_HEAVY = 0.6
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FLOOR HAZARD MECHANICS                      ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FLOOR_HAZARD_HEIGHT = 12.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FECAL MECHANICS                             ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FECAL_DROP_INTERVAL = 2
+FECAL_BASE_CHANCE = 0.2
+FECAL_VALUE = 2.0
+FECAL_STACK_RADIUS = 10.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 CANNIBALISM MECHANICS                       ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+CANNIBAL_FULLNESS_THRESHOLD = 0.7
+CANNIBAL_BASE_CHANCE = 0.2
+CANNIBAL_HUNGER_MULT = 0.5
+CANNIBAL_FULLNESS_GAIN_MULT = 2.0
+CANNIBAL_COLLISION_RADIUS_MULT = 2.0
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 PSO VECTOR WEIGHTS                          ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+PSO_INERTIA = 0.4
+PSO_FOOD_WEIGHT = 3.0
+PSO_FOOD_URGENT_MULT = 2.0
+PSO_PROBIOTIC_WEIGHT = 1.5
+PSO_OXYGEN_WEIGHT = 2.0
+PSO_OXYGEN_CRITICAL_MULT = 2.0
+PSO_OXYGEN_THRESHOLD = 0.7
+PSO_OXYGEN_CRITICAL_THRESHOLD = 0.3
+PSO_OXYGEN_INTERCEPT_STEPS = 3
+PSO_SOCIAL_WEIGHT = 1.5
+PSO_SELFISH_WEIGHT = 1.5
+PSO_NH3_WEIGHT = 4.0
+PSO_NH3_HUNGRY_OVERRIDE = 0.5
+PSO_DISEASE_WEIGHT = 2.5
+PSO_PARASITE_WEIGHT = 3.0
+PSO_RELIEF_WEIGHT = 4.0
+PSO_RUN_WEIGHT = 5.0
+PSO_OBSTACLE_WEIGHT = 2.0
+
+STATE_OVERRIDE_PARASITE_CHANCE = 0.6
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 EA / MISC                                   ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+EA_MUTATION_RATE = 0.25
+EA_ELITISM_COUNT = max(1, round(0.2 * INITIAL_POND_COUNT))
+EA_TOURNAMENT_K = max(2, round(0.4 * INITIAL_POND_COUNT))
+FISH_EAT_RANGE = 3.0
+INFECTED_FISH_DISEASE_RADIUS_MULT = 1.5
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 PROBIOTIC POLICY RANGES                     ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+PROBIOTIC_QUANTITY_RANGE = (1, 5)
+PROBIOTIC_INTERVAL_STEPS = list(range(24, 169, 12))
+
+# ════════════════════════════════════════════════════════════════
+#  DERIVED (do not edit)
+# ════════════════════════════════════════════════════════════════
+
+RUNTIME = AQUACULTURE_DAYS * 24
+LOC_NAMES = {
+    0: 'Center', 1: 'Top-Left', 2: 'Top-Right', 3: 'Bot-Left', 4: 'Bot-Right',
+    5: 'Top-Center', 6: 'Bot-Center', 7: 'Left-Center', 8: 'Right-Center', 9: 'Random'
+}
+
+FOOD_QUANTITY_RANGE = (5, 20)
+FOOD_INTERVAL_RANGE = (2, 24)
+
+OBSTACLE_MAX_WIDTH = POND_WIDTH * OBSTACLE_MAX_DIM_FRAC
+OBSTACLE_MAX_HEIGHT = POND_HEIGHT * OBSTACLE_MAX_DIM_FRAC
+OBSTACLE_MAX_DEPTH = POND_DEPTH * OBSTACLE_MAX_DIM_FRAC
+
+NUM_OBSTACLES = max(5, round(math.sqrt(POND_WIDTH * POND_HEIGHT) * OBSTACLE_DENSITY_FACTOR))
+
+
+class DropLocation(IntEnum):
+    CENTER = 0
+    TOP_LEFT = 1
+    TOP_RIGHT = 2
+    BOT_LEFT = 3
+    BOT_RIGHT = 4
+    TOP_CENTER = 5
+    BOT_CENTER = 6
+    LEFT_CENTER = 7
+    RIGHT_CENTER = 8
+    RANDOM = 9
+
+--------------------
+File: /AquaOptima/core/entities.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+entities.py -- Simulation entity dataclasses (3D).
+"""
+
+import random
+from dataclasses import dataclass
+from typing import Tuple
+
+from constants import (
+    EA_MUTATION_RATE, FOOD_INTERVAL_RANGE, FOOD_QUANTITY_RANGE,
+    FOOD_PRICE, PROBIOTIC_PRICE, OXYGEN_PRICE,
+    VELOCITY_HP_THRESHOLD, VELOCITY_ENERGY_THRESHOLD, VELOCITY_FULLNESS_THRESHOLD,
+    PARASITE_VELOCITY_MULT, FLOOR_HAZARD_HEIGHT,
+    PROBIOTIC_QUANTITY_RANGE, PROBIOTIC_INTERVAL_STEPS,
+    MAX_FISH_COUNT,
+)
+
+
+@dataclass
+class PondGenotype:
+    fish_count: int = 30
+    food_interval: int = 6
+    food_quantity: int = 3
+    food_location: int = 0
+    probiotic_interval: int = 24
+    probiotic_quantity: int = 2
+    probiotic_location: int = 0
+    oxygen_interval: int = 8
+    oxygen_duration: int = 2
+    oxygen_location: int = 0
+
+    def total_cost(self, runtime: int) -> float:
+        fc = (runtime / self.food_interval) * self.food_quantity * FOOD_PRICE
+        pc = (runtime / self.probiotic_interval) * self.probiotic_quantity * PROBIOTIC_PRICE
+        oc = (runtime / self.oxygen_interval) * self.oxygen_duration * OXYGEN_PRICE
+        return fc + pc + oc
+
+    def per_cycle_cost(self) -> float:
+        return (self.food_quantity * FOOD_PRICE +
+                self.probiotic_quantity * PROBIOTIC_PRICE +
+                self.oxygen_duration * OXYGEN_PRICE)
+
+    def to_dict(self) -> dict:
+        return {k: getattr(self, k) for k in [
+            'fish_count',
+            'food_interval', 'food_quantity', 'food_location',
+            'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
+            'oxygen_interval', 'oxygen_duration', 'oxygen_location']}
+
+    @staticmethod
+    def random() -> 'PondGenotype':
+        return PondGenotype(
+            fish_count=random.randint(10, MAX_FISH_COUNT),
+            food_interval=random.randint(*FOOD_INTERVAL_RANGE),
+            food_quantity=random.randint(*FOOD_QUANTITY_RANGE),
+            food_location=random.randint(0, 9),
+            probiotic_interval=random.choice(PROBIOTIC_INTERVAL_STEPS),
+            probiotic_quantity=random.randint(*PROBIOTIC_QUANTITY_RANGE),
+            probiotic_location=random.randint(0, 9),
+            oxygen_interval=random.randint(1, 24),
+            oxygen_duration=random.randint(1, 4),
+            oxygen_location=random.randint(0, 9))
+
+    def crossover(self, other: 'PondGenotype') -> 'PondGenotype':
+        child = PondGenotype()
+        for attr in self.to_dict():
+            setattr(child, attr, getattr(self if random.random() < 0.5 else other, attr))
+        return child
+
+    def mutate(self):
+        r = EA_MUTATION_RATE
+        if random.random() < r: self.fish_count = random.randint(10, MAX_FISH_COUNT)
+        if random.random() < r: self.food_interval = random.randint(*FOOD_INTERVAL_RANGE)
+        if random.random() < r: self.food_quantity = random.randint(*FOOD_QUANTITY_RANGE)
+        if random.random() < r: self.food_location = random.randint(0, 9)
+        if random.random() < r: self.probiotic_interval = random.choice(PROBIOTIC_INTERVAL_STEPS)
+        if random.random() < r: self.probiotic_quantity = random.randint(*PROBIOTIC_QUANTITY_RANGE)
+        if random.random() < r: self.probiotic_location = random.randint(0, 9)
+        if random.random() < r: self.oxygen_interval = random.randint(1, 24)
+        if random.random() < r: self.oxygen_duration = random.randint(1, 4)
+        if random.random() < r: self.oxygen_location = random.randint(0, 9)
+
+
+@dataclass
+class Obstacle:
+    x: float; y: float; z: float; w: float; h: float; d: float
+
+    def contains(self, px, py, pz) -> bool:
+        return (self.x <= px <= self.x + self.w and
+                self.y <= py <= self.y + self.h and
+                self.z <= pz <= self.z + self.d)
+
+    def nearest_surface(self, px, py, pz) -> Tuple[float, float, float]:
+        cx = max(self.x, min(px, self.x + self.w))
+        cy = max(self.y, min(py, self.y + self.h))
+        cz = max(self.z, min(pz, self.z + self.d))
+        return cx, cy, cz
+
+    def center(self) -> Tuple[float, float, float]:
+        return self.x + self.w / 2, self.y + self.h / 2, self.z + self.d / 2
+
+    def top_z(self) -> float:
+        return self.z
+
+    def xy_contains(self, px, py) -> bool:
+        return self.x <= px <= self.x + self.w and self.y <= py <= self.y + self.h
+
+
+@dataclass
+class DynObj:
+    x: float; y: float; z: float; kind: str; value: float = 5.0
+    age: int = 0; max_age: int = 30
+    vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
+    alive: bool = True
+    on_floor: bool = False
+
+
+@dataclass
+class Hazard:
+    x: float; y: float; z: float; radius: float; kind: str
+    age: int = 0; max_age: int = 50; alive: bool = True
+    vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
+    is_floor: bool = False
+    follow_dead_fish: bool = False
+
+    def contains(self, px, py, pz) -> bool:
+        if self.is_floor:
+            if pz < self.z - FLOOR_HAZARD_HEIGHT:
+                return False
+            return (px - self.x) ** 2 + (py - self.y) ** 2 <= self.radius ** 2
+        return ((px - self.x) ** 2 + (py - self.y) ** 2 +
+                (pz - self.z) ** 2) <= self.radius ** 2
+
+
+@dataclass
+class Fish:
+    fid: int = 0
+    x: float = 0.0; y: float = 0.0; z: float = 0.0
+    vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
+    mouth_size: float = 5.0; body_size: float = 6.0
+    hp: float = 100.0; max_hp: float = 100.0
+    energy: float = 80.0; max_energy: float = 80.0
+    fullness: float = 60.0; max_fullness: float = 60.0
+    immunity: float = 80.0; max_immunity: float = 80.0
+    oxygen: float = 90.0; max_oxygen: float = 90.0
+    base_velocity: float = 2.0
+    is_infected: bool = False; has_parasite: bool = False
+    alive: bool = True; fecal_timer: int = 0
+
+    def eff_vel(self) -> float:
+        v = self.base_velocity
+        if self.hp <= self.max_hp * VELOCITY_HP_THRESHOLD: v *= 0.5
+        if self.energy <= self.max_energy * VELOCITY_ENERGY_THRESHOLD: v *= 0.5
+        if self.fullness <= self.max_fullness * VELOCITY_FULLNESS_THRESHOLD: v *= 0.5
+        if self.has_parasite: v *= PARASITE_VELOCITY_MULT
+        return v
+
+    def norm_stats(self) -> float:
+        hp_n = max(0, self.hp) / self.max_hp
+        en_n = max(0, self.energy) / self.max_energy
+        fu_n = max(0, self.fullness) / self.max_fullness
+        im_n = max(0, self.immunity) / self.max_immunity
+        vl_n = min(1.0, self.eff_vel() / (self.base_velocity + 1e-9))
+        return (hp_n + en_n + fu_n + im_n + vl_n) / 5.0
+
+    def snapshot(self) -> dict:
+        return {
+            'id': self.fid,
+            'x': round(self.x, 1), 'y': round(self.y, 1), 'z': round(self.z, 1),
+            'hp': round(self.hp, 1), 'max_hp': round(self.max_hp, 1),
+            'energy': round(self.energy, 1), 'max_energy': round(self.max_energy, 1),
+            'fullness': round(self.fullness, 1), 'max_fullness': round(self.max_fullness, 1),
+            'immunity': round(self.immunity, 1), 'max_immunity': round(self.max_immunity, 1),
+            'oxygen': round(self.oxygen, 1), 'max_oxygen': round(self.max_oxygen, 1),
+            'alive': self.alive,
+            'is_infected': self.is_infected, 'has_parasite': self.has_parasite,
+            'body_size': round(self.body_size, 1), 'mouth_size': round(self.mouth_size, 1),
+            'base_velocity': round(self.base_velocity, 2),
+            'vx': round(self.vx, 2), 'vy': round(self.vy, 2), 'vz': round(self.vz, 2),
+        }
+
+--------------------
+File: /AquaOptima/core/helpers.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+helpers.py -- Pure utility functions and fish factory (3D).
+"""
+
+import math
+import random
+
+from constants import (
+    POND_WIDTH, POND_HEIGHT, POND_DEPTH, DropLocation,
+    MOUTH_SIZE_RANGE, BODY_SIZE_RANGE,
+    HP_RANGE, ENERGY_RANGE, FULLNESS_RANGE, IMMUNITY_RANGE, OXYGEN_RANGE,
+    VELOCITY_RANGE,
+)
+from entities import Fish
+
+
+def _dist(x1, y1, z1, x2, y2, z2):
+    return math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2 + (z1 - z2) ** 2)
+
+
+def _clamp(v, lo, hi):
+    return max(lo, min(hi, v))
+
+
+def _norm(vx, vy, vz):
+    m = math.sqrt(vx * vx + vy * vy + vz * vz)
+    return (vx / m, vy / m, vz / m) if m > 1e-8 else (0.0, 0.0, 0.0)
+
+
+def _drop_pos(loc: int):
+    """Return (x, y) for a drop location. Z is handled by caller."""
+    W, H = POND_WIDTH, POND_HEIGHT
+    mx, my = W * 0.15, H * 0.15
+    jx = random.uniform(-mx * 0.3, mx * 0.3)
+    jy = random.uniform(-my * 0.3, my * 0.3)
+
+    if loc == DropLocation.CENTER:
+        return W / 2 + jx, H / 2 + jy
+    elif loc == DropLocation.TOP_LEFT:
+        return mx + jx, my + jy
+    elif loc == DropLocation.TOP_RIGHT:
+        return W - mx + jx, my + jy
+    elif loc == DropLocation.BOT_LEFT:
+        return mx + jx, H - my + jy
+    elif loc == DropLocation.BOT_RIGHT:
+        return W - mx + jx, H - my + jy
+    elif loc == DropLocation.TOP_CENTER:
+        return W / 2 + jx, my + jy
+    elif loc == DropLocation.BOT_CENTER:
+        return W / 2 + jx, H - my + jy
+    elif loc == DropLocation.LEFT_CENTER:
+        return mx + jx, H / 2 + jy
+    elif loc == DropLocation.RIGHT_CENTER:
+        return W - mx + jx, H / 2 + jy
+    else:
+        return random.uniform(10, W - 10), random.uniform(5, H - 5)
+
+
+def _make_fish(fid: int) -> Fish:
+    f = Fish(fid=fid)
+    f.x = random.uniform(15, POND_WIDTH - 15)
+    f.y = random.uniform(10, POND_HEIGHT - 10)
+    f.z = random.uniform(5, POND_DEPTH - 5)
+    f.mouth_size = random.uniform(*MOUTH_SIZE_RANGE)
+    f.body_size = random.uniform(*BODY_SIZE_RANGE)
+    f.max_hp = random.uniform(*HP_RANGE); f.hp = f.max_hp
+    f.max_energy = random.uniform(*ENERGY_RANGE); f.energy = f.max_energy
+    f.max_fullness = random.uniform(*FULLNESS_RANGE); f.fullness = f.max_fullness * 0.8
+    f.max_immunity = random.uniform(*IMMUNITY_RANGE); f.immunity = f.max_immunity
+    f.max_oxygen = random.uniform(*OXYGEN_RANGE); f.oxygen = f.max_oxygen
+    f.base_velocity = random.uniform(*VELOCITY_RANGE)
+    f.vx = random.uniform(-1, 1)
+    f.vy = random.uniform(-1, 1)
+    f.vz = random.uniform(-0.5, 0.5)
+    return f
+
+
+FISH_DICT_KEYS = [
+    'fid', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'mouth_size', 'body_size',
+    'hp', 'max_hp', 'energy', 'max_energy', 'fullness', 'max_fullness',
+    'immunity', 'max_immunity', 'oxygen', 'max_oxygen', 'base_velocity',
+    'is_infected', 'has_parasite', 'alive', 'fecal_timer']
+
+
+def _fish_to_dict(f: Fish) -> dict:
+    return {s: getattr(f, s) for s in FISH_DICT_KEYS}
+
+
+def _dict_to_fish(d: dict) -> Fish:
+    f = Fish()
+    for k, v in d.items():
+        if hasattr(f, k):
+            setattr(f, k, v)
+    return f
+
+# ════════════════════════════════════════════════════════════════
+# SPATIAL GRID — O(n²) → O(n×k) for neighbor queries
+# ════════════════════════════════════════════════════════════════
+
+class SpatialGrid:
+    """3D spatial hash grid for fast neighbor lookups."""
+
+    def __init__(self, cell_size=30.0):
+        self.cell_size = cell_size
+        self.cells = {}
+
+    def clear(self):
+        self.cells.clear()
+
+    def _key(self, x, y, z):
+        return (int(x // self.cell_size),
+                int(y // self.cell_size),
+                int(z // self.cell_size))
+
+    def insert(self, obj):
+        """Insert an object with .x, .y, .z attributes."""
+        k = self._key(obj.x, obj.y, obj.z)
+        if k not in self.cells:
+            self.cells[k] = []
+        self.cells[k].append(obj)
+
+    def insert_all(self, objects):
+        """Clear and insert all objects."""
+        self.clear()
+        for obj in objects:
+            self.insert(obj)
+
+    def get_nearby(self, x, y, z, radius):
+        """Yield all objects within radius of (x, y, z)."""
+        cs = self.cell_size
+        r_cells = int(radius // cs) + 1
+        cx, cy, cz = int(x // cs), int(y // cs), int(z // cs)
+        r2 = radius * radius
+        for dx in range(-r_cells, r_cells + 1):
+            for dy in range(-r_cells, r_cells + 1):
+                for dz in range(-r_cells, r_cells + 1):
+                    cell = self.cells.get((cx + dx, cy + dy, cz + dz))
+                    if cell:
+                        for obj in cell:
+                            ddx = obj.x - x
+                            ddy = obj.y - y
+                            ddz = obj.z - z
+                            if ddx * ddx + ddy * ddy + ddz * ddz <= r2:
+                                yield obj
+
+--------------------
+File: /AquaOptima/core/ea.py
+--------------------
+
+#!/usr/bin/env python3
+"""
+ea.py -- Evolutionary Algorithm: pond configuration evolution with parallel timelines.
+Parallelism is at the pond level within each generation.
+Converged champion = best pond in the LAST generation of each timeline.
+"""
+
+import random, copy, csv, time as _time, multiprocessing
+from concurrent.futures import ProcessPoolExecutor, as_completed
+
+from constants import (
+    MAX_BUDGET, MAX_FISH_COUNT, AQUACULTURE_DAYS,
+    POND_GENERATIONS, RUN_TIMELINES, INITIAL_POND_COUNT,
+    FRAME_SKIP, NUM_WORKERS, RUNTIME, RESULTS_CSV_PATH,
+    EA_ELITISM_COUNT, EA_TOURNAMENT_K,
+)
+from entities import PondGenotype
+from helpers import _make_fish
+from pond import PondSim
+from log import _print_champion_detail, _print_champions_summary
+
+CSV_HEADER = [
+    'timeline', 'generation', 'pond', 'status',
+    'fitness', 'survival_rate', 'healthiness', 'cost',
+    'saving', 'yield', 'alive_count', 'initial_count',
+    'fish_count',
+    'food_interval', 'food_quantity', 'food_location',
+    'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
+    'oxygen_interval', 'oxygen_duration', 'oxygen_location',
+]
+
+def _csv_row_data(tl_idx, gen_idx, pond_idx, status, result, geno_dict):
+    return [
+        tl_idx+1, gen_idx+1, pond_idx, status,
+        f"{result.get('fitness',0):.4f}", f"{result.get('survival_rate',0):.4f}",
+        f"{result.get('avg_healthiness',0):.4f}", f"{result.get('cost',0):.2f}",
+        f"{result.get('saving',0):.2f}", f"{result.get('yield',0):.4f}",
+        result.get('alive_count',0), result.get('initial_count',0),
+        geno_dict.get('fish_count',''),
+        geno_dict.get('food_interval',''), geno_dict.get('food_quantity',''),
+        geno_dict.get('food_location',''), geno_dict.get('probiotic_interval',''),
+        geno_dict.get('probiotic_quantity',''), geno_dict.get('probiotic_location',''),
+        geno_dict.get('oxygen_interval',''), geno_dict.get('oxygen_duration',''),
+        geno_dict.get('oxygen_location',''),
+    ]
+
+def _tournament_select(gen_results, k):
+    candidates = random.sample(gen_results, min(k, len(gen_results)))
+    winner = max(candidates, key=lambda r: r['fitness'])
+    return winner['genotype_obj']
+
+def _run_single_pond(args):
+    geno_dict, runtime, max_budget, do_rec, frame_skip, seed = args
+    random.seed(seed)
+    geno = PondGenotype(**geno_dict)
+    fishes = [_make_fish(i) for i in range(geno.fish_count)]
+    sim = PondSim(geno, fishes, runtime, max_budget, record=do_rec, fskip=frame_skip)
+    r = sim.run()
+    r['genotype'] = geno_dict
+    return r
+
+class EA:
+    def __init__(self):
+        self.runtime = RUNTIME
+
+    def run(self, record_best=True):
+        wall_start = _time.time()
+        workers = NUM_WORKERS or max(1, multiprocessing.cpu_count())
+        print(f"\n{'='*72}")
+        print(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA")
+        print(f"{'='*72}")
+        print(f"  Fish: 10-{MAX_FISH_COUNT} (evolved)  |  Days: {AQUACULTURE_DAYS}  |  "
+              f"Budget: ${MAX_BUDGET:.2f}  |  Workers: {workers}")
+        print(f"  Ponds/gen: {INITIAL_POND_COUNT}  |  Generations: {POND_GENERATIONS}  |  "
+              f"Timelines: {RUN_TIMELINES}")
+        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Tournament(K={EA_TOURNAMENT_K})")
+        print(f"  Parallelism: {workers} cores per generation")
+        print(f"  Champion: Converged (best in last generation)")
+        print(f"{'='*72}")
+
+        all_csv_rows = []
+        timeline_champions = []
+
+        for tl_idx in range(RUN_TIMELINES):
+            tl_start = _time.time()
+            print(f"\n  --- Timeline {tl_idx+1}/{RUN_TIMELINES} ---\n")
+
+            tl_seed = random.randint(0, 2**31)
+            random.seed(tl_seed)
+
+            ponds = [PondGenotype.random() for _ in range(INITIAL_POND_COUNT)]
+            last_gen_results = None
+            csv_rows = []
+
+            for gen in range(POND_GENERATIONS):
+                if len(ponds) <= 1 and last_gen_results is not None: break
+                is_last = (gen == POND_GENERATIONS - 1)
+                do_rec = record_best and is_last
+                gen_start = _time.time()
+
+                gen_results = []
+                sim_tasks = []
+                sim_indices = []
+
+                for p_idx, geno in enumerate(ponds):
+                    if geno.per_cycle_cost() > MAX_BUDGET:
+                        r = {'fitness':0.0,'survival_rate':0,'avg_healthiness':0,
+                             'saving':0,'cost':geno.total_cost(self.runtime),'yield':0,
+                             'genotype_obj':geno,'genotype':geno.to_dict(),
+                             'frames':[],'budget_exceeded':True,
+                             'alive_count':0,'initial_count':geno.fish_count,'status':'GATEKEEPER'}
+                        gen_results.append((p_idx, r))
+                        csv_rows.append(_csv_row_data(tl_idx,gen,p_idx,'GATEKEEPER',r,geno.to_dict()))
+                    else:
+                        sim_seed = random.randint(0, 2**31)
+                        sim_tasks.append((geno.to_dict(), self.runtime, MAX_BUDGET,
+                                         do_rec, FRAME_SKIP, sim_seed))
+                        sim_indices.append((p_idx, geno))
+
+                if sim_tasks:
+                    with ProcessPoolExecutor(max_workers=workers) as pool:
+                        futures = {}
+                        for i, task in enumerate(sim_tasks):
+                            fut = pool.submit(_run_single_pond, task)
+                            futures[fut] = i
+
+                        for fut in as_completed(futures):
+                            i = futures[fut]
+                            p_idx, geno = sim_indices[i]
+                            r = fut.result()
+                            r['genotype_obj'] = geno
+                            if r.get('budget_exceeded'):
+                                r['status'] = 'OVER-BUDGET'; r['fitness'] = 0.0
+                            elif r.get('alive_count', 0) == 0:
+                                r['status'] = 'ALL-DEAD'
+                            else:
+                                r['status'] = 'OK'
+                            gen_results.append((p_idx, r))
+                            csv_rows.append(_csv_row_data(tl_idx,gen,p_idx,r['status'],r,r['genotype']))
+
+                gen_results.sort(key=lambda x: x[1]['fitness'], reverse=True)
+                sorted_results = [r for _, r in gen_results]
+                last_gen_results = sorted_results
+
+                best_gen_fit = sorted_results[0]['fitness'] if sorted_results else 0
+                n_ok = sum(1 for r in sorted_results if r.get('status') == 'OK')
+                n_dead = sum(1 for r in sorted_results if r.get('status') == 'ALL-DEAD')
+                n_over = sum(1 for r in sorted_results if r.get('status') == 'OVER-BUDGET')
+                n_gate = sum(1 for r in sorted_results if r.get('status') == 'GATEKEEPER')
+                gen_elapsed = _time.time() - gen_start
+                print(f"    TL {tl_idx+1} | Gen {gen+1:>2}/{POND_GENERATIONS} | "
+                      f"Best: {best_gen_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
+                      f"Over$: {n_over:>2} | Reject: {n_gate:>2} | {gen_elapsed:.1f}s")
+
+                # Selection for next generation (skip on last gen)
+                if not is_last:
+                    if len(sorted_results) <= EA_ELITISM_COUNT:
+                        break
+                    elite_genos = [r['genotype_obj'] for r in sorted_results[:EA_ELITISM_COUNT]]
+                    new_ponds = [copy.deepcopy(g) for g in elite_genos]
+                    while len(new_ponds) < len(ponds):
+                        parent_a = _tournament_select(sorted_results, EA_TOURNAMENT_K)
+                        parent_b = _tournament_select(sorted_results, EA_TOURNAMENT_K)
+                        child = parent_a.crossover(parent_b)
+                        child.mutate()
+                        new_ponds.append(child)
+                    ponds = new_ponds
+
+            # ── Converged champion = best in last generation ──
+            converged = None
+            if last_gen_results:
+                for r in last_gen_results:
+                    if r.get('fitness', 0) > 0:
+                        converged = r
+                        break
+                if converged is None:
+                    converged = last_gen_results[0]
+                    converged['is_latest_dead'] = True
+                    print(f"    TL {tl_idx+1} | No valid converged champion -- using Latest Dead")
+
+            if converged:
+                converged['timeline_idx'] = tl_idx
+                converged.pop('genotype_obj', None)
+            else:
+                converged = {
+                    'timeline_idx':tl_idx,'fitness':0,'survival_rate':0,
+                    'avg_healthiness':0,'saving':0,'cost':0,'yield':0,
+                    'genotype':PondGenotype.random().to_dict(),'frames':[],'alive_count':0,
+                    'initial_count':0,'is_latest_dead':True}
+
+            tl_elapsed = _time.time() - tl_start
+            tag = " [LATEST DEAD]" if converged.get('is_latest_dead') else ""
+            print(f"\n  Timeline {tl_idx+1} converged ({tl_elapsed:.1f}s) | "
+                  f"Fitness={converged['fitness']:.4f} | "
+                  f"Alive={converged.get('alive_count',0)}/{converged.get('initial_count',0)}{tag}")
+
+            all_csv_rows.extend(csv_rows)
+            timeline_champions.append(converged)
+
+        # ── Save CSV ──
+        with open(RESULTS_CSV_PATH, 'w', newline='') as f:
+            writer = csv.writer(f); writer.writerow(CSV_HEADER); writer.writerows(all_csv_rows)
+        print(f"\n  Saved {RESULTS_CSV_PATH} ({len(all_csv_rows)} rows)")
+
+        # ── Print converged champions ──
+        for champ in timeline_champions:
+            tl = champ.get('timeline_idx', 0)
+            tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+            if champ['fitness'] > 0 or champ.get('is_latest_dead'):
+                _print_champion_detail(f"TL {tl+1} Converged Champion{tag}", champ)
+            else:
+                print(f"\n  Timeline {tl+1}: No survivors.")
+
+        real_champs = [c for c in timeline_champions if c.get('fitness',0) > 0 and not c.get('is_latest_dead')]
+        if real_champs:
+            valid = real_champs
+        else:
+            valid = [c for c in timeline_champions if c.get('genotype')]
+
+        if not valid:
+            print(f"\n{'='*72}\n  No valid champions across all {RUN_TIMELINES} timelines.\n{'='*72}")
+            return None
+
+        print(f"\n{'='*72}")
+        best_idx = _print_champions_summary(timeline_champions)
+        champ = timeline_champions[best_idx]
+
+        # ── Re-run champion with recording if needed ──
+        if record_best and not champ.get('frames'):
+            tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+            print(f"\n  Re-running converged champion{tag} (TL {champ['timeline_idx']+1}) with frame recording...")
+            geno = PondGenotype(**champ['genotype'])
+            fishes = [_make_fish(i) for i in range(geno.fish_count)]
+            sim = PondSim(geno, fishes, self.runtime, MAX_BUDGET, record=True, fskip=FRAME_SKIP)
+            res = sim.run()
+            champ['frames'] = res['frames']
+
+        wall_elapsed = _time.time() - wall_start
+        tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+        _print_champion_detail(f"GRAND CHAMPION{tag}  (TL {champ['timeline_idx']+1})", champ)
+        print(f"\n  Total wall time: {wall_elapsed:.1f}s")
+        return champ
+

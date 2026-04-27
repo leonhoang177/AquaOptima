@@ -20,9 +20,9 @@ PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 # ║                    USER CONFIGURATION                       ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-MAX_BUDGET = 200.0
-AQUACULTURE_DAYS = 10
-POND_GENERATIONS = 10
+MAX_BUDGET = 500.0
+AQUACULTURE_DAYS = 60
+POND_GENERATIONS = 20
 RUN_TIMELINES = 3
 INITIAL_POND_COUNT = 10
 FRAME_SKIP = 1
