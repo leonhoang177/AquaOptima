@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aqua Optima - PSO Mechanics</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Merriweather:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <style>
+      /* 1. THE SETUP */
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        background-color: #cbd5e1;
+        display: grid;
+        grid-template-columns: 1fr;
+        margin: 0;
+        min-height: 100vh;
+        place-items: center;
+      }
+
+      .slide-container {
+        align-items: center;
+        background-color: #cbd5e1;
+        display: flex;
+        flex-direction: column;
+        font-family: "DM Sans", sans-serif;
+        height: 720px;
+        justify-content: center;
+        overflow: hidden;
+        position: relative;
+        width: 1280px;
+      }
+
+      /* 2. THE BLUE BOX REDESIGN */
+      .pso-card {
+        background-color: #005088; /* Deep Blue from image */
+        border-bottom: 12px solid #11caa0; /* Teal accent border */
+        border-radius: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        color: #ffffff;
+        display: flex;
+        flex-direction: column;
+        height: 680px;
+        padding: 35px 50px;
+        text-align: center;
+        width: 720px; /* Slightly wider to accommodate descriptions */
+      }
+
+      /* Icon Styling */
+      .card-icon {
+        color: #11caa0;
+        font-size: 60px;
+        margin-bottom: 15px;
+      }
+
+      /* Header Styling */
+      .pso-card h2 {
+        font-family: "Merriweather", serif;
+        font-size: 42px;
+        font-weight: 400;
+        margin: 0 0 20px 0;
+      }
+
+      /* Body Text Styling */
+      .pso-card p {
+        font-family: "DM Sans", sans-serif;
+        font-size: 18px;
+        line-height: 1.4;
+        margin: 0;
+      }
+
+      .pso-card strong {
+        font-weight: 700;
+      }
+
+      /* Vector List Layout inside the card */
+      .vector-container {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 25px;
+        margin-top: 20px;
+        text-align: left;
+      }
+
+      .vector-item {
+        align-items: flex-start;
+        display: flex;
+        gap: 10px;
+      }
+
+      .dot {
+        border-radius: 50%;
+        flex-shrink: 0;
+        height: 12px;
+        width: 12px;
+        margin-top: 5px;
+      }
+
+      .vector-text {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .vector-main {
+        font-size: 15px;
+        font-weight: 700;
+      }
+
+      .vector-weight {
+        color: #cbd5e1;
+        font-weight: 400;
+        margin-left: 4px;
+      }
+
+      .vector-sub {
+        font-size: 11px;
+        opacity: 0.85;
+        line-height: 1.2;
+        color: #e2e8f0;
+      }
+
+      /* Highlighted Text Axis */
+      .pso-card .main-desc {
+        font-size: 20px;
+        margin-bottom: 10px;
+      }
+
+      .footer-note {
+        margin-top: 20px;
+        font-size: 14px;
+        opacity: 0.8;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="slide-container" id="slide1">
+      <div class="pso-card">
+        <div class="card-icon"><i class="fa-solid fa-fish-fins"></i></div>
+        <h2>How the PSO Works</h2>
+
+        <p class="main-desc">
+          Governs <strong>fish movements</strong> and
+          <strong>decision-making</strong> based on internal vitals.
+        </p>
+
+        <p>
+          Trajectories are calculated via <strong>12 weighted vectors</strong>,
+          prioritizing survival, health, and
+          <strong>swarm intelligence</strong>.
+        </p>
+
+        <div class="vector-container">
+          <!-- Col 1 -->
+          <div class="vector-item">
+            <div class="dot" style="background: #facc15"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cFood <span class="vector-weight">3x</span></span
+              >
+              <span class="vector-sub"
+                >Toward nearest food source when fullness &lt; 100%</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #2dd4bf"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cProbiotic <span class="vector-weight">1.5x</span></span
+              >
+              <span class="vector-sub"
+                >Toward nearest probiotic when immunity &lt; 100%</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #3b82f6"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cOxygen <span class="vector-weight">2x</span></span
+              >
+              <span class="vector-sub"
+                >Toward nearest oxygen bubble when level &lt; 70%</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #8b5cf6"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cSocial <span class="vector-weight">1.5x</span></span
+              >
+              <span class="vector-sub">Toward global swarm optima</span>
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #f87171"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cSelfish <span class="vector-weight">1.5x</span></span
+              >
+              <span class="vector-sub"
+                >Away from nearest fish to maintain space</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #10b981"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cNH3 <span class="vector-weight">4x</span></span
+              >
+              <span class="vector-sub"
+                >Away from nearest poison/ammonia area</span
+              >
+            </div>
+          </div>
+
+          <!-- Col 2 -->
+          <div class="vector-item">
+            <div class="dot" style="background: #ec4899"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cDisease <span class="vector-weight">2.5x</span></span
+              >
+              <span class="vector-sub"
+                >Away from nearest identified disease area</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #fb923c"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cParasite <span class="vector-weight">3x</span></span
+              >
+              <span class="vector-sub">Away from nearest parasite hotspot</span>
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #92400e"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cObstacle <span class="vector-weight">2x</span></span
+              >
+              <span class="vector-sub"
+                >Away from nearest physical pond obstacle</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #0f172a"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cRelief <span class="vector-weight">4x</span></span
+              >
+              <span class="vector-sub"
+                >Toward walls to scrub off parasites</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #dc2626"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cRun <span class="vector-weight">5x</span></span
+              >
+              <span class="vector-sub"
+                >Away from nearest larger mouthed fish</span
+              >
+            </div>
+          </div>
+          <div class="vector-item">
+            <div class="dot" style="background: #64748b"></div>
+            <div class="vector-text">
+              <span class="vector-main"
+                >cWander <span class="vector-weight">1x</span></span
+              >
+              <span class="vector-sub"
+                >Toward pond center, random search if isolated</span
+              >
+            </div>
+          </div>
+        </div>
+
+        <p class="footer-note">
+          Vector priority shifts dynamically as <strong>Hunger</strong>,
+          <strong>Oxygen</strong>, and <strong>Infection</strong> levels change.
+        </p>
+      </div>
+    </div>
+  </body>
+</html>

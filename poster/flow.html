@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aqua Optima Implementation Flow Diagram</title>
+    <!-- Include Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10.8.0/dist/mermaid.min.js"></script>
+    <style>
+      body {
+        background-color: #ffffff; /* Strict white background as requested */
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        min-height: 100vh;
+        margin: 0;
+        padding: 40px;
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      }
+      .diagram-container {
+        width: 100%;
+        max-width: 1300px;
+        background-color: #ffffff;
+        padding: 20px;
+      }
+      h1 {
+        text-align: center;
+        color: #003366;
+        margin-bottom: 40px;
+        font-size: 2.5rem;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="diagram-container">
+      <h1>Aqua Optima: General Implementation Flow</h1>
+      <div class="mermaid">
+        flowchart TD %% Styling classes classDef startEnd
+        fill:#003366,stroke:#001a33,stroke-width:2px,color:#ffffff,font-family:sans-serif,font-weight:bold
+        classDef proc
+        fill:#f8fafc,stroke:#94a3b8,stroke-width:2px,color:#0f172a,font-family:sans-serif
+        classDef ea
+        fill:#eff6ff,stroke:#3b82f6,stroke-width:2px,color:#0f172a,font-family:sans-serif
+        classDef sim
+        fill:#f0fdfa,stroke:#14b8a6,stroke-width:2px,color:#0f172a,font-family:sans-serif
+        classDef dec
+        fill:#fffbeb,stroke:#f59e0b,stroke-width:2px,color:#0f172a,font-family:sans-serif
+        classDef loopLabel
+        fill:#e2e8f0,stroke:none,color:#334155,font-weight:bold,font-size:16px
+        %% Main Execution Flow Start(["Start Aqua Optima"]):::startEnd -->
+        Init["Initialize T Timelines and Global Parameters<br />(e.g., T=3
+        Timelines)"]:::proc subgraph TimelineLoop ["Parallel Timeline
+        Execution"] direction TB TL_Init["Initialize Population:<br />N=10
+        Random Pond Genotypes"]:::ea --> GenLoopStart subgraph GenLoop ["For
+        Each Generation 1 to G (e.g., G=20)"] direction TB
+        GenLoopStart["Evaluate Population in Parallel"]:::proc -->
+        Gatekeeper{"Cost &lt;= Budget?"}:::dec Gatekeeper -->|"No"|
+        Reject["Status: OVER-BUDGET or GATEKEEPER<br />Fitness = 0"]:::proc
+        Gatekeeper -->|"Yes"| SimInit["Initialize 3D Pond Environment<br />Spawn
+        Fish Swarm Templates"]:::sim SimInit --> Env subgraph SimLoop ["3D Pond
+        Simulation (D Days x 24 Hrs)"] direction TB Env["Environment Step:<br />Spawn
+        Resources, Hazards and Obstacles"]:::sim --> PSO PSO["PSO Logic:<br />Fish
+        Update Velocities and Trajectories<br />based on Social and Sensory
+        Vectors"]:::sim --> Interactions Interactions["Compute Stats:<br />Eat,
+        Decay, Pathfinding, Cannibalize"]:::sim end Interactions -->
+        FitCalc["Calculate Pond Fitness:<br />Yield * Savings *
+        Healthiness"]:::ea Reject --> Sync["Synchronize Parallel Results<br />Sort
+        by Fitness"]:::proc FitCalc --> Sync Sync --> IsLastGen{"Last
+        Generation?"}:::dec IsLastGen -->|"No"| Evolve["EA Pipeline:<br />1.
+        Elitism (Top 20% Unchanged)<br />2. Tournament Selection (K=40%)<br />3.
+        Crossover (50/50)<br />4. Mutate (25% chance)"]:::ea Evolve -->
+        GenLoopStart end IsLastGen -->|"Yes"| Converge["Select Converged
+        Champion<br />(Best Pond in Last Generation)"]:::ea end Init --> TL_Init
+        Converge --> GrandChamp["Compare Champions across Timelines<br />Select
+        Grand Champion"]:::proc GrandChamp --> ReRun["Re-run Grand Champion
+        Simulation<br />with Frame Recording Enabled"]:::sim ReRun -->
+        Output(["Export Data, JSON, and Plot CSV"]):::startEnd
+      </div>
+    </div>
+
+    <script>
+      // Initialize Mermaid with custom configuration for better rendering
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: "default",
+        flowchart: {
+          useMaxWidth: true,
+          htmlLabels: true,
+          curve: "basis",
+          padding: 20,
+        },
+      });
+    </script>
+  </body>
+</html>
