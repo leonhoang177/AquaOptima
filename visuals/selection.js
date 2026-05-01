@@ -15,7 +15,6 @@ let panel, panelBody, panelTitle, panelClose;
 
 const BAR_COLORS = {
   hp: "#e06070",
-  energy: "#f0a040",
   oxygen: "#88ccff",
   fullness: "#ffee55",
   immunity: "#55ffcc",
@@ -97,7 +96,6 @@ function _deselect() {
 function _renderPanel(fd) {
   const bars = [
     { key: "hp", label: "HP", cur: fd.hp, max: fd.max_hp },
-    { key: "energy", label: "Energy", cur: fd.energy, max: fd.max_energy },
     { key: "oxygen", label: "Oxygen", cur: fd.oxygen, max: fd.max_oxygen },
     {
       key: "fullness",

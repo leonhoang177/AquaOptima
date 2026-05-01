@@ -65,11 +65,10 @@ BODY_SIZE_RANGE = (4.0, 10.0)
 # ╚══════════════════════════════════════════════════════════════╝
 
 HP_RANGE = (80.0, 100.0)
-ENERGY_RANGE = (60.0, 100.0)
 FULLNESS_RANGE = (50.0, 100.0)
 IMMUNITY_RANGE = (70.0, 100.0)
 OXYGEN_RANGE = (80.0, 100.0)
-VELOCITY_RANGE = (5.0, 15.0)
+VELOCITY_RANGE = (3.0, 9.0)
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                   PSO DISTANCE RADII                        ║
@@ -86,15 +85,13 @@ SELFISH_DISTANCE = 10.0
 OXYGEN_DECAY = 0.10
 OXYGEN_DECAY_NH3_MULT = 2.0
 OXYGEN_PASSIVE_REGEN = 0.04
-ENERGY_DECAY = 0.10
 FULLNESS_DECAY = 0.15
-ENERGY_COST_MOVE = 0.08
+FULLNESS_COST_MOVE = 0.08
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              HP DRAIN RATES (WHEN STATS DEPLETED)           ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HP_DECAY_NO_ENERGY = 0.4
 HP_DECAY_NO_FULLNESS = 1.0
 HP_DECAY_INFECTED = 0.6
 HP_DECAY_PARASITE = 0.8
@@ -111,12 +108,12 @@ HP_REGEN = 0.02
 # ╚══════════════════════════════════════════════════════════════╝
 
 IMMUNITY_DECAY_IN_DISEASE = 10.0
+IMMUNITY_DECAY_IN_NH3 = 7.0
 IMMUNITY_REGEN = 0.02
 DISEASE_SELF_CURE_CHANCE = 0.08
 PARASITE_CONTACT_CHANCE = 0.20
 PARASITE_FULLNESS_EFFICIENCY = 0.5
 PARASITE_EXTRA_FULLNESS_DRAIN = 2.0
-PARASITE_EXTRA_ENERGY_DRAIN = 2.0
 PARASITE_VELOCITY_MULT = 0.75
 PARASITE_SCRUB_CHANCE = 0.02
 
@@ -125,7 +122,6 @@ PARASITE_SCRUB_CHANCE = 0.02
 # ╚══════════════════════════════════════════════════════════════╝
 
 VELOCITY_HP_THRESHOLD = 0.5
-VELOCITY_ENERGY_THRESHOLD = 0.5
 VELOCITY_FULLNESS_THRESHOLD = 0.5
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -144,6 +140,8 @@ DISEASE_AREA_RADIUS_DECAY = 0.990
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 POLLUTANT TRANSFORMATION                    ║
+# ║  Chances must sum to 1.0 (100%).                            ║
+# ║  The final slice is "decompose harmlessly" (no effect).     ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 POLLUTANT_TO_NH3_CHANCE = 0.30
@@ -152,21 +150,24 @@ POLLUTANT_TO_PARASITE_CHANCE = 0.10
 POLLUTANT_TO_BOTH_CHANCE = 0.05
 POLLUTANT_TO_PLANT_CHANCE = 0.10
 POLLUTANT_TO_OBSTACLE_CHANCE = 0.20
+POLLUTANT_TO_NOTHING_CHANCE = 0.15       # harmless decomposition (fallthrough)
 POLLUTANT_RADIUS_SCALE = 1.5
 DEAD_FISH_POLLUTANT_MULT = 3.0
 POLLUTANT_OBSTACLE_AREA_RANGE = (3, 8)
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║                 DEAD FISH NH3                               ║
+# ║                 DEAD FISH                                   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 DEAD_FISH_NH3_RADIUS = 10.0
+DEAD_FISH_FLOAT_CHANCE = 0.30
+DEAD_FISH_FLOAT_DURATION = 12
+DEAD_FISH_FLOAT_SPEED = 0.4
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FOOD & HEALING GAINS                        ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FOOD_ENERGY_GAIN = 25.0
 FOOD_FULLNESS_GAIN = 20.0
 FOOD_VALUE = 5.0
 PROBIOTIC_VALUE = 3.0
@@ -191,8 +192,10 @@ OBSTACLE_AREA_RANGE = (30, 150)
 OBSTACLE_ASPECT_RANGE = (0.3, 3.0)
 OBSTACLE_DEPTH_RANGE = (5.0, 15.0)
 OXYGEN_BUBBLE_SPEED = 0.5
+NH3_BUBBLE_SPEED = 0.2
 NH3_AREA_RADIUS_RANGE = (6.0, 14.0)
-NH3_AREA_SPEED = 0.2
+FOOD_DRIFT_SPEED = 0.15
+PROBIOTIC_DRIFT_SPEED = 0.12
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 SINKING MECHANICS                           ║
@@ -233,6 +236,7 @@ CANNIBAL_COLLISION_RADIUS_MULT = 1.0
 PSO_INERTIA = 0.4
 PSO_FOOD_WEIGHT = 3.0
 PSO_FOOD_URGENT_MULT = 2.5
+PSO_FOOD_URGENT_THRESHOLD = 0.5
 PSO_PROBIOTIC_WEIGHT = 1.5
 PSO_OXYGEN_WEIGHT = 2.0
 PSO_OXYGEN_CRITICAL_MULT = 2.5
@@ -248,6 +252,8 @@ PSO_PARASITE_WEIGHT = 3.0
 PSO_RELIEF_WEIGHT = 4.0
 PSO_RUN_WEIGHT = 5.0
 PSO_OBSTACLE_WEIGHT = 2.0
+PSO_SWARM_HUNGRY_WEIGHT = 3.5
+PSO_SWARM_HUNGRY_THRESHOLD = 0.7
 
 STATE_OVERRIDE_PARASITE_CHANCE = 0.6
 

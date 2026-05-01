@@ -107,7 +107,6 @@ export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
   const total = frame.total_count;
   const sp = (alive.length / total) * 100;
   let sH = 0,
-    sE = 0,
     sF = 0,
     sI = 0,
     sO = 0,
@@ -115,7 +114,6 @@ export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
     nPar = 0;
   for (const f of alive) {
     sH += f.hp;
-    sE += f.energy;
     sF += f.fullness;
     sI += f.immunity;
     sO += f.oxygen;
@@ -127,7 +125,6 @@ export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
   statsBar.innerHTML = `
     <div class="stat-chip"><span class="stat-chip-label">Survival</span><span class="stat-chip-value">${sp.toFixed(1)}% (${alive.length}/${total})</span></div>
     <div class="stat-chip"><span class="stat-chip-label">HP</span><span class="stat-chip-value">${fm(sH)}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">Energy</span><span class="stat-chip-value">${fm(sE)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">O2</span><span class="stat-chip-value">${fm(sO)}</span></div>

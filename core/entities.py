@@ -10,7 +10,7 @@ from typing import Tuple
 from constants import (
     EA_MUTATION_RATE, FOOD_INTERVAL_RANGE, FOOD_QUANTITY_RANGE,
     FOOD_PRICE, PROBIOTIC_PRICE, OXYGEN_PRICE,
-    VELOCITY_HP_THRESHOLD, VELOCITY_ENERGY_THRESHOLD, VELOCITY_FULLNESS_THRESHOLD,
+    VELOCITY_HP_THRESHOLD, VELOCITY_FULLNESS_THRESHOLD,
     PARASITE_VELOCITY_MULT, FLOOR_HAZARD_HEIGHT,
     PROBIOTIC_QUANTITY_RANGE, PROBIOTIC_INTERVAL_STEPS,
     MAX_FISH_COUNT,
@@ -114,6 +114,7 @@ class DynObj:
     vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
     alive: bool = True
     on_floor: bool = False
+    float_timer: int = 0
 
 
 @dataclass
@@ -140,7 +141,6 @@ class Fish:
     vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
     mouth_size: float = 5.0; body_size: float = 6.0
     hp: float = 100.0; max_hp: float = 100.0
-    energy: float = 80.0; max_energy: float = 80.0
     fullness: float = 60.0; max_fullness: float = 60.0
     immunity: float = 80.0; max_immunity: float = 80.0
     oxygen: float = 90.0; max_oxygen: float = 90.0
@@ -151,25 +151,22 @@ class Fish:
     def eff_vel(self) -> float:
         v = self.base_velocity
         if self.hp <= self.max_hp * VELOCITY_HP_THRESHOLD: v *= 0.5
-        if self.energy <= self.max_energy * VELOCITY_ENERGY_THRESHOLD: v *= 0.5
         if self.fullness <= self.max_fullness * VELOCITY_FULLNESS_THRESHOLD: v *= 0.5
         if self.has_parasite: v *= PARASITE_VELOCITY_MULT
         return v
 
     def norm_stats(self) -> float:
         hp_n = max(0, self.hp) / self.max_hp
-        en_n = max(0, self.energy) / self.max_energy
         fu_n = max(0, self.fullness) / self.max_fullness
         im_n = max(0, self.immunity) / self.max_immunity
         vl_n = min(1.0, self.eff_vel() / (self.base_velocity + 1e-9))
-        return (hp_n + en_n + fu_n + im_n + vl_n) / 5.0
+        return (hp_n + fu_n + im_n + vl_n) / 4.0
 
     def snapshot(self) -> dict:
         return {
             'id': self.fid,
             'x': round(self.x, 1), 'y': round(self.y, 1), 'z': round(self.z, 1),
             'hp': round(self.hp, 1), 'max_hp': round(self.max_hp, 1),
-            'energy': round(self.energy, 1), 'max_energy': round(self.max_energy, 1),
             'fullness': round(self.fullness, 1), 'max_fullness': round(self.max_fullness, 1),
             'immunity': round(self.immunity, 1), 'max_immunity': round(self.max_immunity, 1),
             'oxygen': round(self.oxygen, 1), 'max_oxygen': round(self.max_oxygen, 1),

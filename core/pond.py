@@ -11,7 +11,7 @@ from constants import (
     NUM_OBSTACLES, OBSTACLE_AREA_RANGE, OBSTACLE_ASPECT_RANGE,
     OBSTACLE_MAX_WIDTH, OBSTACLE_MAX_HEIGHT, OBSTACLE_MAX_DEPTH,
     OBSTACLE_DEPTH_RANGE,
-    OXYGEN_BUBBLE_SPEED, NH3_AREA_RADIUS_RANGE, NH3_AREA_SPEED,
+    OXYGEN_BUBBLE_SPEED, NH3_BUBBLE_SPEED, NH3_AREA_RADIUS_RANGE,
     FOOD_PRICE, PROBIOTIC_PRICE, OXYGEN_PRICE,
     FOOD_VALUE, PROBIOTIC_VALUE, OXYGEN_BUBBLE_GAIN,
     FOOD_EXPIRE_TIMESTEPS, PROBIOTIC_EXPIRE_TIMESTEPS,
@@ -23,29 +23,35 @@ from constants import (
     POLLUTANT_TO_PLANT_CHANCE, POLLUTANT_TO_OBSTACLE_CHANCE,
     POLLUTANT_RADIUS_SCALE, DEAD_FISH_POLLUTANT_MULT,
     POLLUTANT_OBSTACLE_AREA_RANGE,
-    FOOD_ENERGY_GAIN, FOOD_FULLNESS_GAIN, PROBIOTIC_IMMUNITY_GAIN,
+    FOOD_FULLNESS_GAIN, PROBIOTIC_IMMUNITY_GAIN,
     NATURAL_OXYGEN_SPAWN_RATE, NATURAL_NH3_SPAWN_RATE, OXYGEN_BUBBLES_PER_PUMP,
     OXYGEN_DECAY, OXYGEN_DECAY_NH3_MULT, OXYGEN_PASSIVE_REGEN,
-    ENERGY_DECAY, FULLNESS_DECAY, ENERGY_COST_MOVE,
-    HP_DECAY_NO_ENERGY, HP_DECAY_NO_FULLNESS, HP_DECAY_INFECTED, HP_DECAY_PARASITE,
+    FULLNESS_DECAY, FULLNESS_COST_MOVE,
+    HP_DECAY_NO_FULLNESS, HP_DECAY_INFECTED, HP_DECAY_PARASITE,
     HP_DECAY_IN_NH3, HP_REGEN, DISEASE_SELF_CURE_CHANCE,
-    IMMUNITY_DECAY_IN_DISEASE, IMMUNITY_REGEN, PARASITE_CONTACT_CHANCE,
+    IMMUNITY_DECAY_IN_DISEASE, IMMUNITY_DECAY_IN_NH3, IMMUNITY_REGEN,
+    PARASITE_CONTACT_CHANCE,
     PARASITE_FULLNESS_EFFICIENCY, PARASITE_EXTRA_FULLNESS_DRAIN,
-    PARASITE_EXTRA_ENERGY_DRAIN, PARASITE_SCRUB_CHANCE,
+    PARASITE_SCRUB_CHANCE,
     FECAL_DROP_INTERVAL, FECAL_BASE_CHANCE, FECAL_VALUE, FECAL_STACK_RADIUS,
     CANNIBAL_FULLNESS_THRESHOLD, CANNIBAL_BASE_CHANCE, CANNIBAL_HUNGER_MULT,
     CANNIBAL_FULLNESS_GAIN_MULT, CANNIBAL_COLLISION_RADIUS_MULT,
     FISH_EAT_RANGE, INFECTED_FISH_DISEASE_RADIUS_MULT,
     SENSITIVE_DISTANCE, SOCIAL_DISTANCE, SELFISH_DISTANCE,
     PSO_INERTIA, PSO_FOOD_WEIGHT, PSO_FOOD_URGENT_MULT,
-    PSO_PROBIOTIC_WEIGHT, PSO_OXYGEN_WEIGHT, PSO_OXYGEN_CRITICAL_MULT,
+    PSO_FOOD_URGENT_THRESHOLD,
+    PSO_PROBIOTIC_WEIGHT,
+    PSO_OXYGEN_WEIGHT, PSO_OXYGEN_CRITICAL_MULT,
     PSO_OXYGEN_THRESHOLD, PSO_OXYGEN_CRITICAL_THRESHOLD, PSO_OXYGEN_INTERCEPT_STEPS,
     PSO_SOCIAL_WEIGHT, PSO_SELFISH_WEIGHT,
     PSO_NH3_WEIGHT, PSO_NH3_HUNGRY_OVERRIDE,
     PSO_DISEASE_WEIGHT, PSO_PARASITE_WEIGHT,
     PSO_RELIEF_WEIGHT, PSO_RUN_WEIGHT, PSO_OBSTACLE_WEIGHT,
+    PSO_SWARM_HUNGRY_WEIGHT, PSO_SWARM_HUNGRY_THRESHOLD,
     STATE_OVERRIDE_PARASITE_CHANCE,
     SINK_SPEED, SINK_SPEED_HEAVY, DEAD_FISH_NH3_RADIUS,
+    DEAD_FISH_FLOAT_CHANCE, DEAD_FISH_FLOAT_DURATION, DEAD_FISH_FLOAT_SPEED,
+    FOOD_DRIFT_SPEED, PROBIOTIC_DRIFT_SPEED,
 )
 from entities import Obstacle, DynObj, Hazard, Fish
 from helpers import _dist, _clamp, _norm, _drop_pos, SpatialGrid
@@ -121,7 +127,9 @@ class PondSim:
 
     def _step(self):
         t = self.ts
+        # Spawn new objects (food/probiotic at surface, oxygen, natural)
         self._spawn_food(t); self._spawn_prob(t); self._pump_oxy(t); self._nat_spawn()
+        # Simulate: move objects, hazards, then fish behavior
         self._upd_objs(); self._upd_haz()
         self._decay(); self._eat(); self._pso(); self._cannibal(); self._fecal(); self._death()
 
@@ -135,7 +143,11 @@ class PondSim:
             if self.budget_exceeded: return
             for _ in range(self.geno.food_quantity):
                 x, y = _drop_pos(self.geno.food_location)
-                self.objs.append(DynObj(x, y, _WALL, 'food', FOOD_VALUE, max_age=FOOD_EXPIRE_TIMESTEPS))
+                self.objs.append(DynObj(x, y, _WALL, 'food', FOOD_VALUE,
+                    max_age=FOOD_EXPIRE_TIMESTEPS,
+                    vx=random.uniform(-FOOD_DRIFT_SPEED, FOOD_DRIFT_SPEED),
+                    vy=random.uniform(-FOOD_DRIFT_SPEED, FOOD_DRIFT_SPEED),
+                    vz=SINK_SPEED))
 
     def _spawn_prob(self, t):
         if t % self.geno.probiotic_interval == 0:
@@ -143,7 +155,11 @@ class PondSim:
             if self.budget_exceeded: return
             for _ in range(self.geno.probiotic_quantity):
                 x, y = _drop_pos(self.geno.probiotic_location)
-                self.objs.append(DynObj(x, y, _WALL, 'probiotic', PROBIOTIC_VALUE, max_age=PROBIOTIC_EXPIRE_TIMESTEPS))
+                self.objs.append(DynObj(x, y, _WALL, 'probiotic', PROBIOTIC_VALUE,
+                    max_age=PROBIOTIC_EXPIRE_TIMESTEPS,
+                    vx=random.uniform(-PROBIOTIC_DRIFT_SPEED, PROBIOTIC_DRIFT_SPEED),
+                    vy=random.uniform(-PROBIOTIC_DRIFT_SPEED, PROBIOTIC_DRIFT_SPEED),
+                    vz=SINK_SPEED))
 
     def _pump_oxy(self, t):
         if t % self.geno.oxygen_interval == 0:
@@ -173,9 +189,9 @@ class PondSim:
             z = random.uniform(5, POND_DEPTH-5)
             self.hazards.append(Hazard(x, y, z, random.uniform(*NH3_AREA_RADIUS_RANGE), 'nh3',
                 max_age=NH3_EXPIRE_TIMESTEPS,
-                vx=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
-                vy=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
-                vz=random.uniform(-NH3_AREA_SPEED*0.5, NH3_AREA_SPEED*0.5)))
+                vx=random.uniform(-NH3_BUBBLE_SPEED, NH3_BUBBLE_SPEED),
+                vy=random.uniform(-NH3_BUBBLE_SPEED, NH3_BUBBLE_SPEED),
+                vz=random.uniform(-NH3_BUBBLE_SPEED*0.5, NH3_BUBBLE_SPEED*0.5)))
 
     def _upd_objs(self):
         keep = []
@@ -194,29 +210,82 @@ class PondSim:
             if o.kind == 'plant':
                 keep.append(o); continue
 
-            if o.kind in ('food', 'probiotic', 'fecal', 'dead_fish'):
+            if o.kind in ('food', 'probiotic'):
                 rest_z = self._resting_z(o.x, o.y)
-                if o.z < rest_z:
-                    speed = SINK_SPEED if o.kind in ('food', 'probiotic') else SINK_SPEED_HEAVY
-                    o.z = min(o.z + speed, rest_z)
-                if o.kind == 'dead_fish':
-                    for h in self.hazards:
-                        if h.follow_dead_fish and h.kind == 'nh3':
-                            if _dist(h.x, h.y, h.z, o.x, o.y, o.z) < DEAD_FISH_NH3_RADIUS + 5:
-                                h.x, h.y, h.z = o.x, o.y, o.z
+                if not o.on_floor:
+                    o.x += o.vx; o.y += o.vy; o.z += o.vz
+                    if o.x < _WALL or o.x > POND_WIDTH-_WALL: o.vx *= -1
+                    if o.y < _WALL or o.y > POND_HEIGHT-_WALL: o.vy *= -1
+                    o.x = _clamp(o.x, _WALL, POND_WIDTH-_WALL)
+                    o.y = _clamp(o.y, _WALL, POND_HEIGHT-_WALL)
+                    # Food/probiotic can only sink downward, never rise
+                    o.z = max(o.z, _WALL)
+                    if o.z >= rest_z:
+                        o.z = rest_z
+                        o.on_floor = True
+                        o.vx = 0.0; o.vy = 0.0; o.vz = 0.0
+                if o.on_floor: o.age += 1
 
-            o.on_floor = o.z >= self._resting_z(o.x, o.y) - 0.1
-            if o.on_floor: o.age += 1
-
-            if o.age >= o.max_age and o.alive:
-                if o.kind in ('food', 'probiotic', 'fecal', 'dead_fish'):
+                if o.age >= o.max_age and o.alive:
                     if o.value > 0:
-                        pv = o.value * (DEAD_FISH_POLLUTANT_MULT if o.kind == 'dead_fish' else 1.0)
+                        keep.append(DynObj(o.x, o.y, o.z, 'pollutant', o.value,
+                                           max_age=POLLUTANT_TO_HAZARD_TIMESTEPS, on_floor=True))
+                    continue
+                if o.alive: keep.append(o)
+                continue
+
+            if o.kind == 'dead_fish':
+                rest_z = self._resting_z(o.x, o.y)
+
+                if o.float_timer > 0:
+                    o.z = max(_WALL, o.z - DEAD_FISH_FLOAT_SPEED)
+                    if o.z <= _WALL:
+                        o.z = _WALL
+                    o.float_timer -= 1
+                elif o.z < rest_z:
+                    o.z = min(o.z + SINK_SPEED_HEAVY, rest_z)
+
+                for h in self.hazards:
+                    if h.follow_dead_fish and h.kind == 'nh3':
+                        if _dist(h.x, h.y, h.z, o.x, o.y, o.z) < DEAD_FISH_NH3_RADIUS + 5:
+                            h.x, h.y, h.z = o.x, o.y, o.z
+
+                o.on_floor = o.z >= rest_z - 0.1
+                if o.on_floor: o.age += 1
+
+                if o.age >= o.max_age and o.alive:
+                    if o.value > 0:
+                        pv = o.value * DEAD_FISH_POLLUTANT_MULT
                         if not any(h.contains(o.x, o.y, o.z) and h.kind == 'nh3' and h.alive for h in self.hazards):
                             keep.append(DynObj(o.x, o.y, o.z, 'pollutant', pv,
                                                max_age=POLLUTANT_TO_HAZARD_TIMESTEPS, on_floor=True))
                     continue
-                elif o.kind == 'pollutant':
+                if o.alive: keep.append(o)
+                continue
+
+            if o.kind == 'fecal':
+                rest_z = self._resting_z(o.x, o.y)
+                if o.z < rest_z:
+                    o.z = min(o.z + SINK_SPEED_HEAVY, rest_z)
+
+                o.on_floor = o.z >= rest_z - 0.1
+                if o.on_floor: o.age += 1
+
+                if o.age >= o.max_age and o.alive:
+                    if o.value > 0:
+                        if not any(h.contains(o.x, o.y, o.z) and h.kind == 'nh3' and h.alive for h in self.hazards):
+                            keep.append(DynObj(o.x, o.y, o.z, 'pollutant', o.value,
+                                               max_age=POLLUTANT_TO_HAZARD_TIMESTEPS, on_floor=True))
+                    continue
+                if o.alive: keep.append(o)
+                continue
+
+            # pollutant and other kinds
+            o.on_floor = o.z >= self._resting_z(o.x, o.y) - 0.1
+            if o.on_floor: o.age += 1
+
+            if o.age >= o.max_age and o.alive:
+                if o.kind == 'pollutant':
                     self._transform_pollutant(o)
                     continue
             if o.alive: keep.append(o)
@@ -229,9 +298,9 @@ class PondSim:
         cumul += POLLUTANT_TO_NH3_CHANCE
         if roll < cumul:
             self.hazards.append(Hazard(o.x, o.y, o.z, r, 'nh3', max_age=NH3_EXPIRE_TIMESTEPS,
-                vx=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
-                vy=random.uniform(-NH3_AREA_SPEED, NH3_AREA_SPEED),
-                vz=random.uniform(-NH3_AREA_SPEED*0.5, NH3_AREA_SPEED*0.5)))
+                vx=random.uniform(-NH3_BUBBLE_SPEED, NH3_BUBBLE_SPEED),
+                vy=random.uniform(-NH3_BUBBLE_SPEED, NH3_BUBBLE_SPEED),
+                vz=random.uniform(-NH3_BUBBLE_SPEED*0.5, NH3_BUBBLE_SPEED*0.5)))
             return
         cumul += POLLUTANT_TO_DISEASE_CHANCE
         if roll < cumul:
@@ -263,6 +332,7 @@ class PondSim:
             oz = _FLOOR_Z - d
             self.obstacles.append(Obstacle(ox, oy, oz, w, h, d))
             return
+        # Remaining POLLUTANT_TO_NOTHING_CHANCE: harmless decomposition, do nothing
 
     def _upd_haz(self):
         keep = []
@@ -291,7 +361,6 @@ class PondSim:
             if not f.alive: continue
 
             f.oxygen -= OXYGEN_DECAY
-            f.energy -= ENERGY_DECAY * (PARASITE_EXTRA_ENERGY_DRAIN if f.has_parasite else 1.0)
             f.fullness -= FULLNESS_DECAY * (PARASITE_EXTRA_FULLNESS_DRAIN if f.has_parasite else 1.0)
 
             # Passive oxygen regen (not in NH3)
@@ -299,13 +368,13 @@ class PondSim:
             if not in_nh3 and f.oxygen < f.max_oxygen:
                 f.oxygen = min(f.max_oxygen, f.oxygen + OXYGEN_PASSIVE_REGEN)
 
-            # NH3 effects: drain oxygen AND HP
+            # NH3 effects: drain oxygen, HP, and immunity
             for h in self.hazards:
                 if h.kind == 'nh3' and h.contains(f.x, f.y, f.z):
                     f.oxygen -= OXYGEN_DECAY * OXYGEN_DECAY_NH3_MULT
                     f.hp -= HP_DECAY_IN_NH3
+                    f.immunity -= IMMUNITY_DECAY_IN_NH3
 
-            if f.energy <= 0: f.hp -= HP_DECAY_NO_ENERGY
             if f.fullness <= 0: f.hp -= HP_DECAY_NO_FULLNESS
             if f.is_infected: f.hp -= HP_DECAY_INFECTED
             if f.has_parasite and self.ts % 3 == 0: f.hp -= HP_DECAY_PARASITE
@@ -313,10 +382,9 @@ class PondSim:
             # HP regen when healthy
             fr = f.fullness / f.max_fullness
             or_ = f.oxygen / f.max_oxygen
-            er = f.energy / f.max_energy
             ir = f.immunity / f.max_immunity
             if (not f.is_infected and not f.has_parasite and
-                    fr >= 0.7 and or_ >= 0.7 and er >= 0.3 and ir > 0.7):
+                    fr >= 0.7 and or_ >= 0.7 and ir > 0.7):
                 f.hp = min(f.max_hp, f.hp + HP_REGEN)
 
             # Immunity regen (non-infected)
@@ -325,7 +393,7 @@ class PondSim:
 
             # Disease self-cure
             if f.is_infected:
-                if fr >= 0.8 and or_ >= 0.8 and er >= 0.3 and ir >= 0.9:
+                if fr >= 0.8 and or_ >= 0.8 and ir >= 0.9:
                     if random.random() < DISEASE_SELF_CURE_CHANCE:
                         f.is_infected = False
 
@@ -340,7 +408,6 @@ class PondSim:
             # Clamp stats
             f.hp = max(0, f.hp)
             f.oxygen = max(0, f.oxygen)
-            f.energy = max(0, f.energy)
             f.fullness = max(0, f.fullness)
             f.immunity = max(0, f.immunity)
 
@@ -354,7 +421,6 @@ class PondSim:
                     o.value -= 1
                     g = FOOD_FULLNESS_GAIN * (PARASITE_FULLNESS_EFFICIENCY if f.has_parasite else 1.0)
                     f.fullness = min(f.max_fullness, f.fullness + g)
-                    f.energy = min(f.max_energy, f.energy + FOOD_ENERGY_GAIN)
                     if o.value <= 0: o.alive = False
                 elif o.kind == 'probiotic' and f.immunity < f.max_immunity:
                     o.value -= 1
@@ -369,10 +435,17 @@ class PondSim:
         if not alive: return
         self._fish_grid.insert_all(alive)
         self._obj_grid.insert_all([o for o in self.objs if o.alive and o.kind != 'plant'])
+
+        # Precompute swarm centroid once (O(n))
+        n = len(alive)
+        swarm_cx = sum(a.x for a in alive) / n
+        swarm_cy = sum(a.y for a in alive) / n
+        swarm_cz = sum(a.z for a in alive) / n
+
         for f in alive:
             vel = f.eff_vel()
             nvx, nvy, nvz = PSO_INERTIA*f.vx, PSO_INERTIA*f.vy, PSO_INERTIA*f.vz
-            for w, dx, dy, dz in self._vecs(f, alive):
+            for w, dx, dy, dz in self._vecs(f, alive, swarm_cx, swarm_cy, swarm_cz):
                 nvx += w*dx; nvy += w*dy; nvz += w*dz
             m = math.sqrt(nvx**2 + nvy**2 + nvz**2)
             if m > 0.01: nvx = nvx/m*vel; nvy = nvy/m*vel; nvz = nvz/m*vel
@@ -416,36 +489,58 @@ class PondSim:
                 if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
 
             f.x, f.y, f.z = self._cp(nx, ny, nz)
-            mc = ENERGY_COST_MOVE * vel
-            if f.has_parasite: mc *= PARASITE_EXTRA_ENERGY_DRAIN
-            f.energy -= mc
+            mc = FULLNESS_COST_MOVE * vel
+            if f.has_parasite: mc *= PARASITE_EXTRA_FULLNESS_DRAIN
+            f.fullness -= mc
 
-    def _vecs(self, f, alive):
+    @staticmethod
+    def _intercept_pos(f, o):
+        """Predict where a moving object will be when the fish can reach it."""
+        vel = f.eff_vel()
+        if vel < 0.01:
+            return o.x, o.y, o.z
+        tx, ty, tz = o.x, o.y, o.z
+        for _ in range(2):
+            d = math.sqrt((f.x - tx)**2 + (f.y - ty)**2 + (f.z - tz)**2)
+            eta = d / vel
+            tx = o.x + o.vx * eta
+            ty = o.y + o.vy * eta
+            tz = o.z + o.vz * eta
+            tx = _clamp(tx, _WALL, POND_WIDTH - _WALL)
+            ty = _clamp(ty, _WALL, POND_HEIGHT - _WALL)
+            tz = _clamp(tz, _WALL, POND_DEPTH - _WALL)
+        return tx, ty, tz
+
+    def _vecs(self, f, alive, swarm_cx, swarm_cy, swarm_cz):
         vecs = []; fr = max(0, f.fullness) / f.max_fullness
 
-        # cFood — use obj grid
+        # cFood — sqrt scaling so hunger dominates sooner
         if fr < 1.0:
-            fw = PSO_FOOD_WEIGHT*(1.0-fr)
-            if max(0, f.energy)/f.max_energy < 0.3: fw *= PSO_FOOD_URGENT_MULT
+            fw = PSO_FOOD_WEIGHT * math.sqrt(1.0 - fr)
+            if fr < PSO_FOOD_URGENT_THRESHOLD: fw *= PSO_FOOD_URGENT_MULT
             nd, no = float('inf'), None
             for o in self._obj_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
                 if o.alive and o.kind == 'food' and o.value > 0:
-                    d = _dist(f.x,f.y,f.z,o.x,o.y,o.z)
+                    tx, ty, tz = self._intercept_pos(f, o)
+                    d = _dist(f.x, f.y, f.z, tx, ty, tz)
                     if d < nd: nd, no = d, o
             if no:
-                dx,dy,dz = _norm(no.x-f.x,no.y-f.y,no.z-f.z); vecs.append((fw,dx,dy,dz))
+                tx, ty, tz = self._intercept_pos(f, no)
+                dx,dy,dz = _norm(tx-f.x,ty-f.y,tz-f.z); vecs.append((fw,dx,dy,dz))
 
-        # cProbiotic — use obj grid
+        # cProbiotic — use obj grid, with time-to-arrival intercept
         ir = max(0, f.immunity)/f.max_immunity
         if ir < 1.0:
             pw = PSO_PROBIOTIC_WEIGHT*(1.0-ir)
             nd, no = float('inf'), None
             for o in self._obj_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
                 if o.alive and o.kind == 'probiotic' and o.value > 0:
-                    d = _dist(f.x,f.y,f.z,o.x,o.y,o.z)
+                    tx, ty, tz = self._intercept_pos(f, o)
+                    d = _dist(f.x, f.y, f.z, tx, ty, tz)
                     if d < nd: nd, no = d, o
             if no:
-                dx,dy,dz = _norm(no.x-f.x,no.y-f.y,no.z-f.z); vecs.append((pw,dx,dy,dz))
+                tx, ty, tz = self._intercept_pos(f, no)
+                dx,dy,dz = _norm(tx-f.x,ty-f.y,tz-f.z); vecs.append((pw,dx,dy,dz))
 
         # cOxygen — use obj grid
         orr = max(0, f.oxygen)/f.max_oxygen
@@ -455,13 +550,11 @@ class PondSim:
             nd, no = float('inf'), None
             for o in self._obj_grid.get_nearby(f.x, f.y, f.z, SENSITIVE_DISTANCE):
                 if o.alive and o.kind == 'oxygen':
-                    fx2=o.x+o.vx*PSO_OXYGEN_INTERCEPT_STEPS; fy2=o.y+o.vy*PSO_OXYGEN_INTERCEPT_STEPS
-                    fz2=o.z+o.vz*PSO_OXYGEN_INTERCEPT_STEPS
-                    d = min(_dist(f.x,f.y,f.z,o.x,o.y,o.z), _dist(f.x,f.y,f.z,fx2,fy2,fz2))
+                    tx, ty, tz = self._intercept_pos(f, o)
+                    d = _dist(f.x, f.y, f.z, tx, ty, tz)
                     if d < nd: nd, no = d, o
             if no:
-                tx=no.x+no.vx*PSO_OXYGEN_INTERCEPT_STEPS; ty=no.y+no.vy*PSO_OXYGEN_INTERCEPT_STEPS
-                tz=no.z+no.vz*PSO_OXYGEN_INTERCEPT_STEPS
+                tx, ty, tz = self._intercept_pos(f, no)
                 dx,dy,dz = _norm(tx-f.x,ty-f.y,tz-f.z); vecs.append((ow,dx,dy,dz))
 
         # cSocial & cSelfish — use fish grid
@@ -525,14 +618,19 @@ class PondSim:
             sv = self._scrub(f)
             if sv: vecs.append((PSO_RELIEF_WEIGHT,sv[0],sv[1],sv[2]))
 
-        # cWander — lost fish seek the swarm
+        # cWander / cSwarmSeek — isolated fish behavior
         if sc == 0 and rc == 0:
-            # No social neighbors — fish is isolated
-            # Pull toward pond center (where swarm likely is)
-            cx, cy, cz = POND_WIDTH/2, POND_HEIGHT/2, POND_DEPTH*0.4
-            dx,dy,dz = _norm(cx-f.x, cy-f.y, cz-f.z)
-            vecs.append((PSO_SOCIAL_WEIGHT * 0.5, dx, dy, dz))
-            # Random wander component
+            if fr < PSO_SWARM_HUNGRY_THRESHOLD:
+                # Hungry and alone: strongly seek the swarm centroid
+                urgency = PSO_SWARM_HUNGRY_WEIGHT * math.sqrt(1.0 - fr)
+                dx,dy,dz = _norm(swarm_cx - f.x, swarm_cy - f.y, swarm_cz - f.z)
+                vecs.append((urgency, dx, dy, dz))
+            else:
+                # Not hungry, gently drift toward pond center
+                cx, cy, cz = POND_WIDTH/2, POND_HEIGHT/2, POND_DEPTH*0.4
+                dx,dy,dz = _norm(cx-f.x, cy-f.y, cz-f.z)
+                vecs.append((PSO_SOCIAL_WEIGHT * 0.5, dx, dy, dz))
+            # Small random wander component either way
             wx = random.uniform(-1, 1)
             wy = random.uniform(-1, 1)
             wz = random.uniform(-0.5, 0.5)
@@ -609,14 +707,30 @@ class PondSim:
             if not f.alive: continue
             if f.hp <= 0 or f.oxygen <= 0:
                 f.alive = False
+
+                # Determine float or sink
+                will_float = random.random() < DEAD_FISH_FLOAT_CHANCE
+                ft = DEAD_FISH_FLOAT_DURATION if will_float else 0
+
                 self.objs.append(DynObj(f.x, f.y, f.z, 'dead_fish', f.body_size,
-                                        max_age=DEAD_FISH_DECAY_TIMESTEPS))
+                                        max_age=DEAD_FISH_DECAY_TIMESTEPS,
+                                        float_timer=ft))
+
+                # NH3 bubble follows the dead body
                 self.hazards.append(Hazard(f.x, f.y, f.z, DEAD_FISH_NH3_RADIUS, 'nh3',
                     max_age=DEAD_FISH_DECAY_TIMESTEPS, follow_dead_fish=True))
+
+                # Infected fish emit disease zone immediately
                 if f.is_infected:
                     self.hazards.append(Hazard(f.x, f.y, f.z,
                         f.body_size*INFECTED_FISH_DISEASE_RADIUS_MULT, 'disease',
-                        max_age=DISEASE_AREA_DECAY))
+                        max_age=DISEASE_AREA_DECAY, is_floor=True))
+
+                # Parasitized fish emit parasite zone immediately
+                if f.has_parasite:
+                    self.hazards.append(Hazard(f.x, f.y, f.z,
+                        f.body_size*INFECTED_FISH_DISEASE_RADIUS_MULT*0.8, 'parasite',
+                        max_age=PARASITE_AREA_DECAY, is_floor=True))
 
     def _frame(self):
         alive = [f for f in self.fish if f.alive]
