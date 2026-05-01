@@ -20,10 +20,10 @@ PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 # ║                    USER CONFIGURATION                       ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-MAX_BUDGET = 500.0
-AQUACULTURE_DAYS = 60
-POND_GENERATIONS = 20
-RUN_TIMELINES = 3
+MAX_BUDGET = 200.0
+AQUACULTURE_DAYS = 20
+POND_GENERATIONS = 5
+RUN_TIMELINES = 2
 INITIAL_POND_COUNT = 10
 FRAME_SKIP = 1
 NUM_WORKERS = None
@@ -69,7 +69,7 @@ ENERGY_RANGE = (60.0, 100.0)
 FULLNESS_RANGE = (50.0, 100.0)
 IMMUNITY_RANGE = (70.0, 100.0)
 OXYGEN_RANGE = (80.0, 100.0)
-VELOCITY_RANGE = (2.0, 6.0)
+VELOCITY_RANGE = (5.0, 15.0)
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                   PSO DISTANCE RADII                        ║
@@ -88,7 +88,7 @@ OXYGEN_DECAY_NH3_MULT = 2.0
 OXYGEN_PASSIVE_REGEN = 0.04
 ENERGY_DECAY = 0.10
 FULLNESS_DECAY = 0.15
-ENERGY_COST_MOVE = 0.06
+ENERGY_COST_MOVE = 0.08
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              HP DRAIN RATES (WHEN STATS DEPLETED)           ║
@@ -104,21 +104,21 @@ HP_DECAY_IN_NH3 = 0.3
 # ║              HP REGEN                                       ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HP_REGEN = 0.1
+HP_REGEN = 0.02
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              DISEASE & PARASITE MECHANICS                   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-IMMUNITY_DECAY_IN_DISEASE = 1.5
+IMMUNITY_DECAY_IN_DISEASE = 10.0
 IMMUNITY_REGEN = 0.02
 DISEASE_SELF_CURE_CHANCE = 0.08
-PARASITE_CONTACT_CHANCE = 0.05
+PARASITE_CONTACT_CHANCE = 0.20
 PARASITE_FULLNESS_EFFICIENCY = 0.5
-PARASITE_EXTRA_FULLNESS_DRAIN = 1.5
-PARASITE_EXTRA_ENERGY_DRAIN = 1.5
+PARASITE_EXTRA_FULLNESS_DRAIN = 2.0
+PARASITE_EXTRA_ENERGY_DRAIN = 2.0
 PARASITE_VELOCITY_MULT = 0.75
-PARASITE_SCRUB_CHANCE = 0.03
+PARASITE_SCRUB_CHANCE = 0.02
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              VELOCITY REDUCTION THRESHOLDS                  ║
@@ -153,7 +153,7 @@ POLLUTANT_TO_BOTH_CHANCE = 0.05
 POLLUTANT_TO_PLANT_CHANCE = 0.10
 POLLUTANT_TO_OBSTACLE_CHANCE = 0.20
 POLLUTANT_RADIUS_SCALE = 1.5
-DEAD_FISH_POLLUTANT_MULT = 1.5
+DEAD_FISH_POLLUTANT_MULT = 3.0
 POLLUTANT_OBSTACLE_AREA_RANGE = (3, 8)
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -214,7 +214,7 @@ FLOOR_HAZARD_HEIGHT = 12.0
 FECAL_DROP_INTERVAL = 2
 FECAL_BASE_CHANCE = 0.2
 FECAL_VALUE = 2.0
-FECAL_STACK_RADIUS = 10.0
+FECAL_STACK_RADIUS = 5.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 CANNIBALISM MECHANICS                       ║
@@ -222,9 +222,9 @@ FECAL_STACK_RADIUS = 10.0
 
 CANNIBAL_FULLNESS_THRESHOLD = 0.7
 CANNIBAL_BASE_CHANCE = 0.2
-CANNIBAL_HUNGER_MULT = 0.5
+CANNIBAL_HUNGER_MULT = 0.7
 CANNIBAL_FULLNESS_GAIN_MULT = 2.0
-CANNIBAL_COLLISION_RADIUS_MULT = 2.0
+CANNIBAL_COLLISION_RADIUS_MULT = 1.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 PSO VECTOR WEIGHTS                          ║
@@ -232,14 +232,14 @@ CANNIBAL_COLLISION_RADIUS_MULT = 2.0
 
 PSO_INERTIA = 0.4
 PSO_FOOD_WEIGHT = 3.0
-PSO_FOOD_URGENT_MULT = 2.0
+PSO_FOOD_URGENT_MULT = 2.5
 PSO_PROBIOTIC_WEIGHT = 1.5
 PSO_OXYGEN_WEIGHT = 2.0
-PSO_OXYGEN_CRITICAL_MULT = 2.0
+PSO_OXYGEN_CRITICAL_MULT = 2.5
 PSO_OXYGEN_THRESHOLD = 0.7
 PSO_OXYGEN_CRITICAL_THRESHOLD = 0.3
 PSO_OXYGEN_INTERCEPT_STEPS = 3
-PSO_SOCIAL_WEIGHT = 1.5
+PSO_SOCIAL_WEIGHT = 2.0
 PSO_SELFISH_WEIGHT = 1.5
 PSO_NH3_WEIGHT = 4.0
 PSO_NH3_HUNGRY_OVERRIDE = 0.5
@@ -259,7 +259,7 @@ EA_MUTATION_RATE = 0.25
 EA_ELITISM_COUNT = max(1, round(0.2 * INITIAL_POND_COUNT))
 EA_TOURNAMENT_K = max(2, round(0.4 * INITIAL_POND_COUNT))
 FISH_EAT_RANGE = 3.0
-INFECTED_FISH_DISEASE_RADIUS_MULT = 1.5
+INFECTED_FISH_DISEASE_RADIUS_MULT = 5.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 PROBIOTIC POLICY RANGES                     ║
@@ -278,8 +278,8 @@ LOC_NAMES = {
     5: 'Top-Center', 6: 'Bot-Center', 7: 'Left-Center', 8: 'Right-Center', 9: 'Random'
 }
 
-FOOD_QUANTITY_RANGE = (5, 20)
-FOOD_INTERVAL_RANGE = (2, 24)
+FOOD_QUANTITY_RANGE = (6, 30)
+FOOD_INTERVAL_RANGE = (3, 24)
 
 OBSTACLE_MAX_WIDTH = POND_WIDTH * OBSTACLE_MAX_DIM_FRAC
 OBSTACLE_MAX_HEIGHT = POND_HEIGHT * OBSTACLE_MAX_DIM_FRAC
