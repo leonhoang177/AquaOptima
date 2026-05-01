@@ -11,7 +11,7 @@ import matplotlib.ticker as mticker
 import matplotlib.colors as mcolors
 from pathlib import Path
 
-from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, INITIAL_POND_COUNT
+from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION
 
 CSV_PATH = RESULTS_CSV_PATH
 OUTPUT_DIR = PLOTS_DIR
@@ -313,7 +313,7 @@ def plot_status(df):
     ax.set_ylabel('Pond Count', fontweight='bold')
     ax.set_title('Pond Status Distribution per Generation', fontweight='bold', pad=TITLE_PAD)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    ax.set_ylim(0, INITIAL_POND_COUNT + 1)
+    ax.set_ylim(0, POND_POPULATION + 1)
     ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
     _place_legend_outside(ax, LEGEND_SIZE)
     fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_13_status.png')

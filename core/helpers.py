@@ -9,7 +9,7 @@ import random
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH, DropLocation,
     MOUTH_SIZE_RANGE, BODY_SIZE_RANGE,
-    HP_RANGE, FULLNESS_RANGE, IMMUNITY_RANGE, OXYGEN_RANGE,
+    HEALTH_RANGE, FULLNESS_RANGE, IMMUNITY_RANGE, OXYGEN_RANGE,
     VELOCITY_RANGE,
 )
 from entities import Fish
@@ -64,7 +64,7 @@ def _make_fish(fid: int) -> Fish:
     f.z = random.uniform(5, POND_DEPTH - 5)
     f.mouth_size = random.uniform(*MOUTH_SIZE_RANGE)
     f.body_size = random.uniform(*BODY_SIZE_RANGE)
-    f.max_hp = random.uniform(*HP_RANGE); f.hp = f.max_hp
+    f.max_health = random.uniform(*HEALTH_RANGE); f.health = f.max_health
     f.max_fullness = random.uniform(*FULLNESS_RANGE); f.fullness = f.max_fullness * 0.8
     f.max_immunity = random.uniform(*IMMUNITY_RANGE); f.immunity = f.max_immunity
     f.max_oxygen = random.uniform(*OXYGEN_RANGE); f.oxygen = f.max_oxygen
@@ -77,7 +77,7 @@ def _make_fish(fid: int) -> Fish:
 
 FISH_DICT_KEYS = [
     'fid', 'x', 'y', 'z', 'vx', 'vy', 'vz', 'mouth_size', 'body_size',
-    'hp', 'max_hp', 'fullness', 'max_fullness',
+    'health', 'max_health', 'fullness', 'max_fullness',
     'immunity', 'max_immunity', 'oxygen', 'max_oxygen', 'base_velocity',
     'is_infected', 'has_parasite', 'alive', 'fecal_timer']
 
@@ -93,9 +93,6 @@ def _dict_to_fish(d: dict) -> Fish:
             setattr(f, k, v)
     return f
 
-# ════════════════════════════════════════════════════════════════
-# SPATIAL GRID — O(n²) → O(n×k) for neighbor queries
-# ════════════════════════════════════════════════════════════════
 
 class SpatialGrid:
     """3D spatial hash grid for fast neighbor lookups."""
@@ -113,20 +110,17 @@ class SpatialGrid:
                 int(z // self.cell_size))
 
     def insert(self, obj):
-        """Insert an object with.x,.y,.z attributes."""
         k = self._key(obj.x, obj.y, obj.z)
         if k not in self.cells:
             self.cells[k] = []
         self.cells[k].append(obj)
 
     def insert_all(self, objects):
-        """Clear and insert all objects."""
         self.clear()
         for obj in objects:
             self.insert(obj)
 
     def get_nearby(self, x, y, z, radius):
-        """Yield all objects within radius of (x, y, z)."""
         cs = self.cell_size
         r_cells = int(radius // cs) + 1
         cx, cy, cz = int(x // cs), int(y // cs), int(z // cs)

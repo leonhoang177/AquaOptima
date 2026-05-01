@@ -14,7 +14,7 @@ let mouse = new THREE.Vector2();
 let panel, panelBody, panelTitle, panelClose;
 
 const BAR_COLORS = {
-  hp: "#e06070",
+  health: "#e06070",
   oxygen: "#88ccff",
   fullness: "#ffee55",
   immunity: "#55ffcc",
@@ -95,7 +95,7 @@ function _deselect() {
 
 function _renderPanel(fd) {
   const bars = [
-    { key: "hp", label: "HP", cur: fd.hp, max: fd.max_hp },
+    { key: "health", label: "Health", cur: fd.health, max: fd.max_health },
     { key: "oxygen", label: "Oxygen", cur: fd.oxygen, max: fd.max_oxygen },
     {
       key: "fullness",

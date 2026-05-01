@@ -24,7 +24,7 @@ MAX_BUDGET = 200.0
 AQUACULTURE_DAYS = 20
 POND_GENERATIONS = 5
 RUN_TIMELINES = 2
-INITIAL_POND_COUNT = 10
+POND_POPULATION = 10
 FRAME_SKIP = 1
 NUM_WORKERS = None
 MAX_FISH_COUNT = 50
@@ -64,7 +64,7 @@ BODY_SIZE_RANGE = (4.0, 10.0)
 # ║                 FISH STAT RANGES (DYNAMIC)                  ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HP_RANGE = (80.0, 100.0)
+HEALTH_RANGE = (80.0, 100.0)
 FULLNESS_RANGE = (50.0, 100.0)
 IMMUNITY_RANGE = (70.0, 100.0)
 OXYGEN_RANGE = (80.0, 100.0)
@@ -89,19 +89,19 @@ FULLNESS_DECAY = 0.15
 FULLNESS_COST_MOVE = 0.08
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║              HP DRAIN RATES (WHEN STATS DEPLETED)           ║
+# ║              HEALTH DRAIN RATES (WHEN STATS DEPLETED)       ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HP_DECAY_NO_FULLNESS = 1.0
-HP_DECAY_INFECTED = 0.6
-HP_DECAY_PARASITE = 0.8
-HP_DECAY_IN_NH3 = 0.3
+HEALTH_DECAY_NO_FULLNESS = 1.0
+HEALTH_DECAY_INFECTED = 0.6
+HEALTH_DECAY_PARASITE = 0.8
+HEALTH_DECAY_IN_NH3 = 0.3
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║              HP REGEN                                       ║
+# ║              HEALTH REGEN                                   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HP_REGEN = 0.02
+HEALTH_REGEN = 0.02
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║              DISEASE & PARASITE MECHANICS                   ║
@@ -121,7 +121,7 @@ PARASITE_SCRUB_CHANCE = 0.02
 # ║              VELOCITY REDUCTION THRESHOLDS                  ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-VELOCITY_HP_THRESHOLD = 0.5
+VELOCITY_HEALTH_THRESHOLD = 0.5
 VELOCITY_FULLNESS_THRESHOLD = 0.5
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -160,8 +160,8 @@ POLLUTANT_OBSTACLE_AREA_RANGE = (3, 8)
 # ╚══════════════════════════════════════════════════════════════╝
 
 DEAD_FISH_NH3_RADIUS = 10.0
-DEAD_FISH_FLOAT_CHANCE = 0.30
-DEAD_FISH_FLOAT_DURATION = 12
+DEAD_FISH_FLOAT_CHANCE = 0.65
+DEAD_FISH_FLOAT_DURATION_RANGE = (24, 48)
 DEAD_FISH_FLOAT_SPEED = 0.4
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -214,10 +214,17 @@ FLOOR_HAZARD_HEIGHT = 12.0
 # ║                 FECAL MECHANICS                             ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FECAL_DROP_INTERVAL = 2
-FECAL_BASE_CHANCE = 0.2
-FECAL_VALUE = 2.0
-FECAL_STACK_RADIUS = 5.0
+FECAL_DROP_INTERVAL = 6
+FECAL_BASE_CHANCE = 0.15
+FECAL_VALUE = 3.0
+FECAL_SINK_SPEED = 0.4
+MAX_SINKING_FECAL = 30
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 FLOOR STACKING MECHANICS                    ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+STACK_RADIUS = 5.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 CANNIBALISM MECHANICS                       ║
@@ -262,8 +269,8 @@ STATE_OVERRIDE_PARASITE_CHANCE = 0.6
 # ╚══════════════════════════════════════════════════════════════╝
 
 EA_MUTATION_RATE = 0.25
-EA_ELITISM_COUNT = max(1, round(0.2 * INITIAL_POND_COUNT))
-EA_TOURNAMENT_K = max(2, round(0.4 * INITIAL_POND_COUNT))
+EA_ELITISM_COUNT = max(1, round(0.2 * POND_POPULATION))
+EA_TOURNAMENT_K = max(2, round(0.4 * POND_POPULATION))
 FISH_EAT_RANGE = 3.0
 INFECTED_FISH_DISEASE_RADIUS_MULT = 5.0
 

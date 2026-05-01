@@ -1,16 +1,18 @@
 /**
  * objects.js -- Food, probiotic, O2, fecal, dead fish, pollutant, plant meshes.
+ * Objects are sorted so sinking/floating (non-floor) items render first,
+ * ensuring the limited mesh pools prioritize visible mid-water action.
  */
 
 import * as THREE from "three";
 
-const MAX_FOOD = 60,
-  MAX_PROBIOTIC = 60,
-  MAX_OXYGEN = 80,
-  MAX_FECAL = 40;
-const MAX_DEAD_FISH = 20,
-  MAX_POLLUTANT = 30,
-  MAX_PLANT = 40;
+const MAX_FOOD = 150,
+  MAX_PROBIOTIC = 120,
+  MAX_OXYGEN = 150,
+  MAX_FECAL = 150;
+const MAX_DEAD_FISH = 50,
+  MAX_POLLUTANT = 80,
+  MAX_PLANT = 80;
 
 let pools = {};
 
@@ -134,7 +136,6 @@ export function initObjects(sceneCtx, pond) {
       ),
   );
 
-  // Plants spawned by pollutant transformation
   const plantColors = [0x1a6633, 0x228844, 0x2a7744, 0x1a5533];
   pools.plant = _pool(scene, MAX_PLANT, () => {
     const g = new THREE.Group();
@@ -168,6 +169,14 @@ export function initObjects(sceneCtx, pond) {
   return { pools };
 }
 
+/**
+ * Sort objects so that sinking/floating (mid-water) items come before
+ * floor items. Lower z = closer to surface = higher priority.
+ */
+function _sortSinkingFirst(arr) {
+  arr.sort((a, b) => a.z - b.z);
+}
+
 export function updateObjects(objectsCtx, frame) {
   const objData = frame.objects || [];
   const byType = {
@@ -182,6 +191,13 @@ export function updateObjects(objectsCtx, frame) {
   for (const obj of objData) {
     if (byType[obj.type]) byType[obj.type].push(obj);
   }
+
+  // Sort sinking/floating objects first (lower z = nearer surface = priority)
+  _sortSinkingFirst(byType.food);
+  _sortSinkingFirst(byType.probiotic);
+  _sortSinkingFirst(byType.fecal);
+  _sortSinkingFirst(byType.dead_fish);
+  _sortSinkingFirst(byType.pollutant);
 
   _upd(pools.food, byType.food, (m, d) => {
     m.position.set(d.x, d.y, d.z);
