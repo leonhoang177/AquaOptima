@@ -81,15 +81,19 @@ def upd_objs(sim):
             elif o.z < rest_z:
                 o.z = min(o.z + SINK_SPEED_HEAVY, rest_z)
 
+            # Follower NH3 tracks this specific body via matching ID
             for h in sim.hazards:
-                if h.follow_dead_fish and h.kind == 'nh3':
-                    if _dist(h.x, h.y, h.z, o.x, o.y, o.z) < DEAD_FISH_NH3_RADIUS + 5:
-                        h.x, h.y, h.z = o.x, o.y, o.z
+                if h.follow_dead_fish and h.kind == 'nh3' and h.follow_id == o.obj_id:
+                    h.x, h.y, h.z = o.x, o.y, o.z
 
             o.on_floor = o.z >= rest_z - 0.1
             if o.on_floor: o.age += 1
 
             if o.age >= o.max_age and o.alive:
+                # Kill the linked follower NH3
+                for h in sim.hazards:
+                    if h.follow_dead_fish and h.kind == 'nh3' and h.follow_id == o.obj_id:
+                        h.alive = False
                 if o.value > 0:
                     pv = o.value * DEAD_FISH_POLLUTANT_MULT
                     if not any(h.contains(o.x, o.y, o.z) and h.kind == 'nh3' and h.alive for h in sim.hazards):
@@ -179,6 +183,8 @@ def upd_haz(sim):
     """Move/age all hazards. Expired NH3 becomes pollutant."""
     keep = []
     for h in sim.hazards:
+        if not h.alive:
+            continue
         h.age += 1
         if h.kind == 'nh3' and not h.follow_dead_fish:
             h.x += h.vx; h.y += h.vy; h.z += h.vz

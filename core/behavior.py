@@ -15,7 +15,6 @@ from constants import (
     IMMUNITY_DECAY_IN_DISEASE, IMMUNITY_DECAY_IN_NH3, IMMUNITY_REGEN,
     PARASITE_CONTACT_CHANCE,
     PARASITE_FULLNESS_EFFICIENCY, PARASITE_EXTRA_FULLNESS_DRAIN,
-    PARASITE_SCRUB_CHANCE,
     FOOD_FULLNESS_GAIN, PROBIOTIC_IMMUNITY_GAIN, OXYGEN_BUBBLE_GAIN,
     FISH_EAT_RANGE, INFECTED_FISH_DISEASE_RADIUS_MULT,
     SENSITIVE_DISTANCE, SOCIAL_DISTANCE, SELFISH_DISTANCE,
@@ -27,9 +26,8 @@ from constants import (
     PSO_SOCIAL_WEIGHT, PSO_SELFISH_WEIGHT,
     PSO_NH3_WEIGHT, PSO_NH3_HUNGRY_OVERRIDE,
     PSO_DISEASE_WEIGHT, PSO_PARASITE_WEIGHT,
-    PSO_RELIEF_WEIGHT, PSO_RUN_WEIGHT, PSO_OBSTACLE_WEIGHT,
+    PSO_RUN_WEIGHT, PSO_OBSTACLE_WEIGHT,
     PSO_SWARM_HUNGRY_WEIGHT, PSO_SWARM_HUNGRY_THRESHOLD,
-    STATE_OVERRIDE_PARASITE_CHANCE,
     CANNIBAL_FULLNESS_THRESHOLD, CANNIBAL_BASE_CHANCE, CANNIBAL_HUNGER_MULT,
     CANNIBAL_FULLNESS_GAIN_MULT, CANNIBAL_COLLISION_RADIUS_MULT,
     FECAL_DROP_INTERVAL, FECAL_BASE_CHANCE, FECAL_VALUE, FECAL_SINK_SPEED,
@@ -37,6 +35,7 @@ from constants import (
     DEAD_FISH_DECAY_TIMESTEPS, DEAD_FISH_NH3_RADIUS,
     DEAD_FISH_FLOAT_CHANCE, DEAD_FISH_FLOAT_DURATION_RANGE,
     DISEASE_AREA_DECAY, PARASITE_AREA_DECAY,
+    PARASITE_VELOCITY_MULT,
 )
 from entities import DynObj, Hazard
 from helpers import _dist, _clamp, _norm
@@ -134,30 +133,6 @@ def _intercept_pos(f, o):
     return tx, ty, tz
 
 
-def _scrub(f, sim):
-    """Find nearest surface for parasite scrubbing."""
-    bd, bo = float('inf'), None
-    for o in sim.obstacles:
-        ssx,ssy,ssz = o.nearest_surface(f.x,f.y,f.z)
-        d = _dist(f.x,f.y,f.z,ssx,ssy,ssz)
-        if d < bd: bd, bo = d, o
-    if bo:
-        ssx,ssy,ssz = bo.nearest_surface(f.x,f.y,f.z)
-        return _norm(ssx-f.x,ssy-f.y,ssz-f.z)
-    wall_targets = []
-    if f.x > _WALL: wall_targets.append((_WALL,f.y,f.z,f.x-_WALL))
-    if f.x < POND_WIDTH-_WALL: wall_targets.append((POND_WIDTH-_WALL,f.y,f.z,POND_WIDTH-_WALL-f.x))
-    if f.y > _WALL: wall_targets.append((f.x,_WALL,f.z,f.y-_WALL))
-    if f.y < POND_HEIGHT-_WALL: wall_targets.append((f.x,POND_HEIGHT-_WALL,f.z,POND_HEIGHT-_WALL-f.y))
-    if f.z > _WALL: wall_targets.append((f.x,f.y,_WALL,f.z-_WALL))
-    if f.z < POND_DEPTH-_WALL: wall_targets.append((f.x,f.y,POND_DEPTH-_WALL,POND_DEPTH-_WALL-f.z))
-    if wall_targets:
-        wall_targets.sort(key=lambda t: t[3])
-        tx,ty,tz,_ = wall_targets[0]
-        return _norm(tx-f.x,ty-f.y,tz-f.z)
-    return None
-
-
 def _vecs(f, sim, alive, swarm_cx, swarm_cy, swarm_cz):
     """Compute all PSO steering vectors for a single fish."""
     vecs = []; fr = max(0, f.fullness) / f.max_fullness
@@ -243,20 +218,15 @@ def _vecs(f, sim, alive, swarm_cx, swarm_cy, swarm_cz):
                 w = PSO_RUN_WEIGHT*(SENSITIVE_DISTANCE/(d+1))
                 dx,dy,dz = _norm(f.x-o.x,f.y-o.y,f.z-o.z); vecs.append((w,dx,dy,dz))
 
-    if not f.has_parasite:
-        for obs in sim.obstacles:
-            ssx,ssy,ssz = obs.nearest_surface(f.x,f.y,f.z)
-            d = _dist(f.x,f.y,f.z,ssx,ssy,ssz)
-            if 0 < d < SENSITIVE_DISTANCE:
-                w = PSO_OBSTACLE_WEIGHT*(1.0-d/SENSITIVE_DISTANCE)
-                dx,dy,dz = _norm(f.x-ssx,f.y-ssy,f.z-ssz); vecs.append((w,dx,dy,dz))
-            elif d < 0.01:
-                ocx,ocy,ocz = obs.center()
-                dx,dy,dz = _norm(f.x-ocx,f.y-ocy,f.z-ocz); vecs.append((PSO_OBSTACLE_WEIGHT,dx,dy,dz))
-
-    if f.has_parasite:
-        sv = _scrub(f, sim)
-        if sv: vecs.append((PSO_RELIEF_WEIGHT,sv[0],sv[1],sv[2]))
+    for obs in sim.obstacles:
+        ssx,ssy,ssz = obs.nearest_surface(f.x,f.y,f.z)
+        d = _dist(f.x,f.y,f.z,ssx,ssy,ssz)
+        if 0 < d < SENSITIVE_DISTANCE:
+            w = PSO_OBSTACLE_WEIGHT*(1.0-d/SENSITIVE_DISTANCE)
+            dx,dy,dz = _norm(f.x-ssx,f.y-ssy,f.z-ssz); vecs.append((w,dx,dy,dz))
+        elif d < 0.01:
+            ocx,ocy,ocz = obs.center()
+            dx,dy,dz = _norm(f.x-ocx,f.y-ocy,f.z-ocz); vecs.append((PSO_OBSTACLE_WEIGHT,dx,dy,dz))
 
     if sc == 0 and rc == 0:
         if fr < PSO_SWARM_HUNGRY_THRESHOLD:
@@ -295,9 +265,6 @@ def pso(sim):
             nvx += w*dx; nvy += w*dy; nvz += w*dz
         m = math.sqrt(nvx**2 + nvy**2 + nvz**2)
         if m > 0.01: nvx = nvx/m*vel; nvy = nvy/m*vel; nvz = nvz/m*vel
-        if f.has_parasite and random.random() < STATE_OVERRIDE_PARASITE_CHANCE:
-            sv = _scrub(f, sim)
-            if sv: nvx, nvy, nvz = sv[0]*vel, sv[1]*vel, sv[2]*vel
         f.vx, f.vy, f.vz = nvx, nvy, nvz
         nx, ny, nz = f.x+f.vx, f.y+f.vy, f.z+f.vz
 
@@ -313,26 +280,19 @@ def pso(sim):
                 nx = ssx+norm_x*0.5; ny = ssy+norm_y*0.5; nz = ssz+norm_z*0.5
                 dot = f.vx*norm_x + f.vy*norm_y + f.vz*norm_z
                 f.vx -= dot*norm_x; f.vy -= dot*norm_y; f.vz -= dot*norm_z
-                if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
 
         if nx < _WALL:
             nx = _WALL; f.vx = 0
-            if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
         elif nx > POND_WIDTH-_WALL:
             nx = POND_WIDTH-_WALL; f.vx = 0
-            if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
         if ny < _WALL:
             ny = _WALL; f.vy = 0
-            if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
         elif ny > POND_HEIGHT-_WALL:
             ny = POND_HEIGHT-_WALL; f.vy = 0
-            if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
         if nz < _WALL:
             nz = _WALL; f.vz = 0
-            if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
         elif nz > POND_DEPTH-_WALL:
             nz = POND_DEPTH-_WALL; f.vz = 0
-            if f.has_parasite and random.random() < PARASITE_SCRUB_CHANCE: f.has_parasite = False
 
         f.x, f.y, f.z = sim._cp(nx, ny, nz)
         mc = FULLNESS_COST_MOVE * vel
@@ -400,12 +360,15 @@ def death(sim):
             will_float = random.random() < DEAD_FISH_FLOAT_CHANCE
             ft = random.randint(*DEAD_FISH_FLOAT_DURATION_RANGE) if will_float else 0
 
+            link_id = sim._new_obj_id()
+
             sim.objs.append(DynObj(f.x, f.y, f.z, 'dead_fish', f.body_size,
                                     max_age=DEAD_FISH_DECAY_TIMESTEPS,
-                                    float_timer=ft))
+                                    float_timer=ft,
+                                    obj_id=link_id))
 
             sim.hazards.append(Hazard(f.x, f.y, f.z, DEAD_FISH_NH3_RADIUS, 'nh3',
-                max_age=DEAD_FISH_DECAY_TIMESTEPS, follow_dead_fish=True))
+                max_age=999999, follow_dead_fish=True, follow_id=link_id))
 
             if f.is_infected:
                 sim.hazards.append(Hazard(f.x, f.y, f.z,

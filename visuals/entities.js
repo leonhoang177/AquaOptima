@@ -1,5 +1,7 @@
 /**
  * entities.js -- Fish, obstacles, hazards.
+ * Fish color 40% brighter. Selected fish: neon green emissive.
+ * Disease/parasite opacity reduced 30%.
  */
 
 import * as THREE from "three";
@@ -9,10 +11,10 @@ const MAX_FISH = 60,
   MAX_OBSTACLES = 30,
   MAX_HAZARDS = 40;
 
-const FISH_COLOR = 0x7a9ab5;
-const FISH_COLOR_SELECTED = 0xffffff;
-const FISH_EMISSIVE_SELECTED = 0xcccccc;
-const FISH_TAIL_COLOR = 0x6a8a9f;
+const FISH_COLOR = 0xabd4f0;
+const FISH_SELECTED_EMISSIVE = 0x33ff66;
+const FISH_SELECTED_EMISSIVE_INTENSITY = 0.6;
+const FISH_TAIL_COLOR = 0x96c2dd;
 const OBSTACLE_COLOR = 0x5a3a28;
 const OBSTACLE_EDGE_COLOR = 0x7a5a40;
 const GLOW_INFECTED = 0xffaa00;
@@ -20,8 +22,8 @@ const GLOW_PARASITE = 0xcc44ff;
 
 const HAZARD_COLORS = {
   nh3: { color: 0x00ff64, opacity: 0.12 },
-  disease: { color: 0xffb400, opacity: 0.18 },
-  parasite: { color: 0xc850ff, opacity: 0.15 },
+  disease: { color: 0xffb400, opacity: 0.126 },
+  parasite: { color: 0xc850ff, opacity: 0.105 },
 };
 
 let fishPool = [],
@@ -34,7 +36,7 @@ let selectionLight = null;
 export function initEntities(sceneCtx, pond) {
   const { scene } = sceneCtx;
 
-  selectionLight = new THREE.PointLight(0xffffff, 0, 30);
+  selectionLight = new THREE.PointLight(0x33ff66, 0, 30);
   selectionLight.visible = false;
   scene.add(selectionLight);
 
@@ -44,7 +46,7 @@ export function initEntities(sceneCtx, pond) {
     const bodyMat = new THREE.MeshPhongMaterial({
       color: FISH_COLOR,
       shininess: 50,
-      emissive: 0,
+      emissive: 0x000000,
       emissiveIntensity: 0,
     });
     g.add(new THREE.Mesh(new THREE.SphereGeometry(1, 12, 8), bodyMat));
@@ -59,7 +61,7 @@ export function initEntities(sceneCtx, pond) {
     g.add(
       new THREE.Mesh(
         new THREE.SphereGeometry(0.15, 6, 6),
-        new THREE.MeshBasicMaterial({ color: 0xdddddd }),
+        new THREE.MeshBasicMaterial({ color: 0xeeeeee }),
       ),
     );
     g.add(
@@ -198,9 +200,11 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
       const body = g.children[0];
       body.scale.set(bs, bs * 0.55, bs * 0.55);
       const isSel = fd.id === selectedId;
-      body.material.color.setHex(isSel ? FISH_COLOR_SELECTED : FISH_COLOR);
-      body.material.emissive.setHex(isSel ? FISH_EMISSIVE_SELECTED : 0);
-      body.material.emissiveIntensity = isSel ? 0.5 : 0;
+      body.material.color.setHex(FISH_COLOR);
+      body.material.emissive.setHex(isSel ? FISH_SELECTED_EMISSIVE : 0x000000);
+      body.material.emissiveIntensity = isSel
+        ? FISH_SELECTED_EMISSIVE_INTENSITY
+        : 0;
       if (isSel) selectedGroup = g;
 
       g.children[1].position.set(-bs - 0.5, 0, 0);
@@ -222,6 +226,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
   if (selectedGroup) {
     selectionLight.visible = true;
     selectionLight.position.copy(selectedGroup.position);
+    selectionLight.color.setHex(0x33ff66);
     selectionLight.intensity = 1.5;
   } else {
     selectionLight.visible = false;
@@ -299,7 +304,7 @@ export function updateEntities(entitiesCtx, frame, sceneCtx) {
       c.material.opacity = hc.opacity;
       for (const ch of c.children) {
         ch.material.color.setHex(hc.color);
-        ch.material.opacity = hc.opacity + 0.06;
+        ch.material.opacity = hc.opacity + 0.04;
       }
     } else c.visible = false;
   }

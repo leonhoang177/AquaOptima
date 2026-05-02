@@ -1,12 +1,13 @@
 /**
  * loop.js -- Main render/animation loop and frame advancement.
+ * Supports loop mode (restart when finished).
  */
 
 import { clearEffects, detectKills, updateEffects } from "./effects.js";
 import { updateEntities } from "./entities.js";
 import { updateObjects } from "./objects.js";
 import { updateSelection } from "./selection.js";
-import { state, updateUI } from "./ui.js";
+import { signalFrameReady, state, updateUI } from "./ui.js";
 
 let sceneCtx = null;
 let entitiesCtx = null;
@@ -37,7 +38,6 @@ function _countEvents(upTo) {
     const f = frames[i];
     if (f.cannibal_events) cannibals += f.cannibal_events.length;
 
-    // Count deaths (disappeared fish not from cannibalism)
     if (i > 0 && prevFishIds) {
       const curIds = new Set(
         f.fish.filter((fi) => fi.alive).map((fi) => fi.id),
@@ -70,6 +70,12 @@ function _countFrameDeaths(frame, prevFrame) {
   return deaths;
 }
 
+function _resetCounters() {
+  cumulativeCannibalCount = 0;
+  cumulativeDeathCount = 0;
+  clearEffects(effectsCtx);
+}
+
 function tick(timestamp) {
   requestAnimationFrame(tick);
   if (!frames.length) return;
@@ -89,7 +95,7 @@ function tick(timestamp) {
     cumulativeDeathCount = counts.deaths;
   }
 
-  // Manual frame stepping while paused
+  // Manual frame stepping while paused (includes jump)
   if (!state.playing && state.currentFrame !== prevFrameIdx) {
     if (state.currentFrame > prevFrameIdx) {
       for (let i = prevFrameIdx + 1; i <= state.currentFrame; i++) {
@@ -109,12 +115,25 @@ function tick(timestamp) {
     updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
     updateSelection(frame);
     _render();
+    signalFrameReady();
     return;
   }
 
   if (state.playing) {
     prevFrameIdx = state.currentFrame;
-    state.currentFrame = Math.min(state.currentFrame + 1, totalFrames - 1);
+
+    // Loop: restart when reaching the end
+    if (state.currentFrame >= totalFrames - 1) {
+      if (state.loop) {
+        state.currentFrame = 0;
+        prevFrameIdx = -1;
+        _resetCounters();
+      } else {
+        state.currentFrame = totalFrames - 1;
+      }
+    } else {
+      state.currentFrame = state.currentFrame + 1;
+    }
 
     const frame = frames[state.currentFrame];
     const prev = state.currentFrame > 0 ? frames[state.currentFrame - 1] : null;
@@ -140,6 +159,7 @@ function tick(timestamp) {
   }
 
   _render();
+  signalFrameReady();
 }
 
 function _render() {

@@ -35,7 +35,7 @@ class PondSim:
     __slots__ = ('geno', 'runtime', 'max_budget', 'record', 'fskip',
                  'fish', 'n0', 'ts', 'objs', 'hazards', 'obstacles',
                  'oxy_pump', 'frames', 'accum_cost', 'budget_exceeded',
-                 'cannibal_events', '_fish_grid', '_obj_grid')
+                 'cannibal_events', '_fish_grid', '_obj_grid', '_next_obj_id')
 
     def __init__(self, geno, fish_templates, runtime, max_budget, record=False, fskip=1):
         self.geno = geno; self.runtime = runtime; self.max_budget = max_budget
@@ -47,6 +47,11 @@ class PondSim:
         self._fish_grid = SpatialGrid(cell_size=max(SOCIAL_DISTANCE, SENSITIVE_DISTANCE))
         self._obj_grid = SpatialGrid(cell_size=SENSITIVE_DISTANCE)
         self._make_obs()
+        self._next_obj_id = 0
+        
+    def _new_obj_id(self):
+        self._next_obj_id += 1
+        return self._next_obj_id
 
     def _make_obs(self):
         for _ in range(NUM_OBSTACLES):

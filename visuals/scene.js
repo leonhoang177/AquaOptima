@@ -1,6 +1,6 @@
 /**
  * scene.js -- Three.js scene: renderer, camera, controls, lights, pond, dense plants.
- * Default view: fish tank perspective (front-facing, surface top, floor bottom).
+ * 95% of grass perfectly upright, 4% slight lean, 1% strong lean.
  */
 
 import * as THREE from "three";
@@ -11,21 +11,17 @@ export function initScene(container, pond) {
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setClearColor(0x0a1628, 1);
+  renderer.setClearColor(0x1a3050, 1);
   _resize(renderer, container);
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x0a1628, 0.002);
+  scene.fog = new THREE.FogExp2(0x1a3050, 0.0015);
 
   const aspect = container.clientWidth / container.clientHeight;
   const camera = new THREE.PerspectiveCamera(50, aspect, 1, 1000);
 
-  // Fish tank view: looking straight at front face
-  // X = width (left-right), Y = depth (into screen), Z = height (up-down)
-  // But our sim uses: X = width, Y = height, Z = depth (0=surface, D=floor)
-  // So camera looks along -Y axis, with Z going "up" in screen
-  camera.up.set(0, 0, -1); // Z=0 (surface) at top, Z=D (floor) at bottom
+  camera.up.set(0, 0, -1);
   camera.position.set(W * 0.5, -H * 1.5, D * 0.5);
   camera.lookAt(W * 0.5, H * 0.5, D * 0.5);
 
@@ -35,61 +31,55 @@ export function initScene(container, pond) {
   controls.dampingFactor = 0.08;
   controls.minDistance = 20;
   controls.maxDistance = 600;
-  // No angle constraints — full rotation freedom
   controls.minPolarAngle = 0;
   controls.maxPolarAngle = Math.PI;
   controls.minAzimuthAngle = -Infinity;
   controls.maxAzimuthAngle = Infinity;
   controls.update();
 
-  scene.add(new THREE.AmbientLight(0x4466aa, 0.7));
-  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  scene.add(new THREE.AmbientLight(0x6688bb, 1.0));
+  const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
   dirLight.position.set(W * 0.5, -H, D * 0.3);
   scene.add(dirLight);
-  const fillLight = new THREE.DirectionalLight(0x88aacc, 0.3);
+  const fillLight = new THREE.DirectionalLight(0x88aacc, 0.5);
   fillLight.position.set(W * 0.5, H * 2, D * 0.5);
   scene.add(fillLight);
-  // Bottom light to illuminate floor/plants
-  const bottomLight = new THREE.DirectionalLight(0x665544, 0.2);
+  const bottomLight = new THREE.DirectionalLight(0x887766, 0.3);
   bottomLight.position.set(W * 0.5, H * 0.5, D * 2);
   scene.add(bottomLight);
 
-  // Pond wireframe
   const pondLine = new THREE.LineSegments(
     new THREE.EdgesGeometry(new THREE.BoxGeometry(W, H, D)),
-    new THREE.LineBasicMaterial({ color: 0x1e5080 }),
+    new THREE.LineBasicMaterial({ color: 0x3a7ab0 }),
   );
   pondLine.position.set(W / 2, H / 2, D / 2);
   scene.add(pondLine);
 
-  // Water surface (z=0) — lighter blue, top of tank
   const surfMat = new THREE.MeshBasicMaterial({
-    color: 0x2a6699,
+    color: 0x4a8acc,
     transparent: true,
-    opacity: 0.2,
+    opacity: 0.15,
     side: THREE.DoubleSide,
   });
   const surf = new THREE.Mesh(new THREE.PlaneGeometry(W, H), surfMat);
   surf.position.set(W / 2, H / 2, 0);
   scene.add(surf);
 
-  // Floor (z=D) — dark sandy, bottom of tank
   const floorMat = new THREE.MeshBasicMaterial({
-    color: 0x2a2018,
+    color: 0x3a3028,
     transparent: true,
-    opacity: 0.5,
+    opacity: 0.4,
     side: THREE.DoubleSide,
   });
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, H), floorMat);
   floor.position.set(W / 2, H / 2, D);
   scene.add(floor);
 
-  // Floor grid
   const gridGroup = new THREE.Group();
   const gridMat = new THREE.LineBasicMaterial({
-    color: 0x3a2a1a,
+    color: 0x4a3a2a,
     transparent: true,
-    opacity: 0.15,
+    opacity: 0.12,
   });
   for (let x = 0; x <= W; x += 25) {
     gridGroup.add(
@@ -136,6 +126,14 @@ function _resize(renderer, container) {
   renderer.setSize(w, h);
 }
 
+function _grassLean() {
+  // 95% perfectly upright, 4% slight lean, 1% strong lean
+  const r = Math.random();
+  if (r < 0.01) return (Math.random() - 0.5) * 1.0;
+  if (r < 0.05) return (Math.random() - 0.5) * 0.3;
+  return 0;
+}
+
 function _createPlants(scene, W, H, D) {
   const group = new THREE.Group();
   const grassColors = [0x1a6633, 0x228844, 0x2a7744, 0x1a5533, 0x1e7040];
@@ -158,24 +156,13 @@ function _createPlants(scene, W, H, D) {
         emissive: color,
         emissiveIntensity: 0.08,
       });
-      // PlaneGeometry is in XY plane by default. We need it standing upright:
-      // Z axis is depth (vertical in fish tank view), so rotate plane to stand along Z
       const blade = new THREE.Mesh(new THREE.PlaneGeometry(width, height), mat);
-      // Position base at floor, blade extends upward (toward surface = -Z)
       blade.position.set(px, py, D - height * 0.5);
-      // Rotate so the plane stands upright in the XZ plane
       blade.rotation.x = Math.PI / 2;
-      // Random facing direction
       blade.rotation.z = Math.random() * Math.PI;
-      // Slight lean (80% upright, 20% leaning)
-      if (Math.random() < 0.2) {
-        blade.rotation.y = (Math.random() - 0.5) * 1.2; // strong lean
-      } else {
-        blade.rotation.y = (Math.random() - 0.5) * 0.2; // slight lean
-      }
+      blade.rotation.y = _grassLean();
       group.add(blade);
 
-      // Companion blade
       if (Math.random() > 0.3) {
         const b2 = blade.clone();
         b2.material = mat.clone();
@@ -184,11 +171,7 @@ function _createPlants(scene, W, H, D) {
         const h2 = 2 + Math.random() * 6;
         b2.position.z = D - h2 * 0.5;
         b2.rotation.z = Math.random() * Math.PI;
-        if (Math.random() < 0.2) {
-          b2.rotation.y = (Math.random() - 0.5) * 1.2;
-        } else {
-          b2.rotation.y = (Math.random() - 0.5) * 0.2;
-        }
+        b2.rotation.y = _grassLean();
         group.add(b2);
       }
     }
@@ -217,11 +200,7 @@ function _createPlants(scene, W, H, D) {
       kelp.position.set(kx, ky, D - kh * 0.5);
       kelp.rotation.x = Math.PI / 2;
       kelp.rotation.z = Math.random() * Math.PI;
-      if (Math.random() < 0.15) {
-        kelp.rotation.y = (Math.random() - 0.5) * 1.0;
-      } else {
-        kelp.rotation.y = (Math.random() - 0.5) * 0.15;
-      }
+      kelp.rotation.y = _grassLean();
       group.add(kelp);
     }
   }

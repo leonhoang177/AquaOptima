@@ -79,6 +79,7 @@ class DynObj:
     alive: bool = True
     on_floor: bool = False
     float_timer: int = 0
+    obj_id: int = -1
 
 
 @dataclass
@@ -88,6 +89,7 @@ class Hazard:
     vx: float = 0.0; vy: float = 0.0; vz: float = 0.0
     is_floor: bool = False
     follow_dead_fish: bool = False
+    follow_id: int = -1
 
     def contains(self, px, py, pz) -> bool:
         if self.is_floor:

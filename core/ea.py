@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
 ea.py -- Evolutionary Algorithm: pond configuration evolution with parallel timelines.
-Contains all EA-specific logic: random genotype generation, crossover, mutation,
-tournament selection, elitism, and the evolution loop.
+Parallelism is at the pond level within each generation.
+Last pond champion = best pond in the LAST generation of each timeline.
 """
 
 import random, copy, csv, time as _time, multiprocessing
@@ -15,6 +15,7 @@ from constants import (
     EA_ELITISM_COUNT, EA_TOURNAMENT_K, EA_MUTATION_RATE,
     FOOD_INTERVAL_RANGE, FOOD_QUANTITY_RANGE,
     PROBIOTIC_QUANTITY_RANGE, PROBIOTIC_INTERVAL_STEPS,
+    OXYGEN_INTERVAL_RANGE, OXYGEN_DURATION_RANGE,
 )
 from entities import PondGenotype
 from simulate import run_single_pond
@@ -33,8 +34,8 @@ def random_genotype() -> PondGenotype:
         probiotic_interval=random.choice(PROBIOTIC_INTERVAL_STEPS),
         probiotic_quantity=random.randint(*PROBIOTIC_QUANTITY_RANGE),
         probiotic_location=random.randint(0, 9),
-        oxygen_interval=random.randint(1, 24),
-        oxygen_duration=random.randint(1, 4),
+        oxygen_interval=random.randint(*OXYGEN_INTERVAL_RANGE),
+        oxygen_duration=random.randint(*OXYGEN_DURATION_RANGE),
         oxygen_location=random.randint(0, 9))
 
 
@@ -54,8 +55,8 @@ def mutate(geno: PondGenotype):
     if random.random() < r: geno.probiotic_interval = random.choice(PROBIOTIC_INTERVAL_STEPS)
     if random.random() < r: geno.probiotic_quantity = random.randint(*PROBIOTIC_QUANTITY_RANGE)
     if random.random() < r: geno.probiotic_location = random.randint(0, 9)
-    if random.random() < r: geno.oxygen_interval = random.randint(1, 24)
-    if random.random() < r: geno.oxygen_duration = random.randint(1, 4)
+    if random.random() < r: geno.oxygen_interval = random.randint(*OXYGEN_INTERVAL_RANGE)
+    if random.random() < r: geno.oxygen_duration = random.randint(*OXYGEN_DURATION_RANGE)
     if random.random() < r: geno.oxygen_location = random.randint(0, 9)
 
 
@@ -119,7 +120,7 @@ class EA:
               f"Timelines: {RUN_TIMELINES}")
         print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Tournament(K={EA_TOURNAMENT_K})")
         print(f"  Parallelism: {workers} cores per generation")
-        print(f"  Champion: Converged (best in last generation)")
+        print(f"  Champion: Best pond in last generation")
         print(f"{'='*72}")
 
         all_csv_rows = []
@@ -209,45 +210,48 @@ class EA:
                         new_ponds.append(child)
                     ponds = new_ponds
 
-            converged = None
+            # ── Last pond champion = best in last generation ──
+            last_champ = None
             if last_gen_results:
                 for r in last_gen_results:
                     if r.get('fitness', 0) > 0:
-                        converged = r
+                        last_champ = r
                         break
-                if converged is None:
-                    converged = last_gen_results[0]
-                    converged['is_latest_dead'] = True
-                    print(f"    TL {tl_idx+1} | No valid converged champion -- using Latest Dead")
+                if last_champ is None:
+                    last_champ = last_gen_results[0]
+                    last_champ['is_latest_dead'] = True
+                    print(f"    TL {tl_idx+1} | No valid last pond champion -- using Latest Dead")
 
-            if converged:
-                converged['timeline_idx'] = tl_idx
-                converged.pop('genotype_obj', None)
+            if last_champ:
+                last_champ['timeline_idx'] = tl_idx
+                last_champ.pop('genotype_obj', None)
             else:
-                converged = {
+                last_champ = {
                     'timeline_idx':tl_idx,'fitness':0,'survival_rate':0,
                     'avg_healthiness':0,'saving':0,'cost':0,'yield':0,
                     'genotype':random_genotype().to_dict(),'frames':[],'alive_count':0,
                     'initial_count':0,'is_latest_dead':True}
 
             tl_elapsed = _time.time() - tl_start
-            tag = " [LATEST DEAD]" if converged.get('is_latest_dead') else ""
-            print(f"\n  Timeline {tl_idx+1} converged ({tl_elapsed:.1f}s) | "
-                  f"Fitness={converged['fitness']:.4f} | "
-                  f"Alive={converged.get('alive_count',0)}/{converged.get('initial_count',0)}{tag}")
+            tag = " [LATEST DEAD]" if last_champ.get('is_latest_dead') else ""
+            print(f"\n  Timeline {tl_idx+1} finished ({tl_elapsed:.1f}s) | "
+                  f"Fitness={last_champ['fitness']:.4f} | "
+                  f"Alive={last_champ.get('alive_count',0)}/{last_champ.get('initial_count',0)}{tag}")
 
             all_csv_rows.extend(csv_rows)
-            timeline_champions.append(converged)
+            timeline_champions.append(last_champ)
 
+        # ── Save CSV ──
         with open(RESULTS_CSV_PATH, 'w', newline='') as f:
             writer = csv.writer(f); writer.writerow(CSV_HEADER); writer.writerows(all_csv_rows)
         print(f"\n  Saved {RESULTS_CSV_PATH} ({len(all_csv_rows)} rows)")
 
+        # ── Print last pond champions ──
         for champ in timeline_champions:
             tl = champ.get('timeline_idx', 0)
             tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
             if champ['fitness'] > 0 or champ.get('is_latest_dead'):
-                _print_champion_detail(f"TL {tl+1} Converged Champion{tag}", champ)
+                _print_champion_detail(f"TL {tl+1} Last Pond Champion{tag}", champ)
             else:
                 print(f"\n  Timeline {tl+1}: No survivors.")
 
@@ -265,14 +269,15 @@ class EA:
         best_idx = _print_champions_summary(timeline_champions)
         champ = timeline_champions[best_idx]
 
+        # ── Re-run best pond champion with recording if needed ──
         if record_best and not champ.get('frames'):
             tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
-            print(f"\n  Re-running converged champion{tag} (TL {champ['timeline_idx']+1}) with frame recording...")
+            print(f"\n  Re-running last pond champion{tag} (TL {champ['timeline_idx']+1}) with frame recording...")
             res = run_single_pond(champ['genotype'], self.runtime, MAX_BUDGET, True, FRAME_SKIP)
             champ['frames'] = res['frames']
 
         wall_elapsed = _time.time() - wall_start
         tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
-        _print_champion_detail(f"GRAND CHAMPION{tag}  (TL {champ['timeline_idx']+1})", champ)
+        _print_champion_detail(f"BEST POND CHAMPION{tag}  (TL {champ['timeline_idx']+1})", champ)
         print(f"\n  Total wall time: {wall_elapsed:.1f}s")
         return champ

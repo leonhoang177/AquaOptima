@@ -1,29 +1,37 @@
 /**
  * ui.js -- Controls, stats bar, genotype bar.
+ * Default speed 7. Loop toggle. Play/Pause before Restart.
  */
 
 export const state = {
   playing: true,
-  fps: 3,
+  fps: 7,
   currentFrame: 0,
+  loop: false,
 };
 
-let btnPlayPause, btnRestart;
-let btnBack5, btnBack3, btnBack1, btnFwd1, btnFwd3, btnFwd5;
-let fpsInput, timeDisplay, progressBar;
+const MIN_FPS = 1;
+const MAX_FPS = 120;
+const FPS_STEP = 1;
+const JUMP_STEP = 5;
+
+let btnPlayPause, btnRestart, btnLoop;
+let btnSpeedDown, btnSpeedUp, speedDisplay;
+let btnJumpBack, btnJumpFwd;
+let timeDisplay, progressBar;
 let statsBar, genotypeBar, hudDiv;
 let totalFramesCount = 0;
+let jumpCooldown = false;
 
 export function initUI(data) {
   btnPlayPause = document.getElementById("btn-playpause");
   btnRestart = document.getElementById("btn-restart");
-  btnBack5 = document.getElementById("btn-back5");
-  btnBack3 = document.getElementById("btn-back3");
-  btnBack1 = document.getElementById("btn-back1");
-  btnFwd1 = document.getElementById("btn-fwd1");
-  btnFwd3 = document.getElementById("btn-fwd3");
-  btnFwd5 = document.getElementById("btn-fwd5");
-  fpsInput = document.getElementById("fps-input");
+  btnLoop = document.getElementById("btn-loop");
+  btnSpeedDown = document.getElementById("btn-speed-down");
+  btnSpeedUp = document.getElementById("btn-speed-up");
+  speedDisplay = document.getElementById("speed-display");
+  btnJumpBack = document.getElementById("btn-jump-back");
+  btnJumpFwd = document.getElementById("btn-jump-fwd");
   timeDisplay = document.getElementById("time-display");
   progressBar = document.getElementById("progress-bar");
   statsBar = document.getElementById("stats-bar");
@@ -43,31 +51,40 @@ export function initUI(data) {
     state.currentFrame = 0;
   });
 
-  btnBack5.addEventListener("click", () => {
-    _step(-5);
-  });
-  btnBack3.addEventListener("click", () => {
-    _step(-3);
-  });
-  btnBack1.addEventListener("click", () => {
-    _step(-1);
-  });
-  btnFwd1.addEventListener("click", () => {
-    _step(1);
-  });
-  btnFwd3.addEventListener("click", () => {
-    _step(3);
-  });
-  btnFwd5.addEventListener("click", () => {
-    _step(5);
+  btnLoop.addEventListener("click", () => {
+    state.loop = !state.loop;
+    btnLoop.textContent = state.loop ? "Loop: On" : "Loop: Off";
+    btnLoop.classList.toggle("active", state.loop);
   });
 
-  fpsInput.addEventListener("change", () => {
-    const v = parseInt(fpsInput.value);
-    if (v >= 1 && v <= 120) state.fps = v;
-    else fpsInput.value = state.fps;
+  // Speed controls
+  btnSpeedDown.addEventListener("click", () => {
+    state.fps = Math.max(MIN_FPS, state.fps - FPS_STEP);
+    speedDisplay.textContent = state.fps;
+  });
+  btnSpeedUp.addEventListener("click", () => {
+    state.fps = Math.min(MAX_FPS, state.fps + FPS_STEP);
+    speedDisplay.textContent = state.fps;
   });
 
+  // Jump controls (auto-pause, disable during load)
+  btnJumpBack.addEventListener("click", () => {
+    if (jumpCooldown) return;
+    _pause();
+    state.currentFrame = Math.max(0, state.currentFrame - JUMP_STEP);
+    _startJumpCooldown();
+  });
+  btnJumpFwd.addEventListener("click", () => {
+    if (jumpCooldown) return;
+    _pause();
+    state.currentFrame = Math.min(
+      totalFramesCount - 1,
+      state.currentFrame + JUMP_STEP,
+    );
+    _startJumpCooldown();
+  });
+
+  // Progress bar click
   document
     .getElementById("progress-bar-container")
     .addEventListener("click", (e) => {
@@ -82,14 +99,35 @@ export function initUI(data) {
       );
     });
 
+  speedDisplay.textContent = state.fps;
   _populateGenotype(data);
 }
 
-function _step(delta) {
-  state.currentFrame = Math.max(
-    0,
-    Math.min(totalFramesCount - 1, state.currentFrame + delta),
-  );
+function _pause() {
+  state.playing = false;
+  btnPlayPause.textContent = "Play";
+  btnPlayPause.classList.remove("active");
+}
+
+function _startJumpCooldown() {
+  jumpCooldown = true;
+  btnJumpBack.disabled = true;
+  btnJumpFwd.disabled = true;
+  btnJumpBack.style.opacity = "0.4";
+  btnJumpFwd.style.opacity = "0.4";
+  btnJumpBack.style.cursor = "not-allowed";
+  btnJumpFwd.style.cursor = "not-allowed";
+}
+
+export function signalFrameReady() {
+  if (!jumpCooldown) return;
+  jumpCooldown = false;
+  btnJumpBack.disabled = false;
+  btnJumpFwd.disabled = false;
+  btnJumpBack.style.opacity = "";
+  btnJumpFwd.style.opacity = "";
+  btnJumpBack.style.cursor = "";
+  btnJumpFwd.style.cursor = "";
 }
 
 export function updateUI(frame, totalFrames, cannibalCount, deathCount) {

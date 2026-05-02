@@ -1,18 +1,17 @@
 /**
  * objects.js -- Food, probiotic, O2, fecal, dead fish, pollutant, plant meshes.
- * Objects are sorted so sinking/floating (non-floor) items render first,
- * ensuring the limited mesh pools prioritize visible mid-water action.
+ * Colors: Food=orange, O2=white (40% brighter), Pollutant=darker blue.
  */
 
 import * as THREE from "three";
 
-const MAX_FOOD = 150,
-  MAX_PROBIOTIC = 120,
-  MAX_OXYGEN = 150,
-  MAX_FECAL = 150;
-const MAX_DEAD_FISH = 50,
-  MAX_POLLUTANT = 80,
-  MAX_PLANT = 80;
+const MAX_FOOD = 600,
+  MAX_PROBIOTIC = 100,
+  MAX_OXYGEN = 300,
+  MAX_FECAL = 500;
+const MAX_DEAD_FISH = 100,
+  MAX_POLLUTANT = 500,
+  MAX_PLANT = 200;
 
 let pools = {};
 
@@ -30,6 +29,7 @@ function _pool(scene, n, fn) {
 export function initObjects(sceneCtx, pond) {
   const { scene } = sceneCtx;
 
+  // Food: orange
   pools.food = _pool(
     scene,
     MAX_FOOD,
@@ -37,8 +37,8 @@ export function initObjects(sceneCtx, pond) {
       new THREE.Mesh(
         new THREE.SphereGeometry(0.8, 8, 6),
         new THREE.MeshPhongMaterial({
-          color: 0xffee55,
-          emissive: 0xccaa22,
+          color: 0xff8833,
+          emissive: 0xcc6611,
           emissiveIntensity: 0.2,
         }),
       ),
@@ -62,6 +62,7 @@ export function initObjects(sceneCtx, pond) {
     return g;
   });
 
+  // Oxygen: bright white (40% brighter)
   pools.oxygen = _pool(
     scene,
     MAX_OXYGEN,
@@ -69,11 +70,11 @@ export function initObjects(sceneCtx, pond) {
       new THREE.Mesh(
         new THREE.SphereGeometry(0.5, 8, 6),
         new THREE.MeshPhongMaterial({
-          color: 0x88ccff,
+          color: 0xffffff,
           transparent: true,
-          opacity: 0.45,
-          emissive: 0x88ccff,
-          emissiveIntensity: 0.15,
+          opacity: 0.75,
+          emissive: 0xffffff,
+          emissiveIntensity: 0.35,
         }),
       ),
   );
@@ -120,6 +121,7 @@ export function initObjects(sceneCtx, pond) {
     return g;
   });
 
+  // Pollutant: darker blue
   pools.pollutant = _pool(
     scene,
     MAX_POLLUTANT,
@@ -127,11 +129,11 @@ export function initObjects(sceneCtx, pond) {
       new THREE.Mesh(
         new THREE.OctahedronGeometry(1, 0),
         new THREE.MeshPhongMaterial({
-          color: 0xcc6600,
+          color: 0x4477aa,
           transparent: true,
           opacity: 0.7,
-          emissive: 0xcc6600,
-          emissiveIntensity: 0.15,
+          emissive: 0x334466,
+          emissiveIntensity: 0.1,
         }),
       ),
   );
@@ -169,10 +171,6 @@ export function initObjects(sceneCtx, pond) {
   return { pools };
 }
 
-/**
- * Sort objects so that sinking/floating (mid-water) items come before
- * floor items. Lower z = closer to surface = higher priority.
- */
 function _sortSinkingFirst(arr) {
   arr.sort((a, b) => a.z - b.z);
 }
@@ -192,7 +190,6 @@ export function updateObjects(objectsCtx, frame) {
     if (byType[obj.type]) byType[obj.type].push(obj);
   }
 
-  // Sort sinking/floating objects first (lower z = nearer surface = priority)
   _sortSinkingFirst(byType.food);
   _sortSinkingFirst(byType.probiotic);
   _sortSinkingFirst(byType.fecal);
