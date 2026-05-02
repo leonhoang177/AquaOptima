@@ -4,60 +4,190 @@
   LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA
 ========================================================================
   Fish: 10-49 (evolved)  |  Days: 60  |  Budget: $500.00  |  Workers: 8
-  Ponds/gen: 50  |  Generations: 20  |  Timelines: 1
-  Selection: Elitism(15) + Tournament(K=20)
+  Ponds/gen: 50  |  Generations: 30  |  Timelines: 3
+  Selection: Elitism(10) + Tournament(K=20)
   Parallelism: 8 cores per generation
   Champion: Best pond in last generation
 ========================================================================
 
-  --- Timeline 1/1 ---
+  --- Timeline 1/3 ---
 
-    TL 1 | Gen  1/20 | Best: 0.2838 | OK:  0 | Dead: 23 | Over$: 27 | Reject:  0 | 62.3s
-    TL 1 | Gen  2/20 | Best: 0.3290 | OK:  1 | Dead: 42 | Over$:  7 | Reject:  0 | 76.2s
-    TL 1 | Gen  3/20 | Best: 0.5960 | OK:  9 | Dead: 31 | Over$: 10 | Reject:  0 | 110.5s
-    TL 1 | Gen  4/20 | Best: 0.5771 | OK: 27 | Dead: 19 | Over$:  4 | Reject:  0 | 210.0s
-    TL 1 | Gen  5/20 | Best: 0.6598 | OK: 26 | Dead: 11 | Over$: 13 | Reject:  0 | 211.5s
-    TL 1 | Gen  6/20 | Best: 0.6688 | OK: 32 | Dead:  2 | Over$: 16 | Reject:  0 | 185.8s
-    TL 1 | Gen  7/20 | Best: 0.6027 | OK: 29 | Dead: 10 | Over$: 11 | Reject:  0 | 141.6s
-    TL 1 | Gen  8/20 | Best: 0.6426 | OK: 26 | Dead:  5 | Over$: 19 | Reject:  0 | 129.2s
-    TL 1 | Gen  9/20 | Best: 0.6011 | OK: 25 | Dead: 10 | Over$: 15 | Reject:  0 | 144.6s
-    TL 1 | Gen 10/20 | Best: 0.6691 | OK: 27 | Dead:  7 | Over$: 16 | Reject:  0 | 145.1s
-    TL 1 | Gen 11/20 | Best: 0.6449 | OK: 25 | Dead:  8 | Over$: 17 | Reject:  0 | 144.5s
-    TL 1 | Gen 12/20 | Best: 0.6479 | OK: 29 | Dead: 11 | Over$: 10 | Reject:  0 | 137.0s
-    TL 1 | Gen 13/20 | Best: 0.6677 | OK: 27 | Dead:  7 | Over$: 16 | Reject:  0 | 135.7s
-    TL 1 | Gen 14/20 | Best: 0.6664 | OK: 27 | Dead: 16 | Over$:  7 | Reject:  0 | 129.7s
-    TL 1 | Gen 15/20 | Best: 0.6386 | OK: 29 | Dead:  7 | Over$: 14 | Reject:  0 | 151.3s
-    TL 1 | Gen 16/20 | Best: 0.6426 | OK: 29 | Dead:  9 | Over$: 12 | Reject:  0 | 116.5s
-    TL 1 | Gen 17/20 | Best: 0.6583 | OK: 28 | Dead:  8 | Over$: 14 | Reject:  0 | 146.6s
-    TL 1 | Gen 18/20 | Best: 0.6289 | OK: 27 | Dead: 15 | Over$:  8 | Reject:  0 | 115.6s
-    TL 1 | Gen 19/20 | Best: 0.6377 | OK: 34 | Dead:  8 | Over$:  8 | Reject:  0 | 135.3s
-    TL 1 | Gen 20/20 | Best: 0.6760 | OK: 30 | Dead:  6 | Over$: 14 | Reject:  0 | 196.3s
+    TL 1 | Gen  1/30 | Best: 0.4622 | OK:  2 | Dead: 20 | Over$: 28 | Reject:  0 | 43.1s
+    TL 1 | Gen  2/30 | Best: 0.4751 | OK:  7 | Dead: 34 | Over$:  9 | Reject:  0 | 47.6s
+    TL 1 | Gen  3/30 | Best: 0.4890 | OK: 12 | Dead: 27 | Over$: 11 | Reject:  0 | 50.0s
+    TL 1 | Gen  4/30 | Best: 0.5213 | OK: 14 | Dead: 23 | Over$: 13 | Reject:  0 | 59.3s
+    TL 1 | Gen  5/30 | Best: 0.6113 | OK: 24 | Dead: 15 | Over$: 11 | Reject:  0 | 82.2s
+    TL 1 | Gen  6/30 | Best: 0.6194 | OK: 22 | Dead: 17 | Over$: 11 | Reject:  0 | 88.8s
+    TL 1 | Gen  7/30 | Best: 0.6376 | OK: 19 | Dead: 15 | Over$: 16 | Reject:  0 | 94.1s
+    TL 1 | Gen  8/30 | Best: 0.6137 | OK: 25 | Dead: 11 | Over$: 14 | Reject:  0 | 110.5s
+    TL 1 | Gen  9/30 | Best: 0.6300 | OK: 26 | Dead: 10 | Over$: 14 | Reject:  0 | 91.9s
+    TL 1 | Gen 10/30 | Best: 0.5724 | OK: 26 | Dead:  7 | Over$: 17 | Reject:  0 | 100.3s
+    TL 1 | Gen 11/30 | Best: 0.6235 | OK: 25 | Dead:  9 | Over$: 16 | Reject:  0 | 102.2s
+    TL 1 | Gen 12/30 | Best: 0.5794 | OK: 22 | Dead: 11 | Over$: 17 | Reject:  0 | 113.6s
+    TL 1 | Gen 13/30 | Best: 0.6030 | OK: 30 | Dead: 10 | Over$: 10 | Reject:  0 | 106.4s
+    TL 1 | Gen 14/30 | Best: 0.6328 | OK: 29 | Dead:  9 | Over$: 12 | Reject:  0 | 104.0s
+    TL 1 | Gen 15/30 | Best: 0.6544 | OK: 21 | Dead:  7 | Over$: 22 | Reject:  0 | 96.3s
+    TL 1 | Gen 16/30 | Best: 0.6109 | OK: 34 | Dead: 13 | Over$:  3 | Reject:  0 | 119.3s
+    TL 1 | Gen 17/30 | Best: 0.6572 | OK: 27 | Dead: 10 | Over$: 13 | Reject:  0 | 117.0s
+    TL 1 | Gen 18/30 | Best: 0.6093 | OK: 33 | Dead:  3 | Over$: 14 | Reject:  0 | 121.7s
+    TL 1 | Gen 19/30 | Best: 0.5769 | OK: 23 | Dead: 10 | Over$: 17 | Reject:  0 | 108.9s
+    TL 1 | Gen 20/30 | Best: 0.6637 | OK: 20 | Dead: 13 | Over$: 17 | Reject:  0 | 101.6s
+    TL 1 | Gen 21/30 | Best: 0.6317 | OK: 25 | Dead: 12 | Over$: 13 | Reject:  0 | 110.6s
+    TL 1 | Gen 22/30 | Best: 0.6053 | OK: 24 | Dead: 10 | Over$: 16 | Reject:  0 | 112.4s
+    TL 1 | Gen 23/30 | Best: 0.6343 | OK: 33 | Dead:  8 | Over$:  9 | Reject:  0 | 104.6s
+    TL 1 | Gen 24/30 | Best: 0.6583 | OK: 28 | Dead: 11 | Over$: 11 | Reject:  0 | 96.7s
+    TL 1 | Gen 25/30 | Best: 0.6440 | OK: 31 | Dead:  4 | Over$: 15 | Reject:  0 | 117.4s
+    TL 1 | Gen 26/30 | Best: 0.6737 | OK: 21 | Dead: 12 | Over$: 17 | Reject:  0 | 90.2s
+    TL 1 | Gen 27/30 | Best: 0.6258 | OK: 20 | Dead: 13 | Over$: 17 | Reject:  0 | 104.3s
+    TL 1 | Gen 28/30 | Best: 0.6733 | OK: 25 | Dead: 10 | Over$: 15 | Reject:  0 | 115.2s
+    TL 1 | Gen 29/30 | Best: 0.5870 | OK: 21 | Dead: 10 | Over$: 19 | Reject:  0 | 100.6s
+    TL 1 | Gen 30/30 | Best: 0.6335 | OK: 33 | Dead:  4 | Over$: 13 | Reject:  0 | 141.8s
 
-  Timeline 1 finished (2825.1s) | Fitness=0.6760 | Alive=39/47
+  Timeline 1 finished (2952.9s) | Fitness=0.6335 | Alive=36/42
 
-  Saved /Users/leonh/IT/Personal/AquaOptima/logs/results.csv (1000 rows)
+  --- Timeline 2/3 ---
+
+    TL 2 | Gen  1/30 | Best: 0.2265 | OK:  1 | Dead: 21 | Over$: 28 | Reject:  0 | 51.7s
+    TL 2 | Gen  2/30 | Best: 0.2653 | OK:  1 | Dead: 43 | Over$:  6 | Reject:  0 | 32.1s
+    TL 2 | Gen  3/30 | Best: 0.3561 | OK:  6 | Dead: 26 | Over$: 18 | Reject:  0 | 34.9s
+    TL 2 | Gen  4/30 | Best: 0.4253 | OK: 11 | Dead: 27 | Over$: 12 | Reject:  0 | 48.1s
+    TL 2 | Gen  5/30 | Best: 0.4849 | OK: 17 | Dead: 20 | Over$: 13 | Reject:  0 | 45.4s
+    TL 2 | Gen  6/30 | Best: 0.5197 | OK: 25 | Dead: 13 | Over$: 12 | Reject:  0 | 67.0s
+    TL 2 | Gen  7/30 | Best: 0.5496 | OK: 26 | Dead:  9 | Over$: 15 | Reject:  0 | 104.1s
+    TL 2 | Gen  8/30 | Best: 0.6664 | OK: 26 | Dead:  8 | Over$: 16 | Reject:  0 | 99.0s
+    TL 2 | Gen  9/30 | Best: 0.5811 | OK: 25 | Dead:  9 | Over$: 16 | Reject:  0 | 103.9s
+    TL 2 | Gen 10/30 | Best: 0.5871 | OK: 25 | Dead: 11 | Over$: 14 | Reject:  0 | 87.3s
+    TL 2 | Gen 11/30 | Best: 0.6074 | OK: 37 | Dead:  4 | Over$:  9 | Reject:  0 | 105.2s
+    TL 2 | Gen 12/30 | Best: 0.5700 | OK: 24 | Dead:  6 | Over$: 20 | Reject:  0 | 101.4s
+    TL 2 | Gen 13/30 | Best: 0.5595 | OK: 21 | Dead: 12 | Over$: 17 | Reject:  0 | 90.3s
+    TL 2 | Gen 14/30 | Best: 0.5886 | OK: 26 | Dead: 12 | Over$: 12 | Reject:  0 | 96.1s
+    TL 2 | Gen 15/30 | Best: 0.6204 | OK: 25 | Dead:  8 | Over$: 17 | Reject:  0 | 100.4s
+    TL 2 | Gen 16/30 | Best: 0.5872 | OK: 27 | Dead: 11 | Over$: 12 | Reject:  0 | 104.2s
+    TL 2 | Gen 17/30 | Best: 0.5853 | OK: 26 | Dead: 15 | Over$:  9 | Reject:  0 | 87.4s
+    TL 2 | Gen 18/30 | Best: 0.6018 | OK: 33 | Dead:  7 | Over$: 10 | Reject:  0 | 95.9s
+    TL 2 | Gen 19/30 | Best: 0.6409 | OK: 23 | Dead:  6 | Over$: 21 | Reject:  0 | 103.6s
+    TL 2 | Gen 20/30 | Best: 0.6137 | OK: 22 | Dead: 14 | Over$: 14 | Reject:  0 | 100.5s
+    TL 2 | Gen 21/30 | Best: 0.5926 | OK: 24 | Dead: 15 | Over$: 11 | Reject:  0 | 110.1s
+    TL 2 | Gen 22/30 | Best: 0.6456 | OK: 29 | Dead:  4 | Over$: 17 | Reject:  0 | 116.9s
+    TL 2 | Gen 23/30 | Best: 0.6252 | OK: 26 | Dead:  8 | Over$: 16 | Reject:  0 | 102.9s
+    TL 2 | Gen 24/30 | Best: 0.6238 | OK: 24 | Dead:  9 | Over$: 17 | Reject:  0 | 114.5s
+    TL 2 | Gen 25/30 | Best: 0.6583 | OK: 24 | Dead: 11 | Over$: 15 | Reject:  0 | 122.1s
+    TL 2 | Gen 26/30 | Best: 0.6436 | OK: 23 | Dead:  7 | Over$: 20 | Reject:  0 | 102.0s
+    TL 2 | Gen 27/30 | Best: 0.6339 | OK: 26 | Dead:  8 | Over$: 16 | Reject:  0 | 110.4s
+    TL 2 | Gen 28/30 | Best: 0.6794 | OK: 27 | Dead:  6 | Over$: 17 | Reject:  0 | 127.9s
+    TL 2 | Gen 29/30 | Best: 0.6662 | OK: 26 | Dead: 10 | Over$: 14 | Reject:  0 | 108.5s
+    TL 2 | Gen 30/30 | Best: 0.6637 | OK: 27 | Dead:  9 | Over$: 14 | Reject:  0 | 133.9s
+
+  Timeline 2 finished (2807.6s) | Fitness=0.6637 | Alive=38/47
+
+  --- Timeline 3/3 ---
+
+    TL 3 | Gen  1/30 | Best: 0.3796 | OK:  1 | Dead: 23 | Over$: 26 | Reject:  0 | 51.0s
+    TL 3 | Gen  2/30 | Best: 0.4675 | OK:  4 | Dead: 37 | Over$:  9 | Reject:  0 | 39.1s
+    TL 3 | Gen  3/30 | Best: 0.5581 | OK: 12 | Dead: 30 | Over$:  8 | Reject:  0 | 45.7s
+    TL 3 | Gen  4/30 | Best: 0.5031 | OK: 12 | Dead: 23 | Over$: 15 | Reject:  0 | 63.8s
+    TL 3 | Gen  5/30 | Best: 0.6440 | OK: 21 | Dead: 18 | Over$: 11 | Reject:  0 | 85.5s
+    TL 3 | Gen  6/30 | Best: 0.6181 | OK: 23 | Dead: 16 | Over$: 11 | Reject:  0 | 74.0s
+    TL 3 | Gen  7/30 | Best: 0.6520 | OK: 23 | Dead: 12 | Over$: 15 | Reject:  0 | 106.5s
+    TL 3 | Gen  8/30 | Best: 0.6322 | OK: 29 | Dead:  9 | Over$: 12 | Reject:  0 | 112.8s
+    TL 3 | Gen  9/30 | Best: 0.5914 | OK: 26 | Dead:  7 | Over$: 17 | Reject:  0 | 120.0s
+    TL 3 | Gen 10/30 | Best: 0.6783 | OK: 29 | Dead:  8 | Over$: 13 | Reject:  0 | 113.2s
+    TL 3 | Gen 11/30 | Best: 0.6365 | OK: 24 | Dead:  9 | Over$: 17 | Reject:  0 | 106.2s
+    TL 3 | Gen 12/30 | Best: 0.6205 | OK: 26 | Dead: 12 | Over$: 12 | Reject:  0 | 123.8s
+    TL 3 | Gen 13/30 | Best: 0.6223 | OK: 25 | Dead:  9 | Over$: 16 | Reject:  0 | 122.0s
+    TL 3 | Gen 14/30 | Best: 0.6322 | OK: 24 | Dead: 14 | Over$: 12 | Reject:  0 | 86.8s
+    TL 3 | Gen 15/30 | Best: 0.6194 | OK: 30 | Dead: 11 | Over$:  9 | Reject:  0 | 122.8s
+    TL 3 | Gen 16/30 | Best: 0.6309 | OK: 30 | Dead:  9 | Over$: 11 | Reject:  0 | 117.0s
+    TL 3 | Gen 17/30 | Best: 0.6456 | OK: 22 | Dead: 14 | Over$: 14 | Reject:  0 | 100.7s
+    TL 3 | Gen 18/30 | Best: 0.6445 | OK: 29 | Dead:  6 | Over$: 15 | Reject:  0 | 124.7s
+    TL 3 | Gen 19/30 | Best: 0.6588 | OK: 26 | Dead: 10 | Over$: 14 | Reject:  0 | 99.3s
+    TL 3 | Gen 20/30 | Best: 0.6401 | OK: 24 | Dead: 14 | Over$: 12 | Reject:  0 | 90.9s
+    TL 3 | Gen 21/30 | Best: 0.6886 | OK: 23 | Dead: 14 | Over$: 13 | Reject:  0 | 114.9s
+    TL 3 | Gen 22/30 | Best: 0.6488 | OK: 23 | Dead:  9 | Over$: 18 | Reject:  0 | 123.9s
+    TL 3 | Gen 23/30 | Best: 0.6809 | OK: 21 | Dead: 12 | Over$: 17 | Reject:  0 | 123.3s
+    TL 3 | Gen 24/30 | Best: 0.6093 | OK: 19 | Dead: 11 | Over$: 20 | Reject:  0 | 108.8s
+    TL 3 | Gen 25/30 | Best: 0.6356 | OK: 24 | Dead:  9 | Over$: 17 | Reject:  0 | 111.4s
+    TL 3 | Gen 26/30 | Best: 0.6103 | OK: 20 | Dead:  9 | Over$: 21 | Reject:  0 | 121.5s
+    TL 3 | Gen 27/30 | Best: 0.6486 | OK: 28 | Dead:  9 | Over$: 13 | Reject:  0 | 110.6s
+    TL 3 | Gen 28/30 | Best: 0.6338 | OK: 20 | Dead: 11 | Over$: 19 | Reject:  0 | 144.4s
+    TL 3 | Gen 29/30 | Best: 0.6564 | OK: 25 | Dead:  7 | Over$: 18 | Reject:  0 | 122.2s
+    TL 3 | Gen 30/30 | Best: 0.6328 | OK: 24 | Dead:  9 | Over$: 17 | Reject:  0 | 129.6s
+
+  Timeline 3 finished (3116.3s) | Fitness=0.6328 | Alive=35/48
+
+  Saved /Users/leonh/IT/Personal/AquaOptima/logs/results.csv (4500 rows)
 
   +--------------------------------------------------------+
   |                TL 1 Last Pond Champion                 |
   +------------------------+-------------------------------+
   | Metric                 |                         Value |
   +------------------------+-------------------------------+
-  | Fitness                |                        0.6760 |
-  | Yield                  |                        0.7959 |
-  | Survival Rate          |                        82.98% |
-  | Healthiness            |                        0.9531 |
-  | Saving                 |                       $187.70 |
-  | Cost                   |                       $312.30 |
-  | Alive / Initial        |                       39 / 47 |
+  | Fitness                |                        0.6335 |
+  | Yield                  |                        0.7347 |
+  | Survival Rate          |                        85.71% |
+  | Healthiness            |                        0.9165 |
+  | Saving                 |                       $181.00 |
+  | Cost                   |                       $319.00 |
+  | Alive / Initial        |                       36 / 42 |
+  +------------------------+-------------------------------+
+  | Fish Count             |                            42 |
+  | Food Interval          |                           8 h |
+  | Food Quantity          |                    11 pellets |
+  | Food Location          |                        Random |
+  | Probiotic Interval     |                         144 h |
+  | Probiotic Quantity     |                     1 pellets |
+  | Probiotic Location     |                        Random |
+  | O2 Interval            |                          17 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                        Random |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 2 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.6637 |
+  | Yield                  |                        0.7755 |
+  | Survival Rate          |                        80.85% |
+  | Healthiness            |                        0.9084 |
+  | Saving                 |                       $194.20 |
+  | Cost                   |                       $305.80 |
+  | Alive / Initial        |                       38 / 47 |
   +------------------------+-------------------------------+
   | Fish Count             |                            47 |
-  | Food Interval          |                          10 h |
-  | Food Quantity          |                    14 pellets |
+  | Food Interval          |                          11 h |
+  | Food Quantity          |                    16 pellets |
   | Food Location          |                        Random |
   | Probiotic Interval     |                         108 h |
-  | Probiotic Quantity     |                     3 pellets |
-  | Probiotic Location     |                    Bot-Center |
+  | Probiotic Quantity     |                     2 pellets |
+  | Probiotic Location     |                        Random |
   | O2 Interval            |                          20 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                        Random |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 3 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.6328 |
+  | Yield                  |                        0.7143 |
+  | Survival Rate          |                        72.92% |
+  | Healthiness            |                        0.9358 |
+  | Saving                 |                       $193.35 |
+  | Cost                   |                       $306.65 |
+  | Alive / Initial        |                       35 / 48 |
+  +------------------------+-------------------------------+
+  | Fish Count             |                            48 |
+  | Food Interval          |                           5 h |
+  | Food Quantity          |                     6 pellets |
+  | Food Location          |                        Random |
+  | Probiotic Interval     |                         168 h |
+  | Probiotic Quantity     |                     3 pellets |
+  | Probiotic Location     |                    Top-Center |
+  | O2 Interval            |                          18 h |
   | O2 Duration            |                           1 h |
   | O2 Location            |                        Random |
   +------------------------+-------------------------------+
@@ -69,37 +199,39 @@
   +------------+----------+--------+-----------+-------------+--------------+
   |   Timeline |  Fitness |  Yield |  Survival | Healthiness |       Saving |
   +------------+----------+--------+-----------+-------------+--------------+
-  |          1 |   0.6760 | 0.7959 |    82.98% |      0.9531 | $     187.70 |
+  |          1 |   0.6335 | 0.7347 |    85.71% |      0.9165 | $     181.00 |
+  |          2 |   0.6637 | 0.7755 |    80.85% |      0.9084 | $     194.20 |
+  |          3 |   0.6328 | 0.7143 |    72.92% |      0.9358 | $     193.35 |
   +------------+----------+--------+-----------+-------------+--------------+
 
-  >>> Best overall: Timeline 1 with Fitness = 0.6760
+  >>> Best overall: Timeline 2 with Fitness = 0.6637
 
   +--------------------------------------------------------+
-  |               BEST POND CHAMPION  (TL 1)               |
+  |               BEST POND CHAMPION  (TL 2)               |
   +------------------------+-------------------------------+
   | Metric                 |                         Value |
   +------------------------+-------------------------------+
-  | Fitness                |                        0.6760 |
-  | Yield                  |                        0.7959 |
-  | Survival Rate          |                        82.98% |
-  | Healthiness            |                        0.9531 |
-  | Saving                 |                       $187.70 |
-  | Cost                   |                       $312.30 |
-  | Alive / Initial        |                       39 / 47 |
+  | Fitness                |                        0.6637 |
+  | Yield                  |                        0.7755 |
+  | Survival Rate          |                        80.85% |
+  | Healthiness            |                        0.9084 |
+  | Saving                 |                       $194.20 |
+  | Cost                   |                       $305.80 |
+  | Alive / Initial        |                       38 / 47 |
   +------------------------+-------------------------------+
   | Fish Count             |                            47 |
-  | Food Interval          |                          10 h |
-  | Food Quantity          |                    14 pellets |
+  | Food Interval          |                          11 h |
+  | Food Quantity          |                    16 pellets |
   | Food Location          |                        Random |
   | Probiotic Interval     |                         108 h |
-  | Probiotic Quantity     |                     3 pellets |
-  | Probiotic Location     |                    Bot-Center |
+  | Probiotic Quantity     |                     2 pellets |
+  | Probiotic Location     |                        Random |
   | O2 Interval            |                          20 h |
   | O2 Duration            |                           1 h |
   | O2 Location            |                        Random |
   +------------------------+-------------------------------+
 
-  Total wall time: 2825.1s
+  Total wall time: 8876.8s
 
   Saved /Users/leonh/IT/Personal/AquaOptima/logs/simulation_data.json (1440 frames)
   Open visuals/index.html in browser
@@ -110,7 +242,7 @@
 ============================================================
   Largemouth Bass Aquaculture -- Evolution Plotter
 ============================================================
-  Loaded /Users/leonh/IT/Personal/AquaOptima/logs/results.csv: 1000 rows, 1 timelines, 20 max generations
+  Loaded /Users/leonh/IT/Personal/AquaOptima/logs/results.csv: 4500 rows, 3 timelines, 30 max generations
 
   Generating plots into /Users/leonh/IT/Personal/AquaOptima/plots/...
     Saved /Users/leonh/IT/Personal/AquaOptima/plots/plot_01_fitness_vs_gen.png

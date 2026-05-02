@@ -24,14 +24,14 @@ NUM_WORKERS = None
 
 MAX_BUDGET = 500.0
 AQUACULTURE_DAYS = 60
-POND_GENERATIONS = 20
-RUN_TIMELINES = 1
+POND_GENERATIONS = 30
+RUN_TIMELINES = 3
 POND_POPULATION = 50
 FRAME_SKIP = 1
 EA_CROSSOVER_RATE = 0.80
 EA_MUTATION_RATE = 0.35
-EA_ELITISM_COUNT = max(3, round(0.30 * POND_POPULATION))
-EA_TOURNAMENT_K = max(4, round(0.40 * POND_POPULATION))
+EA_ELITISM_COUNT = max(2, round(0.2 * POND_POPULATION))
+EA_TOURNAMENT_K = max(4, round(0.4 * POND_POPULATION))
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 EA POLICY RANGES                            ║
