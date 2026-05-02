@@ -22,27 +22,28 @@ NUM_WORKERS = None
 # ║                    EA CONFIGURATION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-MAX_BUDGET = 200.0
-AQUACULTURE_DAYS = 20
-POND_GENERATIONS = 5
-RUN_TIMELINES = 2
-POND_POPULATION = 15
+MAX_BUDGET = 500.0
+AQUACULTURE_DAYS = 60
+POND_GENERATIONS = 20
+RUN_TIMELINES = 1
+POND_POPULATION = 50
 FRAME_SKIP = 1
-EA_MUTATION_RATE = 0.25
-EA_ELITISM_COUNT = max(1, round(0.2 * POND_POPULATION))
-EA_TOURNAMENT_K = max(2, round(0.4 * POND_POPULATION))
+EA_CROSSOVER_RATE = 0.80
+EA_MUTATION_RATE = 0.35
+EA_ELITISM_COUNT = max(3, round(0.30 * POND_POPULATION))
+EA_TOURNAMENT_K = max(4, round(0.40 * POND_POPULATION))
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 EA POLICY RANGES                            ║
 # ║  Ranges the EA can explore for genotype parameters.         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FOOD_QUANTITY_RANGE = (6, 30)
-FOOD_INTERVAL_RANGE = (3, 24)
-PROBIOTIC_QUANTITY_RANGE = (1, 5)
+FOOD_QUANTITY_RANGE = (5, 30)
+FOOD_INTERVAL_RANGE = (1, 12)
+PROBIOTIC_QUANTITY_RANGE = (1, 4)
 PROBIOTIC_INTERVAL_STEPS = list(range(24, 169, 12))
 OXYGEN_DURATION_RANGE = (1, 4)
-OXYGEN_INTERVAL_RANGE = (1, 24)
+OXYGEN_INTERVAL_RANGE = (1, 20)
 
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -76,7 +77,7 @@ MAX_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_D
 
 MOUTH_SIZE_RANGE = (3.0, 8.0)
 BODY_SIZE_RANGE = (4.0, 10.0)
-VELOCITY_RANGE = (3.0, 9.0)
+VELOCITY_RANGE = (4.0, 10.0)
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FISH STATS (DYNAMIC)                        ║
@@ -94,16 +95,16 @@ OXYGEN_RANGE = (80.0, 100.0)
 OXYGEN_DECAY = 0.22
 OXYGEN_DECAY_NH3_MULT = 3.0
 OXYGEN_PASSIVE_REGEN = 0.03
-FULLNESS_DECAY = 0.08
-FULLNESS_COST_MOVE = 0.16
+FULLNESS_DECAY = 0.05
+FULLNESS_COST_MOVE = 0.10
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 HEALTH DECAY & REGEN                        ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HEALTH_DECAY_NO_FULLNESS = 2.5
-HEALTH_DECAY_INFECTED = 0.6
-HEALTH_DECAY_PARASITE = 0.8
+HEALTH_DECAY_NO_FULLNESS = 0.8
+HEALTH_DECAY_INFECTED = 0.5
+HEALTH_DECAY_PARASITE = 0.7
 HEALTH_DECAY_IN_NH3 = 0.3
 HEALTH_REGEN = 0.02
 
@@ -111,20 +112,20 @@ HEALTH_REGEN = 0.02
 # ║                 VELOCITY REDUCTION                          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-VELOCITY_HEALTH_THRESHOLD = 0.5
-VELOCITY_FULLNESS_THRESHOLD = 0.5
+VELOCITY_HEALTH_THRESHOLD = 0.40
+VELOCITY_FULLNESS_THRESHOLD = 0.33
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 DISEASE & PARASITE                          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-IMMUNITY_DECAY_IN_DISEASE = 10.0
-IMMUNITY_DECAY_IN_NH3 = 7.0
+IMMUNITY_DECAY_IN_DISEASE = 18.0
+IMMUNITY_DECAY_IN_NH3 = 6.0
 IMMUNITY_REGEN = 0.02
-DISEASE_SELF_CURE_CHANCE = 0.08
+DISEASE_SELF_CURE_CHANCE = 0.05
 PARASITE_CONTACT_CHANCE = 0.35
 PARASITE_FULLNESS_EFFICIENCY = 0.5
-PARASITE_EXTRA_FULLNESS_DRAIN = 2.0
+PARASITE_EXTRA_FULLNESS_DRAIN = 1.0
 PARASITE_VELOCITY_MULT = 0.75
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -132,14 +133,14 @@ PARASITE_VELOCITY_MULT = 0.75
 # ╚══════════════════════════════════════════════════════════════╝
 
 FOOD_VALUE = 5.0
-FOOD_FULLNESS_GAIN = 20.0
+FOOD_FULLNESS_GAIN = 10.0
 FOOD_DRIFT_SPEED = 0.15
 
 PROBIOTIC_VALUE = 3.0
 PROBIOTIC_IMMUNITY_GAIN = 40.0
 PROBIOTIC_DRIFT_SPEED = 0.12
 
-OXYGEN_BUBBLE_GAIN = 30.0
+OXYGEN_BUBBLE_GAIN = 20.0
 OXYGEN_BUBBLE_SPEED = 0.5
 OXYGEN_BUBBLES_PER_PUMP = 10
 
@@ -180,15 +181,15 @@ FECAL_DROP_INTERVAL = 3
 FECAL_BASE_CHANCE = 0.05
 FECAL_VALUE = 3.0
 FECAL_SINK_SPEED = 0.4
-MAX_SINKING_FECAL = 50
+MAX_SINKING_FECAL = 100
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 DEAD FISH                                   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 DEAD_FISH_NH3_RADIUS = 12.0
-DEAD_FISH_FLOAT_CHANCE = 0.40
-DEAD_FISH_FLOAT_DURATION_RANGE = (24, 72)
+DEAD_FISH_FLOAT_CHANCE = 0.45
+DEAD_FISH_FLOAT_DURATION_RANGE = (12, 72)
 DEAD_FISH_FLOAT_SPEED = 0.4
 DEAD_FISH_POLLUTANT_MULT = 3.0
 INFECTED_FISH_DISEASE_RADIUS_MULT = 5.0
@@ -200,7 +201,7 @@ INFECTED_FISH_DISEASE_RADIUS_MULT = 5.0
 CANNIBAL_FULLNESS_THRESHOLD = 0.7
 CANNIBAL_BASE_CHANCE = 0.25
 CANNIBAL_HUNGER_MULT = 0.80
-CANNIBAL_FULLNESS_GAIN_MULT = 2.0
+CANNIBAL_FULLNESS_GAIN_MULT = 3.0
 CANNIBAL_COLLISION_RADIUS_MULT = 1.2
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -269,7 +270,7 @@ PSO_FOOD_WEIGHT = 3.0
 PSO_FOOD_URGENT_MULT = 2.5
 PSO_FOOD_URGENT_THRESHOLD = 0.5
 
-PSO_PROBIOTIC_WEIGHT = 1.5
+PSO_PROBIOTIC_WEIGHT = 1.8
 
 PSO_OXYGEN_WEIGHT = 2.2
 PSO_OXYGEN_CRITICAL_MULT = 2.0
@@ -277,7 +278,7 @@ PSO_OXYGEN_THRESHOLD = 0.7
 PSO_OXYGEN_CRITICAL_THRESHOLD = 0.3
 PSO_OXYGEN_INTERCEPT_STEPS = 3
 
-PSO_SOCIAL_WEIGHT = 2.2
+PSO_SOCIAL_WEIGHT = 2.0
 PSO_SELFISH_WEIGHT = 1.5
 
 PSO_NH3_WEIGHT = 3.5

@@ -12,11 +12,13 @@ from constants import (
     MAX_BUDGET, MAX_FISH_COUNT, AQUACULTURE_DAYS,
     POND_GENERATIONS, RUN_TIMELINES, POND_POPULATION,
     FRAME_SKIP, NUM_WORKERS, RUNTIME, RESULTS_CSV_PATH,
-    EA_ELITISM_COUNT, EA_TOURNAMENT_K, EA_MUTATION_RATE,
+    EA_ELITISM_COUNT, EA_TOURNAMENT_K,
+    EA_CROSSOVER_RATE, EA_MUTATION_RATE,
     FOOD_INTERVAL_RANGE, FOOD_QUANTITY_RANGE,
     PROBIOTIC_QUANTITY_RANGE, PROBIOTIC_INTERVAL_STEPS,
     OXYGEN_INTERVAL_RANGE, OXYGEN_DURATION_RANGE,
 )
+
 from entities import PondGenotype
 from simulate import run_single_pond
 from log import _print_champion_detail, _print_champions_summary
@@ -205,7 +207,10 @@ class EA:
                     while len(new_ponds) < len(ponds):
                         parent_a = _tournament_select(sorted_results, EA_TOURNAMENT_K)
                         parent_b = _tournament_select(sorted_results, EA_TOURNAMENT_K)
-                        child = crossover(parent_a, parent_b)
+                        if random.random() < EA_CROSSOVER_RATE:
+                            child = crossover(parent_a, parent_b)
+                        else:
+                            child = copy.deepcopy(parent_a)
                         mutate(child)
                         new_ponds.append(child)
                     ponds = new_ponds
