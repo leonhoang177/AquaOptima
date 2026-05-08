@@ -15,6 +15,7 @@ import math
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_CSV_PATH = str(PROJECT_ROOT / 'logs' / 'results.csv')
 SIMULATION_JSON_PATH = str(PROJECT_ROOT / 'logs' / 'simulation_data.json')
+EA_LOG_PATH = str(PROJECT_ROOT / 'logs' / 'ea_log.txt')
 PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 NUM_WORKERS = None
 
@@ -22,11 +23,11 @@ NUM_WORKERS = None
 # ║                    EA CONFIGURATION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-MAX_BUDGET = 500.0
-AQUACULTURE_DAYS = 60
-POND_GENERATIONS = 30
+MAX_BUDGET = 200.0
+AQUACULTURE_DAYS = 30
+POND_GENERATIONS = 20
 RUN_TIMELINES = 3
-POND_POPULATION = 50
+POND_POPULATION = 30
 FRAME_SKIP = 1
 EA_CROSSOVER_RATE = 0.80
 EA_MUTATION_RATE = 0.35
@@ -34,16 +35,26 @@ EA_ELITISM_COUNT = max(2, round(0.2 * POND_POPULATION))
 EA_TOURNAMENT_K = max(4, round(0.4 * POND_POPULATION))
 
 # ╔══════════════════════════════════════════════════════════════╗
-# ║                 EA POLICY RANGES                            ║
-# ║  Ranges the EA can explore for genotype parameters.         ║
+# ║              VERIFICATION CONSTANTS (Option F)              ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FOOD_QUANTITY_RANGE = (5, 30)
-FOOD_INTERVAL_RANGE = (1, 12)
-PROBIOTIC_QUANTITY_RANGE = (1, 4)
-PROBIOTIC_INTERVAL_STEPS = list(range(24, 169, 12))
-OXYGEN_DURATION_RANGE = (1, 4)
-OXYGEN_INTERVAL_RANGE = (1, 20)
+VERIFY_MIN_SAMPLES = 3          # Minimum samples for Wilcoxon test
+VERIFY_ALPHA = 0.05             # Significance level
+VERIFY_MAX_CASCADE_DEPTH = 3    # Max candidates to verify in cascade
+VERIFY_SKIP_THRESHOLD = 0.10   # Skip verification if averages differ by this much
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║                 EA POLICY RANGES                            ║
+# ║  Ranges the EA can explore for genotype parameters.         ║
+# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+FOOD_QUANTITY_RANGE = (1, 10)
+FOOD_INTERVAL_RANGE = (1, 24)
+PROBIOTIC_QUANTITY_RANGE = (0, 4)
+PROBIOTIC_INTERVAL_STEPS = list(range(12, 169, 12))
+OXYGEN_DURATION_RANGE = (0, 3)
+OXYGEN_INTERVAL_RANGE = (1, 24)
 
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -58,18 +69,20 @@ W3_HEALTHINESS = 0.12
 # ║                    POND DIMENSIONS                          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-POND_WIDTH = 200.0
-POND_HEIGHT = 75.0
+POND_WIDTH = 180.0
+POND_HEIGHT = 85.0
 POND_DEPTH = 50.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                    FISH POPULATION                          ║
 # ║  MAX_FISH_COUNT scales with pond size via cube-root.        ║
 # ║  FISH_DENSITY_K=0.55 gives ~50 fish for 200×75×50 pond.    ║
+# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FISH_DENSITY_K = 0.55
 MAX_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_DEPTH) ** (1/3)))
+FISH_COUNT = MAX_FISH_COUNT
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FISH TRAITS (FIXED AT BIRTH)                ║

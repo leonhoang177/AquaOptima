@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
 log.py -- Print/table formatting helpers for console output.
+Option A: fish_count is now displayed as a fixed constant, not from genotype.
 """
 
-from constants import LOC_NAMES
+from constants import LOC_NAMES, FISH_COUNT
 
 
 def _print_gen_table(gen, max_gen, n_ponds, gen_results):
@@ -46,7 +47,7 @@ def _print_champion_detail(label: str, result: dict):
     print(f"  | {'Cost':<{LW - 2}} | {'${:.2f}'.format(cost):>{RW}} |")
     print(f"  | {'Alive / Initial':<{LW - 2}} | {'{} / {}'.format(ac, ic):>{RW}} |")
     print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
-    print(f"  | {'Fish Count':<{LW - 2}} | {g.get('fish_count', '?'):>{RW}} |")
+    print(f"  | {'Fish Count (fixed)':<{LW - 2}} | {FISH_COUNT:>{RW}} |")
     print(f"  | {'Food Interval':<{LW - 2}} | {'{} h'.format(g.get('food_interval', '?')):>{RW}} |")
     print(f"  | {'Food Quantity':<{LW - 2}} | {'{} pellets'.format(g.get('food_quantity', '?')):>{RW}} |")
     print(f"  | {'Food Location':<{LW - 2}} | {LOC_NAMES.get(g.get('food_location', -1), '?'):>{RW}} |")

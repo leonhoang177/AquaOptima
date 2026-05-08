@@ -2,6 +2,7 @@
 """
 entities.py -- Simulation entity dataclasses (3D).
 PondGenotype is a pure data container -- EA operations live in ea.py.
+Option A: fish_count removed from genotype (fixed at FISH_COUNT).
 """
 
 from dataclasses import dataclass
@@ -16,7 +17,11 @@ from constants import (
 
 @dataclass
 class PondGenotype:
-    fish_count: int = 30
+    """
+    Genotype for pond management policies.
+    fish_count is NO LONGER part of the genotype (Option A).
+    It is fixed at constants.FISH_COUNT.
+    """
     food_interval: int = 6
     food_quantity: int = 3
     food_location: int = 0
@@ -40,7 +45,6 @@ class PondGenotype:
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in [
-            'fish_count',
             'food_interval', 'food_quantity', 'food_location',
             'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
             'oxygen_interval', 'oxygen_duration', 'oxygen_location']}

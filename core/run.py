@@ -9,6 +9,7 @@ from pathlib import Path
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
     AQUACULTURE_DAYS, SIMULATION_JSON_PATH, PROJECT_ROOT,
+    FISH_COUNT,
 )
 from ea import EA
 
@@ -23,6 +24,7 @@ def main():
             'pond_height': POND_HEIGHT,
             'pond_depth': POND_DEPTH,
             'genotype': champ['genotype'],
+            'fish_count': FISH_COUNT,
             'fitness': champ['fitness'],
             'survival_rate': champ['survival_rate'],
             'avg_healthiness': champ.get('avg_healthiness', 0),

@@ -2,13 +2,14 @@
 """
 pond.py -- PondSim: the aquaculture simulation orchestrator (3D).
 Delegates physics to physics.py and fish behavior to behavior.py.
+Option A: Yield is now alive_count / n0 (survival rate), since fish_count is fixed.
 """
 
 import random, math, copy
 
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
-    W1_YIELD, W2_SAVING, W3_HEALTHINESS, MAX_FISH_COUNT,
+    W1_YIELD, W2_SAVING, W3_HEALTHINESS,
     NUM_OBSTACLES, OBSTACLE_AREA_RANGE, OBSTACLE_ASPECT_RANGE,
     OBSTACLE_MAX_WIDTH, OBSTACLE_MAX_HEIGHT, OBSTACLE_MAX_DEPTH,
     OBSTACLE_DEPTH_RANGE,
@@ -94,7 +95,8 @@ class PondSim:
         cost = self.accum_cost
         saving = max(0, self.max_budget - cost) if not self.budget_exceeded else 0
         saving_ratio = saving / self.max_budget if self.max_budget > 0 else 0
-        yld = len(alive) / MAX_FISH_COUNT
+        # Option A: Yield = survival rate (alive / initial), since fish_count is fixed
+        yld = sr
         fit = (W1_YIELD * yld + W2_SAVING * saving_ratio + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
         return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving': saving,
                 'fitness': fit, 'cost': cost, 'alive_count': len(alive),

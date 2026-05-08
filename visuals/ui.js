@@ -1,6 +1,7 @@
 /**
  * ui.js -- Controls, stats bar, genotype bar.
  * Default speed 7. Loop toggle. Play/Pause before Restart.
+ * Option A: fish_count is a separate field, not part of genotype.
  */
 
 export const state = {
@@ -191,13 +192,15 @@ function _populateGenotype(data) {
       "Right-Center",
       "Random",
     ][v] || "?";
+  // Option A: fish_count is a separate field, not in genotype
+  const fishCount = data.fish_count || "?";
   genotypeBar.innerHTML = `
     <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${data.fitness.toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Yield:</span><span class="geno-chip-value">${(data.yield || 0).toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Survival:</span><span class="geno-chip-value">${(data.survival_rate * 100).toFixed(1)}%</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${data.cost.toFixed(2)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Saving:</span><span class="geno-chip-value">$${(data.saving || 0).toFixed(2)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${g.fish_count}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${fishCount} (fixed)</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">O2:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
