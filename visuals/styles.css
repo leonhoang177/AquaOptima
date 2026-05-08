@@ -126,6 +126,23 @@ button.active {
 }
 
 /* ═══════════════════════════════════════════════
+   DEATH BAR
+   ═══════════════════════════════════════════════ */
+
+#death-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 5px 12px;
+  background: #111e30;
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ═══════════════════════════════════════════════
    GENOTYPE BAR
    ═══════════════════════════════════════════════ */
 

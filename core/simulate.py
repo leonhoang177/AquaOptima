@@ -2,13 +2,12 @@
 """
 simulate.py -- Run a single pond simulation.
 This is the interface point for any decision-maker (EA, LLM, etc.).
-Option A: fish_count is fixed at FISH_COUNT, not part of genotype.
 """
 
 import random
 import time as _time
 
-from constants import MAX_BUDGET, FRAME_SKIP, RUNTIME, FISH_COUNT
+from constants import MAX_BUDGET, FRAME_SKIP, RUNTIME, INITIAL_FISH_COUNT
 from entities import PondGenotype
 from helpers import _make_fish
 from pond import PondSim
@@ -28,7 +27,7 @@ def run_single_pond(geno_dict, runtime=None, max_budget=None,
         frame_skip = FRAME_SKIP
 
     geno = PondGenotype(**geno_dict)
-    fishes = [_make_fish(i) for i in range(FISH_COUNT)]
+    fishes = [_make_fish(i) for i in range(INITIAL_FISH_COUNT)]
     sim = PondSim(geno, fishes, runtime, max_budget, record=record, fskip=frame_skip)
     r = sim.run()
     r['genotype'] = geno_dict

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 plot.py -- Visualize EA evolution from results.csv
-Option A: fish_count is fixed, so fish_count plots are removed.
+All metrics normalized 0.0000 - 1.0000.
 """
 
 import sys, os
@@ -12,7 +12,7 @@ import matplotlib.ticker as mticker
 import matplotlib.colors as mcolors
 from pathlib import Path
 
-from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION, FISH_COUNT
+from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION, INITIAL_FISH_COUNT
 
 CSV_PATH = RESULTS_CSV_PATH
 OUTPUT_DIR = PLOTS_DIR
@@ -64,6 +64,12 @@ GENO_TITLE_SIZE = _BASE_TITLE * _GENO_SCALE
 GENO_TICK_SIZE = _BASE_TICK * _GENO_SCALE
 GENO_LEGEND_SIZE = _BASE_LEGEND * _GENO_SCALE
 
+# Controlled legend opacity for all plots
+LEGEND_OPACITY = 0.4
+
+# Standard decimal formatter: 0.1234
+_FMT_DECIMAL = lambda x, _: f'{x:.4f}'
+
 
 def _apply_theme():
     plt.rcParams.update({
@@ -71,7 +77,7 @@ def _apply_theme():
         'axes.edgecolor': '#333333', 'axes.labelcolor': '#222222',
         'axes.grid': True, 'grid.color': '#dddddd', 'grid.linestyle': '--', 'grid.alpha': 0.7,
         'text.color': '#222222', 'xtick.color': '#333333', 'ytick.color': '#333333',
-        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.7,
+        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': LEGEND_OPACITY,
         'font.size': FONT_SIZE,
         'axes.titlesize': TITLE_SIZE,
         'axes.labelsize': LABEL_SIZE,
@@ -85,13 +91,9 @@ def load_data(path: str) -> pd.DataFrame:
         print(f"  ERROR: File not found: {path}")
         sys.exit(1)
     df = pd.read_csv(path)
-    for col in ['fitness', 'survival_rate', 'healthiness', 'cost', 'saving', 'yield']:
+    for col in ['fitness', 'survival_rate', 'saving_rate', 'healthiness', 'cost']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-    if 'survival_rate' in df.columns:
-        df['survival_pct'] = df['survival_rate'] * 100
-    if 'saving' in df.columns:
-        df['saving_rate'] = df['saving'] / MAX_BUDGET
     print(f"  Loaded {path}: {len(df)} rows, "
           f"{df['timeline'].nunique()} timelines, "
           f"{df['generation'].max()} max generations")
@@ -116,7 +118,7 @@ def _filter_legend_avg_only(ax):
             filtered_l.append(l)
     if filtered_h:
         ax.legend(filtered_h, filtered_l, fontsize=SMALL_LEGEND_SIZE,
-                  loc='best', framealpha=0.7)
+                  loc='best', framealpha=LEGEND_OPACITY)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -226,12 +228,15 @@ def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
     cbar = fig.colorbar(sc, ax=ax, shrink=0.8)
     cbar.set_label('Fitness', fontweight='bold')
     cbar.ax.tick_params(labelsize=TICK_SIZE)
+    cbar.ax.yaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
 
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
     ax.set_title(title, fontweight='bold', pad=12)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(0.1))
     ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
 
     fig.tight_layout(); _save(fig, filename)
 
@@ -275,7 +280,7 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
     ax_qty.set_title(qty_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
     ax_qty.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
     ax_qty.tick_params(labelsize=GENO_TICK_SIZE)
-    ax_qty.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
+    ax_qty.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=LEGEND_OPACITY)
 
     # ── Interval subplot ──
     for tl in timelines:
@@ -295,7 +300,7 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
     ax_int.set_title(int_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
     ax_int.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
     ax_int.tick_params(labelsize=GENO_TICK_SIZE)
-    ax_int.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
+    ax_int.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=LEGEND_OPACITY)
 
     # ── Location subplot (stacked bars: Center vs Random) ──
     gens = sorted(df['generation'].unique())
@@ -334,7 +339,7 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
                         label=f"TL {tl}") for tl in timelines]
     all_handles = tl_handles + texture_handles
     ax_loc.legend(handles=all_handles, fontsize=GENO_LEGEND_SIZE,
-                  loc='best', framealpha=0.7, ncol=min(len(all_handles), 6))
+                  loc='best', framealpha=LEGEND_OPACITY, ncol=min(len(all_handles), 6))
 
     ax_loc.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
     ax_loc.set_ylabel('Location %', fontweight='bold', fontsize=GENO_LABEL_SIZE)
@@ -357,38 +362,37 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
 def plot_fitness(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'fitness', 'Fitness', 'Fitness vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
     fig.tight_layout(); _save(fig, 'plot_01_fitness_vs_gen.png')
 
-def plot_yield(df):
-    if 'yield' not in df.columns: return
+def plot_survival_rate(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    _plot_metric_vs_gen(ax, df, 'yield', 'Yield', 'Yield vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    fig.tight_layout(); _save(fig, 'plot_02_yield_vs_gen.png')
+    _plot_metric_vs_gen(ax, df, 'survival_rate', 'Survival Rate', 'Survival Rate vs Generation',
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
+    fig.tight_layout(); _save(fig, 'plot_02_survival_rate_vs_gen.png')
 
 def plot_saving_rate(df):
     if 'saving_rate' not in df.columns: return
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'saving_rate', 'Saving Rate', 'Saving Rate vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
     fig.tight_layout(); _save(fig, 'plot_03_saving_rate_vs_gen.png')
 
 def plot_healthiness(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'healthiness', 'Healthiness', 'Healthiness vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
     fig.tight_layout(); _save(fig, 'plot_04_healthiness_vs_gen.png')
 
-def plot_yield_vs_saving(df):
-    _plot_pair_fitness(df, 'yield', 'saving_rate', 'Yield', 'Saving Rate',
-                       'Yield vs Saving Rate Heatmap', 'plot_05_yield_vs_saving_heatmap.png')
+def plot_survival_rate_vs_saving_rate(df):
+    _plot_pair_fitness(df, 'survival_rate', 'saving_rate', 'Survival Rate', 'Saving Rate',
+                       'Survival Rate vs Saving Rate Heatmap', 'plot_05_survival_rate_vs_saving_rate_heatmap.png')
 
-def plot_yield_vs_healthiness(df):
-    _plot_pair_fitness(df, 'yield', 'healthiness', 'Yield', 'Healthiness',
-                       'Yield vs Healthiness Heatmap', 'plot_06_yield_vs_healthiness_heatmap.png')
+def plot_survival_rate_vs_healthiness(df):
+    _plot_pair_fitness(df, 'survival_rate', 'healthiness', 'Survival Rate', 'Healthiness',
+                       'Survival Rate vs Healthiness Heatmap', 'plot_06_survival_rate_vs_healthiness_heatmap.png')
 
-def plot_saving_vs_healthiness(df):
+def plot_saving_rate_vs_healthiness(df):
     _plot_pair_fitness(df, 'saving_rate', 'healthiness', 'Saving Rate', 'Healthiness',
                        'Saving Rate vs Healthiness Heatmap', 'plot_07_saving_rate_vs_healthiness_heatmap.png')
 
@@ -456,7 +460,7 @@ def plot_status(df):
     ]
     all_handles = tl_handles + status_handles
     ax.legend(handles=all_handles, fontsize=LEGEND_SIZE,
-              loc='upper left', framealpha=0.7,
+              loc='upper left', framealpha=LEGEND_OPACITY,
               ncol=min(len(all_handles), 5))
 
     ax.set_xlabel('Generation', fontweight='bold')
@@ -477,24 +481,23 @@ def plot_champion_comparison(df):
     fig_w = max(SINGLE_FIG_SIZE[0], n_timelines * 4 + 4)
     fig, ax = plt.subplots(figsize=(fig_w, SINGLE_FIG_SIZE[1]))
 
-    best_fit, best_yld, best_hlth, best_sav_rate, labels = [], [], [], [], []
+    best_fit, best_sr, best_hlth, best_sav_rate, labels = [], [], [], [], []
     for tl in timelines:
         sdf = df[df['timeline'] == tl]
         last_gen = sdf['generation'].max()
         last_df = sdf[sdf['generation'] == last_gen]
         row = last_df.loc[last_df['fitness'].idxmax()]
         best_fit.append(row['fitness'])
-        best_yld.append(row.get('yield', 0))
+        best_sr.append(row.get('survival_rate', 0))
         best_hlth.append(row['healthiness'])
-        sav = row.get('saving', 0)
-        best_sav_rate.append(sav / MAX_BUDGET if MAX_BUDGET > 0 else 0)
+        best_sav_rate.append(row.get('saving_rate', 0))
         labels.append(f"TL {tl}")
     x = np.arange(n_timelines); w = 0.18
 
-    b1 = ax.bar(x - 1.5*w, best_fit,      w, label='Fitness',     color='#1f77b4', alpha=0.9, edgecolor='white')
-    b2 = ax.bar(x - 0.5*w, best_yld,      w, label='Yield',       color='#2ca02c', alpha=0.9, edgecolor='white')
-    b3 = ax.bar(x + 0.5*w, best_sav_rate,  w, label='Saving Rate', color='#9467bd', alpha=0.9, edgecolor='white')
-    b4 = ax.bar(x + 1.5*w, best_hlth,      w, label='Healthiness', color='#ff7f0e', alpha=0.9, edgecolor='white')
+    b1 = ax.bar(x - 1.5*w, best_fit,       w, label='Fitness',       color='#1f77b4', alpha=0.9, edgecolor='white')
+    b2 = ax.bar(x - 0.5*w, best_sr,         w, label='Survival Rate', color='#2ca02c', alpha=0.9, edgecolor='white')
+    b3 = ax.bar(x + 0.5*w, best_sav_rate,   w, label='Saving Rate',   color='#9467bd', alpha=0.9, edgecolor='white')
+    b4 = ax.bar(x + 1.5*w, best_hlth,       w, label='Healthiness',   color='#ff7f0e', alpha=0.9, edgecolor='white')
 
     # Show fitness values on all bars
     best_tl_idx = int(np.argmax(best_fit))
@@ -521,9 +524,10 @@ def plot_champion_comparison(df):
     ax.set_xlabel('Timeline', fontweight='bold')
     ax.set_ylabel('Score (0 - 1)', fontweight='bold')
     ax.set_title('Champion Comparison', fontweight='bold', pad=12)
-    ax.legend(fontsize=CHAMPION_LEGEND_SIZE, loc='upper left', framealpha=0.7, ncol=4)
+    ax.legend(fontsize=CHAMPION_LEGEND_SIZE, loc='upper left', framealpha=LEGEND_OPACITY, ncol=4)
     ax.set_ylim(0, 1.25)
     ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
     fig.tight_layout(); _save(fig, 'plot_12_champion_comparison.png')
 
 
@@ -540,13 +544,13 @@ def main():
     print(f"\n  Generating plots into {OUTPUT_DIR}/...")
 
     plot_fitness(df)
-    plot_yield(df)
+    plot_survival_rate(df)
     plot_saving_rate(df)
     plot_healthiness(df)
 
-    plot_yield_vs_saving(df)
-    plot_yield_vs_healthiness(df)
-    plot_saving_vs_healthiness(df)
+    plot_survival_rate_vs_saving_rate(df)
+    plot_survival_rate_vs_healthiness(df)
+    plot_saving_rate_vs_healthiness(df)
 
     plot_food_genotype(df)
     plot_probiotic_genotype(df)

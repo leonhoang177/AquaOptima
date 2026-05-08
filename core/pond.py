@@ -2,15 +2,18 @@
 """
 pond.py -- PondSim: the aquaculture simulation orchestrator (3D).
 Delegates physics to physics.py and fish behavior to behavior.py.
-Option A: Yield is now alive_count / n0 (survival rate), since fish_count is fixed.
 Tracks death_events with reasons per timestep.
+
+Fitness = W1_SURVIVAL_RATE * survival_rate
+        + W2_SAVING_RATE   * saving_rate
+        + W3_HEALTHINESS   * healthiness
 """
 
 import random, math, copy
 
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
-    W1_YIELD, W2_SAVING, W3_HEALTHINESS,
+    W1_SURVIVAL_RATE, W2_SAVING_RATE, W3_HEALTHINESS,
     NUM_OBSTACLES, OBSTACLE_AREA_RANGE, OBSTACLE_ASPECT_RANGE,
     OBSTACLE_MAX_WIDTH, OBSTACLE_MAX_HEIGHT, OBSTACLE_MAX_DEPTH,
     OBSTACLE_DEPTH_RANGE,
@@ -99,14 +102,11 @@ class PondSim:
         sr = len(alive) / self.n0 if self.n0 else 0
         hlth = sum(f.norm_stats() for f in alive) / len(alive) if alive else 0
         cost = self.accum_cost
-        saving = max(0, self.max_budget - cost) if not self.budget_exceeded else 0
-        saving_ratio = saving / self.max_budget if self.max_budget > 0 else 0
-        # Option A: Yield = survival rate (alive / initial), since fish_count is fixed
-        yld = sr
-        fit = (W1_YIELD * yld + W2_SAVING * saving_ratio + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
-        return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving': saving,
+        saving_rate = max(0, self.max_budget - cost) / self.max_budget if self.max_budget > 0 and not self.budget_exceeded else 0
+        fit = (W1_SURVIVAL_RATE * sr + W2_SAVING_RATE * saving_rate + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
+        return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving_rate': saving_rate,
                 'fitness': fit, 'cost': cost, 'alive_count': len(alive),
-                'initial_count': self.n0, 'yield': yld, 'frames': self.frames,
+                'initial_count': self.n0, 'frames': self.frames,
                 'genotype': self.geno.to_dict(), 'budget_exceeded': self.budget_exceeded}
 
     def _step(self):

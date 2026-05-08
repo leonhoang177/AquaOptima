@@ -15,7 +15,7 @@ import math
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_CSV_PATH = str(PROJECT_ROOT / 'logs' / 'results.csv')
 SIMULATION_JSON_PATH = str(PROJECT_ROOT / 'logs' / 'simulation_data.json')
-EA_LOG_PATH = str(PROJECT_ROOT / 'logs' / 'ea_log.txt')
+DEMO_LOG_PATH = str(PROJECT_ROOT / 'logs' / 'demo.txt')
 PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 NUM_WORKERS = None
 
@@ -23,10 +23,10 @@ NUM_WORKERS = None
 # ║                    EA CONFIGURATION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-AQUACULTURE_DAYS = 30
-POND_GENERATIONS = 20
-RUN_TIMELINES = 10
-POND_POPULATION = 20
+AQUACULTURE_DAYS = 10
+POND_GENERATIONS = 3
+RUN_TIMELINES = 3
+POND_POPULATION = 3
 FRAME_SKIP = 1
 EA_CROSSOVER_RATE = 0.80
 EA_MUTATION_RATE = 0.25
@@ -45,7 +45,6 @@ VERIFY_SKIP_THRESHOLD = 0.10    # Skip verification if averages differ this much
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 EA POLICY RANGES                            ║
 # ║  Ranges the EA can explore for genotype parameters.         ║
-# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FOOD_QUANTITY_RANGE = (1, 10)
@@ -61,10 +60,12 @@ LOCATION_OPTIONS = [0, 9]
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FITNESS WEIGHTS                             ║
+# ║  fitness = W1 * survival_rate + W2 * saving_rate            ║
+# ║          + W3 * healthiness                                 ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-W1_YIELD = 0.55
-W2_SAVING = 0.33
+W1_SURVIVAL_RATE = 0.55
+W2_SAVING_RATE = 0.33
 W3_HEALTHINESS = 0.12
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -77,14 +78,12 @@ POND_DEPTH = 50.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                    FISH POPULATION                          ║
-# ║  MAX_FISH_COUNT scales with pond size via cube-root.        ║
+# ║  INITIAL_FISH_COUNT scales with pond size via cube-root.    ║
 # ║  FISH_DENSITY_K=0.55 gives ~50 fish for 200×75×50 pond.    ║
-# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FISH_DENSITY_K = 0.55
-MAX_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_DEPTH) ** (1/3)))
-FISH_COUNT = MAX_FISH_COUNT
+INITIAL_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_DEPTH) ** (1/3)))
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FISH TRAITS (FIXED AT BIRTH)                ║
@@ -166,7 +165,7 @@ OXYGEN_BUBBLES_PER_PUMP = 10
 FOOD_PRICE = 0.10
 PROBIOTIC_PRICE = 0.50
 OXYGEN_PRICE = 1.50
-MAX_BUDGET = 500
+MAX_BUDGET = 1000
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 OBJECT LIFETIMES (TIMESTEPS)                ║

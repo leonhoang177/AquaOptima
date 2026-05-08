@@ -14,16 +14,20 @@ TL1 gets all cores; TL2/TL3 fill idle gaps.
 Results are stored per-timeline and logged sequentially at the end.
 
 Dual output:
-    - Console: real-time interleaved progress
-    - Log file: clean sequential output (all TL1, then TL2, etc.)
+    - Console: real-time interleaved progress (also mirrored to demo.txt)
+    - Log file: demo.txt captures all terminal output
 
-Options A/E/F:
-    A: fish_count fixed at FISH_COUNT (not in genotype)
+Fitness = W1_SURVIVAL_RATE * survival_rate
+        + W2_SAVING_RATE   * saving_rate
+        + W3_HEALTHINESS   * healthiness
+
+Options:
+    A: fish_count fixed at INITIAL_FISH_COUNT (not in genotype)
     E: Memory-based fitness accumulation per timeline
     F: Wilcoxon-verified tournament selection with cascade
 """
 
-import random, copy, csv, time as _time, multiprocessing, hashlib, json, threading, os
+import random, copy, csv, time as _time, multiprocessing, hashlib, json, threading, os, sys
 from collections import defaultdict
 from queue import Queue, Empty
 from concurrent.futures import ProcessPoolExecutor
@@ -32,7 +36,7 @@ import heapq
 from scipy.stats import mannwhitneyu
 
 from constants import (
-    MAX_BUDGET, FISH_COUNT, AQUACULTURE_DAYS,
+    MAX_BUDGET, INITIAL_FISH_COUNT, AQUACULTURE_DAYS,
     POND_GENERATIONS, RUN_TIMELINES, POND_POPULATION,
     FRAME_SKIP, NUM_WORKERS, RUNTIME, RESULTS_CSV_PATH,
     EA_ELITISM_COUNT, EA_TOURNAMENT_K,
@@ -42,12 +46,37 @@ from constants import (
     OXYGEN_INTERVAL_RANGE, OXYGEN_DURATION_RANGE,
     VERIFY_MIN_SAMPLES, VERIFY_ALPHA,
     VERIFY_MAX_CASCADE_DEPTH, VERIFY_SKIP_THRESHOLD,
-    EA_LOG_PATH, LOCATION_OPTIONS,
+    DEMO_LOG_PATH, LOCATION_OPTIONS,
 )
 
 from entities import PondGenotype
 from simulate import run_single_pond
 from log import _print_champion_detail, _print_champions_summary
+
+
+# ════════════════════════════════════════════════════════════════
+# TEE LOGGER — mirrors all print output to demo.txt
+# ════════════════════════════════════════════════════════════════
+
+class TeeLogger:
+    """Write to both stdout and a log file simultaneously."""
+    def __init__(self, filepath):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self.file = open(filepath, 'w', encoding='utf-8')
+        self.stdout = sys.stdout
+
+    def write(self, msg):
+        self.stdout.write(msg)
+        self.file.write(msg)
+        self.file.flush()
+
+    def flush(self):
+        self.stdout.flush()
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+        sys.stdout = self.stdout
 
 
 # ════════════════════════════════════════════════════════════════
@@ -80,7 +109,7 @@ def _perturb_choice(value, choices, n_steps):
 
 
 # ════════════════════════════════════════════════════════════════
-# EA GENOTYPE OPERATIONS (Option A: no fish_count)
+# EA GENOTYPE OPERATIONS
 # ════════════════════════════════════════════════════════════════
 
 def random_genotype() -> PondGenotype:
@@ -140,8 +169,8 @@ def mutate(geno: PondGenotype):
 
 CSV_HEADER = [
     'timeline', 'generation', 'pond', 'status',
-    'fitness', 'survival_rate', 'healthiness', 'cost',
-    'saving', 'yield', 'alive_count', 'initial_count',
+    'fitness', 'survival_rate', 'saving_rate', 'healthiness', 'cost',
+    'alive_count', 'initial_count',
     'food_interval', 'food_quantity', 'food_location',
     'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
     'oxygen_interval', 'oxygen_duration', 'oxygen_location',
@@ -151,9 +180,11 @@ CSV_HEADER = [
 def _csv_row_data(tl_idx, gen_idx, pond_idx, status, result, geno_dict):
     return [
         tl_idx + 1, gen_idx + 1, pond_idx, status,
-        f"{result.get('fitness', 0):.4f}", f"{result.get('survival_rate', 0):.4f}",
-        f"{result.get('avg_healthiness', 0):.4f}", f"{result.get('cost', 0):.2f}",
-        f"{result.get('saving', 0):.2f}", f"{result.get('yield', 0):.4f}",
+        f"{result.get('fitness', 0):.4f}",
+        f"{result.get('survival_rate', 0):.4f}",
+        f"{result.get('saving_rate', 0):.4f}",
+        f"{result.get('avg_healthiness', 0):.4f}",
+        f"{result.get('cost', 0):.2f}",
         result.get('alive_count', 0), result.get('initial_count', 0),
         geno_dict.get('food_interval', ''), geno_dict.get('food_quantity', ''),
         geno_dict.get('food_location', ''), geno_dict.get('probiotic_interval', ''),
@@ -510,17 +541,16 @@ class TimelineState:
         self.finished = False
         self.csv_rows = []
         self.champion = None
-        self.log_lines = []
 
-        # Timing — core-time based
-        self.gen_core_time = {}       # gen → cumulative core-seconds
-        self.total_core_time = 0.0    # cumulative core-seconds across all gens
+        # Timing
+        self.gen_run_time = {}        # gen → cumulative run-seconds
+        self.total_run_time = 0.0     # cumulative run-seconds across all gens
 
         # Diagnostics — wall-clock for overlap detection
         self.first_sim_start = None   # wall-clock: first sim actually started
         self.last_ver_complete = None  # wall-clock: last ver completed
 
-    def _fmt_core_time(self, seconds):
+    def _fmt_run_time(self, seconds):
         if seconds < 60:
             return f"{seconds:.1f}s"
         return f"{seconds / 60:.1f}m"
@@ -535,14 +565,18 @@ class EA:
         self.runtime = RUNTIME
 
     def run(self, record_best=True):
+        # Start tee logger — mirrors all print output to demo.txt
+        tee = TeeLogger(DEMO_LOG_PATH)
+        sys.stdout = tee
+
         wall_start = _time.time()
         workers = NUM_WORKERS or max(1, multiprocessing.cpu_count())
 
         print(f"\n{'=' * 72}")
         print(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA")
         print(f"{'=' * 72}")
-        print(f"  Fish: {FISH_COUNT} (fixed)  |  Days: {AQUACULTURE_DAYS}  |  "
-              f"Budget: ${MAX_BUDGET:.2f}  |  Workers: {workers}")
+        print(f"  Initial Fish: {INITIAL_FISH_COUNT}  |  Days: {AQUACULTURE_DAYS}  |  "
+              f"Budget: ${MAX_BUDGET:.2f}")
         print(f"  Ponds/gen: {POND_POPULATION}  |  Generations: {POND_GENERATIONS}  |  "
               f"Timelines: {RUN_TIMELINES}")
         print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified Tournament(K={EA_TOURNAMENT_K})")
@@ -552,6 +586,7 @@ class EA:
         print(f"  Location: Binary (Center/Random)")
         print(f"  Parallelism: {workers} cores, persistent pool, priority scheduling")
         print(f"  Champion: Best pond in last generation")
+        print(f"  Worker Cores: {workers}")
         print(f"{'=' * 72}")
 
         pool = PriorityPool(max_workers=workers)
@@ -588,34 +623,23 @@ class EA:
 
         pool.shutdown()
 
-        # ── Collect results and print sequentially ──
+        # ── Collect results ──
         all_csv_rows = []
         timeline_champions = []
 
         for tl in timelines:
             all_csv_rows.extend(tl.csv_rows)
 
-            # Print stored log lines
-            print(f"\n  --- Timeline {tl.tl_idx + 1}/{RUN_TIMELINES} ---\n")
-            for line in tl.log_lines:
-                print(line)
-
             champ = tl.champion
             if champ:
                 champ['timeline_idx'] = tl.tl_idx
                 timeline_champions.append(champ)
-                tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
-                core_str = tl._fmt_core_time(tl.total_core_time)
-                print(f"\n  Timeline {tl.tl_idx + 1} finished ({core_str} core) | "
-                      f"Fitness={champ['fitness']:.4f} | "
-                      f"Alive={champ.get('alive_count', 0)}/{champ.get('initial_count', 0)}{tag}")
             else:
                 timeline_champions.append({
                     'timeline_idx': tl.tl_idx, 'fitness': 0, 'survival_rate': 0,
-                    'avg_healthiness': 0, 'saving': 0, 'cost': 0, 'yield': 0,
+                    'avg_healthiness': 0, 'saving_rate': 0, 'cost': 0,
                     'genotype': random_genotype().to_dict(), 'frames': [],
                     'alive_count': 0, 'initial_count': 0, 'is_latest_dead': True})
-                print(f"\n  Timeline {tl.tl_idx + 1}: No survivors.")
 
         # ── Save CSV ──
         os.makedirs(os.path.dirname(RESULTS_CSV_PATH), exist_ok=True)
@@ -641,7 +665,7 @@ class EA:
 
         if not valid:
             print(f"\n{'=' * 72}\n  No valid champions.\n{'=' * 72}")
-            self._write_log_file(timelines, timeline_champions, wall_start)
+            tee.close()
             return None
 
         print(f"\n{'=' * 72}")
@@ -663,8 +687,10 @@ class EA:
         # ── Diagnostics ──
         self._print_diagnostics(timelines, wall_start)
 
-        # ── Write log file ──
-        self._write_log_file(timelines, timeline_champions, wall_start)
+        print(f"\n  Saved {DEMO_LOG_PATH}")
+
+        # Close tee logger
+        tee.close()
 
         return champ
 
@@ -676,7 +702,7 @@ class EA:
         """Submit all pond simulations for the current generation."""
         tl.gen_results = []
         tl.sim_pending = 0
-        tl.gen_core_time[tl.gen] = 0.0
+        tl.gen_run_time[tl.gen] = 0.0
 
         is_last = (tl.gen == POND_GENERATIONS - 1)
         do_rec = is_last  # only record frames on last generation
@@ -685,10 +711,10 @@ class EA:
             # Gatekeeper check
             if geno.per_cycle_cost() > MAX_BUDGET:
                 r = {'fitness': 0.0, 'survival_rate': 0, 'avg_healthiness': 0,
-                     'saving': 0, 'cost': geno.total_cost(self.runtime), 'yield': 0,
+                     'saving_rate': 0, 'cost': geno.total_cost(self.runtime),
                      'genotype_obj': geno, 'genotype': geno.to_dict(),
                      'frames': [], 'budget_exceeded': True,
-                     'alive_count': 0, 'initial_count': FISH_COUNT,
+                     'alive_count': 0, 'initial_count': INITIAL_FISH_COUNT,
                      'status': 'GATEKEEPER', '_worker_elapsed': 0}
                 tl.gen_results.append(r)
                 tl.memory.record(geno, 0.0)
@@ -714,12 +740,12 @@ class EA:
     def _handle_sim_result(self, tl, tag, result, pool):
         _, tl_idx, gen_idx, p_idx = tag
 
-        # Track core-time
+        # Track run time
         elapsed = result.get('_worker_elapsed', 0)
-        if gen_idx not in tl.gen_core_time:
-            tl.gen_core_time[gen_idx] = 0.0
-        tl.gen_core_time[gen_idx] += elapsed
-        tl.total_core_time += elapsed
+        if gen_idx not in tl.gen_run_time:
+            tl.gen_run_time[gen_idx] = 0.0
+        tl.gen_run_time[gen_idx] += elapsed
+        tl.total_run_time += elapsed
 
         # Track wall-clock start for diagnostics
         worker_start = result.get('_worker_start_time', 0)
@@ -789,12 +815,12 @@ class EA:
     def _handle_ver_result(self, tl, tag, result, pool):
         _, tl_idx, gen_idx, geno_key = tag
 
-        # Track core-time
+        # Track run time
         elapsed = result.get('_worker_elapsed', 0)
-        if gen_idx not in tl.gen_core_time:
-            tl.gen_core_time[gen_idx] = 0.0
-        tl.gen_core_time[gen_idx] += elapsed
-        tl.total_core_time += elapsed
+        if gen_idx not in tl.gen_run_time:
+            tl.gen_run_time[gen_idx] = 0.0
+        tl.gen_run_time[gen_idx] += elapsed
+        tl.total_run_time += elapsed
 
         # Track wall-clock completion for diagnostics
         tl.last_ver_complete = _time.time()
@@ -819,9 +845,7 @@ class EA:
         gen = tl.gen
 
         # Log verification count
-        ver_line = f"           Verification: {mgr.total_ver_evals} extra evals (async)"
-        tl.log_lines.append(ver_line)
-        print(f"    {ver_line.strip()}")
+        print(f"\t  Extra Verification: {mgr.total_ver_evals} (async)")
 
         # Build next generation: elites + children
         sorted_results = tl.gen_results
@@ -870,37 +894,35 @@ class EA:
         fit = champ['fitness'] if champ else 0
         alive = champ.get('alive_count', 0) if champ else 0
         init = champ.get('initial_count', 0) if champ else 0
-        core_str = tl._fmt_core_time(tl.total_core_time)
-        line = (f"    [TL {tl.tl_idx + 1}] ✓ Finished ({core_str} core) | "
-                f"Fitness={fit:.4f} | Alive={alive}/{init}{tag}")
-        tl.log_lines.append(line)
-        print(line)
+        run_str = tl._fmt_run_time(tl.total_run_time)
+        print(f"    [TL {tl.tl_idx + 1}] ✓ Finished ({run_str}) | "
+              f"Fitness={fit:.4f} | Alive={alive}/{init}{tag}")
 
     # ────────────────────────────────────────────────────────────
     # LOGGING
     # ────────────────────────────────────────────────────────────
 
     def _log_gen(self, tl, gen):
-        """Log a generation's results — console (real-time) + stored for file."""
+        """Log a generation's results to console (mirrored to demo.txt via TeeLogger)."""
         sorted_results = tl.gen_results
         best_fit = sorted_results[0]['fitness'] if sorted_results else 0
+        avg_fit = (sum(r.get('fitness', 0) for r in sorted_results) / len(sorted_results)
+                   if sorted_results else 0)
         n_ok = sum(1 for r in sorted_results if r.get('status') == 'OK')
         n_dead = sum(1 for r in sorted_results if r.get('status') == 'ALL-DEAD')
         n_over = sum(1 for r in sorted_results if r.get('status') == 'OVER-BUDGET')
         n_gate = sum(1 for r in sorted_results if r.get('status') == 'GATEKEEPER')
 
-        gen_core = tl.gen_core_time.get(gen, 0)
-        total_core = tl.total_core_time
+        gen_run = tl.gen_run_time.get(gen, 0)
+        total_run = tl.total_run_time
 
-        gen_core_str = f"{gen_core:.1f}s"
-        total_core_str = tl._fmt_core_time(total_core)
+        gen_run_str = f"{gen_run:.1f}s"
+        total_run_str = tl._fmt_run_time(total_run)
 
-        line = (f"    [TL {tl.tl_idx + 1}] Gen {gen + 1:>2}/{POND_GENERATIONS} | "
-                f"Best(avg): {best_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
-                f"Over$: {n_over:>2} | Reject: {n_gate:>2} | "
-                f"{gen_core_str} (core) | Total: {total_core_str} (core)")
-        tl.log_lines.append(line)
-        print(line)
+        print(f"    [TL {tl.tl_idx + 1}] Gen {gen + 1:>2}/{POND_GENERATIONS} | "
+              f"Best: {best_fit:.4f} | Avg: {avg_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
+              f"Over$: {n_over:>2} | Reject: {n_gate:>2} | "
+              f"{gen_run_str} | Total: {total_run_str}")
 
     # ────────────────────────────────────────────────────────────
     # DIAGNOSTICS
@@ -913,9 +935,9 @@ class EA:
         for tl in timelines:
             first = tl.first_sim_start - wall_start if tl.first_sim_start else 0
             last = tl.last_ver_complete - wall_start if tl.last_ver_complete else 0
-            core_str = tl._fmt_core_time(tl.total_core_time)
+            run_str = tl._fmt_run_time(tl.total_run_time)
             print(f"    TL {tl.tl_idx + 1}: First Sim started @ {first:.1f}s  |  "
-                  f"Last Ver completed @ {last:.1f}s  |  Core time: {core_str}")
+                  f"Last Ver completed @ {last:.1f}s  |  Run time: {run_str}")
 
         for i in range(len(timelines) - 1):
             a = timelines[i]
@@ -934,37 +956,3 @@ class EA:
                           f"{dur:.1f}s)")
                 else:
                     print(f"    ✗ TL {a.tl_idx + 1} and TL {b.tl_idx + 1}: No overlap")
-
-    # ────────────────────────────────────────────────────────────
-    # LOG FILE
-    # ────────────────────────────────────────────────────────────
-
-    def _write_log_file(self, timelines, timeline_champions, wall_start):
-        """Write clean sequential log to file."""
-        os.makedirs(os.path.dirname(EA_LOG_PATH), exist_ok=True)
-        with open(EA_LOG_PATH, 'w') as f:
-            f.write(f"{'=' * 72}\n")
-            f.write(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- EA LOG\n")
-            f.write(f"{'=' * 72}\n\n")
-
-            for tl in timelines:
-                f.write(f"  --- Timeline {tl.tl_idx + 1}/{RUN_TIMELINES} ---\n\n")
-                for line in tl.log_lines:
-                    f.write(f"{line}\n")
-                f.write(f"\n")
-
-            # Diagnostics
-            f.write(f"\n  {'=' * 60}\n")
-            f.write(f"  TIMELINE OVERLAP DIAGNOSTICS\n")
-            f.write(f"  {'=' * 60}\n")
-            for tl in timelines:
-                first = tl.first_sim_start - wall_start if tl.first_sim_start else 0
-                last = tl.last_ver_complete - wall_start if tl.last_ver_complete else 0
-                core_str = tl._fmt_core_time(tl.total_core_time)
-                f.write(f"    TL {tl.tl_idx + 1}: First Sim started @ {first:.1f}s  |  "
-                        f"Last Ver completed @ {last:.1f}s  |  Core time: {core_str}\n")
-
-            wall_elapsed = _time.time() - wall_start
-            f.write(f"\n  Total wall time: {wall_elapsed:.1f}s\n")
-
-        print(f"  Saved {EA_LOG_PATH}")
