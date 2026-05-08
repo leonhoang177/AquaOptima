@@ -2,6 +2,7 @@
  * ui.js -- Controls, stats bar, genotype bar.
  * Default speed 7. Loop toggle. Play/Pause before Restart.
  * Option A: fish_count is a separate field, not part of genotype.
+ * Death reason tracking: suffocated, starved, weakened, sick, parasited, cannibalized.
  */
 
 export const state = {
@@ -131,9 +132,16 @@ export function signalFrameReady() {
   btnJumpFwd.style.cursor = "";
 }
 
-export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
-  cannibalCount = cannibalCount || 0;
-  deathCount = deathCount || 0;
+export function updateUI(frame, totalFrames, deathReasons) {
+  deathReasons = deathReasons || {};
+  const deaths = deathReasons.deaths || 0;
+  const suffocated = deathReasons.suffocated || 0;
+  const starved = deathReasons.starved || 0;
+  const weakened = deathReasons.weakened || 0;
+  const sick = deathReasons.sick || 0;
+  const parasited = deathReasons.parasited || 0;
+  const cannibalized = deathReasons.cannibalized || 0;
+
   const p2 = (n) => String(n).padStart(2, "0");
   const p4 = (n) => String(n).padStart(4, "0");
   timeDisplay.textContent = `Day ${p2(frame.day)} | Hour ${p2(frame.hour)} | Frame ${p4(state.currentFrame + 1)}/${p4(totalFrames)}`;
@@ -166,13 +174,19 @@ export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
     <div class="stat-chip"><span class="stat-chip-label">Health</span><span class="stat-chip-value">${fm(sH)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">O2</span><span class="stat-chip-value">${fm(sO)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">O₂</span><span class="stat-chip-value">${fm(sO)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Infected</span><span class="stat-chip-value">${nInf}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Parasitized</span><span class="stat-chip-value">${nPar}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">Deaths</span><span class="stat-chip-value">${deathCount}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">Cannibalized</span><span class="stat-chip-value">${cannibalCount}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Objects</span><span class="stat-chip-value">${frame.objects.length}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Hazards</span><span class="stat-chip-value">${frame.hazards.length}</span></div>
+    <div class="stat-chip stat-chip-separator"></div>
+    <div class="stat-chip"><span class="stat-chip-label">☠ Deaths</span><span class="stat-chip-value">${deaths}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">💨 Suffocated</span><span class="stat-chip-value">${suffocated}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🍽 Starved</span><span class="stat-chip-value">${starved}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">💔 Weakened</span><span class="stat-chip-value">${weakened}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🤒 Sick</span><span class="stat-chip-value">${sick}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🪱 Parasited</span><span class="stat-chip-value">${parasited}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🦷 Cannibalized</span><span class="stat-chip-value">${cannibalized}</span></div>
   `;
 }
 
@@ -203,6 +217,6 @@ function _populateGenotype(data) {
     <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${fishCount} (fixed)</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">O2:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">O₂:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
   `;
 }

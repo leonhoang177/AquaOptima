@@ -3,6 +3,7 @@
 pond.py -- PondSim: the aquaculture simulation orchestrator (3D).
 Delegates physics to physics.py and fish behavior to behavior.py.
 Option A: Yield is now alive_count / n0 (survival rate), since fish_count is fixed.
+Tracks death_events with reasons per timestep.
 """
 
 import random, math, copy
@@ -36,7 +37,8 @@ class PondSim:
     __slots__ = ('geno', 'runtime', 'max_budget', 'record', 'fskip',
                  'fish', 'n0', 'ts', 'objs', 'hazards', 'obstacles',
                  'oxy_pump', 'frames', 'accum_cost', 'budget_exceeded',
-                 'cannibal_events', '_fish_grid', '_obj_grid', '_next_obj_id')
+                 'cannibal_events', 'death_events',
+                 '_fish_grid', '_obj_grid', '_next_obj_id')
 
     def __init__(self, geno, fish_templates, runtime, max_budget, record=False, fskip=1):
         self.geno = geno; self.runtime = runtime; self.max_budget = max_budget
@@ -44,7 +46,9 @@ class PondSim:
         self.fish = copy.deepcopy(fish_templates); self.n0 = len(self.fish)
         self.ts = 0; self.objs = []; self.hazards = []; self.obstacles = []
         self.oxy_pump = 0; self.frames = []; self.accum_cost = 0.0
-        self.budget_exceeded = False; self.cannibal_events = []
+        self.budget_exceeded = False
+        self.cannibal_events = []
+        self.death_events = []
         self._fish_grid = SpatialGrid(cell_size=max(SOCIAL_DISTANCE, SENSITIVE_DISTANCE))
         self._obj_grid = SpatialGrid(cell_size=SENSITIVE_DISTANCE)
         self._make_obs()
@@ -83,7 +87,9 @@ class PondSim:
 
     def run(self):
         for t in range(self.runtime):
-            self.ts = t; self.cannibal_events = []
+            self.ts = t
+            self.cannibal_events = []
+            self.death_events = []
             self._step()
             if self.record and t % self.fskip == 0:
                 self.frames.append(self._frame())
@@ -184,4 +190,5 @@ class PondSim:
                            'w':round(o.w,1),'h':round(o.h,1),'d':round(o.d,1)}
                           for o in self.obstacles],
             'alive_count': len(alive), 'total_count': self.n0,
-            'cannibal_events': list(self.cannibal_events)}
+            'cannibal_events': list(self.cannibal_events),
+            'death_events': list(self.death_events)}

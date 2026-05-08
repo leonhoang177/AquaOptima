@@ -2,6 +2,7 @@
 """
 behavior.py -- Fish behavior: PSO movement, eating, decay, cannibalism,
                fecal production, death.
+Death reason tracking: suffocated, starved, weakened, sick, parasited, cannibalized.
 """
 
 import random, math
@@ -42,6 +43,25 @@ from helpers import _dist, _clamp, _norm
 
 _WALL = 2.0
 _FLOOR_Z = POND_DEPTH - _WALL
+
+# Death reason thresholds (fraction of max stat)
+_DEATH_THRESHOLD = 0.05
+
+
+def _get_death_reasons(f):
+    """Check all possible death reasons for a fish. Returns list of reason strings."""
+    reasons = []
+    if f.oxygen <= f.max_oxygen * _DEATH_THRESHOLD:
+        reasons.append('suffocated')
+    if f.fullness <= f.max_fullness * _DEATH_THRESHOLD:
+        reasons.append('starved')
+    if f.immunity <= f.max_immunity * _DEATH_THRESHOLD:
+        reasons.append('weakened')
+    if f.is_infected:
+        reasons.append('sick')
+    if f.has_parasite:
+        reasons.append('parasited')
+    return reasons
 
 
 def decay(sim):
@@ -301,7 +321,7 @@ def pso(sim):
 
 
 def cannibal(sim):
-    """Hungry fish may eat smaller fish."""
+    """Hungry fish may eat smaller fish. Records death reasons."""
     alive = [f for f in sim.fish if f.alive]
     sim._fish_grid.insert_all(alive)
     for f in alive:
@@ -322,9 +342,16 @@ def cannibal(sim):
             if f.mouth_size > t.body_size:
                 d = _dist(f.x, f.y, f.z, t.x, t.y, t.z)
                 if d <= t.body_size * CANNIBAL_COLLISION_RADIUS_MULT:
+                    # Get death reasons for the prey before killing
+                    reasons = _get_death_reasons(t)
+                    reasons.append('cannibalized')
+
                     t.health = 0; t.alive = False
                     f.fullness = min(f.max_fullness, f.fullness + t.body_size * CANNIBAL_FULLNESS_GAIN_MULT)
-                    sim.cannibal_events.append({'x':t.x,'y':t.y,'z':t.z,'predator':f.fid,'prey':t.fid})
+                    sim.cannibal_events.append({
+                        'x': t.x, 'y': t.y, 'z': t.z,
+                        'predator': f.fid, 'prey': t.fid,
+                        'reasons': reasons})
                     break
 
 
@@ -351,11 +378,24 @@ def fecal(sim):
 
 
 def death(sim):
-    """Detect dead fish, spawn dead body + NH3 + disease/parasite zones."""
+    """Detect dead fish, record death reasons, spawn dead body + NH3 + disease/parasite zones."""
     for f in sim.fish:
         if not f.alive: continue
         if f.health <= 0 or f.oxygen <= 0:
+            # Get death reasons BEFORE marking as dead
+            reasons = _get_death_reasons(f)
+            if not reasons:
+                # Health dropped to 0 but no specific threshold met
+                # This can happen from accumulated small damage
+                reasons.append('weakened')
+
             f.alive = False
+
+            # Record death event with reasons
+            sim.death_events.append({
+                'x': f.x, 'y': f.y, 'z': f.z,
+                'fish_id': f.fid,
+                'reasons': reasons})
 
             will_float = random.random() < DEAD_FISH_FLOAT_CHANCE
             ft = random.randint(*DEAD_FISH_FLOAT_DURATION_RANGE) if will_float else 0

@@ -42,7 +42,7 @@ from constants import (
     OXYGEN_INTERVAL_RANGE, OXYGEN_DURATION_RANGE,
     VERIFY_MIN_SAMPLES, VERIFY_ALPHA,
     VERIFY_MAX_CASCADE_DEPTH, VERIFY_SKIP_THRESHOLD,
-    EA_LOG_PATH,
+    EA_LOG_PATH, LOCATION_OPTIONS,
 )
 
 from entities import PondGenotype
@@ -60,6 +60,26 @@ def _geno_key(geno: PondGenotype) -> str:
 
 
 # ════════════════════════════════════════════════════════════════
+# MUTATION HELPERS (Gaussian perturbation)
+# ════════════════════════════════════════════════════════════════
+
+def _perturb_int(value, lo, hi, step):
+    """Perturb an integer value by ±step, clamped to [lo, hi]."""
+    new_val = value + random.randint(-step, step)
+    return max(lo, min(hi, new_val))
+
+
+def _perturb_choice(value, choices, n_steps):
+    """Perturb a value within an ordered list by ±n_steps positions."""
+    if value not in choices:
+        return random.choice(choices)
+    idx = choices.index(value)
+    new_idx = idx + random.randint(-n_steps, n_steps)
+    new_idx = max(0, min(len(choices) - 1, new_idx))
+    return choices[new_idx]
+
+
+# ════════════════════════════════════════════════════════════════
 # EA GENOTYPE OPERATIONS (Option A: no fish_count)
 # ════════════════════════════════════════════════════════════════
 
@@ -67,13 +87,13 @@ def random_genotype() -> PondGenotype:
     return PondGenotype(
         food_interval=random.randint(*FOOD_INTERVAL_RANGE),
         food_quantity=random.randint(*FOOD_QUANTITY_RANGE),
-        food_location=random.randint(0, 9),
+        food_location=random.choice(LOCATION_OPTIONS),
         probiotic_interval=random.choice(PROBIOTIC_INTERVAL_STEPS),
         probiotic_quantity=random.randint(*PROBIOTIC_QUANTITY_RANGE),
-        probiotic_location=random.randint(0, 9),
+        probiotic_location=random.choice(LOCATION_OPTIONS),
         oxygen_interval=random.randint(*OXYGEN_INTERVAL_RANGE),
         oxygen_duration=random.randint(*OXYGEN_DURATION_RANGE),
-        oxygen_location=random.randint(0, 9))
+        oxygen_location=random.choice(LOCATION_OPTIONS))
 
 
 def crossover(a: PondGenotype, b: PondGenotype) -> PondGenotype:
@@ -84,16 +104,34 @@ def crossover(a: PondGenotype, b: PondGenotype) -> PondGenotype:
 
 
 def mutate(geno: PondGenotype):
+    """Gaussian perturbation mutation. Numeric genes get small adjustments.
+    Location genes (binary: Center/Random) get flipped."""
     r = EA_MUTATION_RATE
-    if random.random() < r: geno.food_interval = random.randint(*FOOD_INTERVAL_RANGE)
-    if random.random() < r: geno.food_quantity = random.randint(*FOOD_QUANTITY_RANGE)
-    if random.random() < r: geno.food_location = random.randint(0, 9)
-    if random.random() < r: geno.probiotic_interval = random.choice(PROBIOTIC_INTERVAL_STEPS)
-    if random.random() < r: geno.probiotic_quantity = random.randint(*PROBIOTIC_QUANTITY_RANGE)
-    if random.random() < r: geno.probiotic_location = random.randint(0, 9)
-    if random.random() < r: geno.oxygen_interval = random.randint(*OXYGEN_INTERVAL_RANGE)
-    if random.random() < r: geno.oxygen_duration = random.randint(*OXYGEN_DURATION_RANGE)
-    if random.random() < r: geno.oxygen_location = random.randint(0, 9)
+    # Food policy
+    if random.random() < r:
+        geno.food_interval = _perturb_int(geno.food_interval, *FOOD_INTERVAL_RANGE, step=4)
+    if random.random() < r:
+        geno.food_quantity = _perturb_int(geno.food_quantity, *FOOD_QUANTITY_RANGE, step=2)
+    if random.random() < r:
+        geno.food_location = 9 if geno.food_location == 0 else 0  # binary flip
+
+    # Probiotic policy
+    if random.random() < r:
+        geno.probiotic_interval = _perturb_choice(geno.probiotic_interval,
+                                                    PROBIOTIC_INTERVAL_STEPS, n_steps=1)
+    if random.random() < r:
+        geno.probiotic_quantity = _perturb_int(geno.probiotic_quantity,
+                                                *PROBIOTIC_QUANTITY_RANGE, step=1)
+    if random.random() < r:
+        geno.probiotic_location = 9 if geno.probiotic_location == 0 else 0  # binary flip
+
+    # Oxygen policy
+    if random.random() < r:
+        geno.oxygen_interval = _perturb_int(geno.oxygen_interval, *OXYGEN_INTERVAL_RANGE, step=4)
+    if random.random() < r:
+        geno.oxygen_duration = _perturb_int(geno.oxygen_duration, *OXYGEN_DURATION_RANGE, step=1)
+    if random.random() < r:
+        geno.oxygen_location = 9 if geno.oxygen_location == 0 else 0  # binary flip
 
 
 # ════════════════════════════════════════════════════════════════
@@ -189,7 +227,7 @@ class PriorityPool:
     Persistent process pool with priority-based task scheduling.
     Priority tuple: (timeline, generation, task_type, sequence)
     Lower = higher priority. Sequence is a tiebreaker for FIFO within same priority.
-    
+
     Timeline is highest priority — TL1 gets all cores, TL2/TL3 fill idle gaps.
     """
 
@@ -328,12 +366,6 @@ class TournamentMgr:
                     self.memory.record(c['genotype_obj'], fitness)
                     break
             break  # record once
-        else:
-            # Not found in any tournament candidate — shouldn't happen
-            pass
-
-        # Record in memory for all tournaments (already done above for one)
-        # The memory is shared, so recording once is sufficient
 
         # Advance all tournaments that were waiting for this genotype
         for t_idx in waiting:
@@ -350,7 +382,6 @@ class TournamentMgr:
 
         current = t.get_current()
         if current is None:
-            # No candidates — shouldn't happen
             t.resolve(t.candidates[0] if t.candidates else None)
             self._on_resolved(t)
             return
@@ -406,7 +437,7 @@ class TournamentMgr:
             t.advance_cascade()
             self._advance(t)  # recurse with new current
         else:
-            # Inconclusive — try next challenger
+            # Inconclusive — try next challenger, current holds
             t.advance_cascade()
             self._advance(t)
 
@@ -517,7 +548,9 @@ class EA:
         print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified Tournament(K={EA_TOURNAMENT_K})")
         print(f"  Verification: Wilcoxon α={VERIFY_ALPHA}, min_samples={VERIFY_MIN_SAMPLES}, "
               f"cascade_depth={VERIFY_MAX_CASCADE_DEPTH}")
-        print(f"  Parallelism: {workers} cores, persistent pool, pipelined submission")
+        print(f"  Mutation: Gaussian perturbation (rate={EA_MUTATION_RATE})")
+        print(f"  Location: Binary (Center/Random)")
+        print(f"  Parallelism: {workers} cores, persistent pool, priority scheduling")
         print(f"  Champion: Best pond in last generation")
         print(f"{'=' * 72}")
 
@@ -730,7 +763,6 @@ class EA:
         self._log_gen(tl, gen)
 
         if is_last:
-            # Last generation — pick champion, finish timeline
             self._finish_timeline(tl)
             return
 
@@ -800,7 +832,7 @@ class EA:
             if child is not None:
                 new_ponds.append(child)
 
-        # Fill any remaining slots (shouldn't happen normally)
+        # Fill any remaining slots
         while len(new_ponds) < POND_POPULATION:
             new_ponds.append(copy.deepcopy(random.choice(elite_genos)))
 

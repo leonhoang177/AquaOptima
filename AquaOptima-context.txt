@@ -43,6 +43,7 @@ from pathlib import Path
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
     AQUACULTURE_DAYS, SIMULATION_JSON_PATH, PROJECT_ROOT,
+    FISH_COUNT,
 )
 from ea import EA
 
@@ -57,6 +58,7 @@ def main():
             'pond_height': POND_HEIGHT,
             'pond_depth': POND_DEPTH,
             'genotype': champ['genotype'],
+            'fish_count': FISH_COUNT,
             'fitness': champ['fitness'],
             'survival_rate': champ['survival_rate'],
             'avg_healthiness': champ.get('avg_healthiness', 0),
@@ -84,6 +86,7 @@ def main():
 if __name__ == '__main__':
     main()
 
+
 --------------------
 File: /AquaOptima/core/plot.py
 --------------------
@@ -91,6 +94,7 @@ File: /AquaOptima/core/plot.py
 #!/usr/bin/env python3
 """
 plot.py -- Visualize EA evolution from results.csv
+Option A: fish_count is fixed, so fish_count plots are removed.
 """
 
 import sys, os
@@ -101,13 +105,13 @@ import matplotlib.ticker as mticker
 import matplotlib.colors as mcolors
 from pathlib import Path
 
-from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION
+from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION, FISH_COUNT
 
 CSV_PATH = RESULTS_CSV_PATH
 OUTPUT_DIR = PLOTS_DIR
 
-DPI = 180
-SINGLE_FIG_SIZE = (12, 10)
+DPI = 280
+SINGLE_FIG_SIZE = (20, 17)
 
 TL_COLORS = [
     '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd',
@@ -125,7 +129,7 @@ STATUS_LABELS = {
 }
 
 # ════════════════════════════════════════════════════════════════
-# FONT SIZES (centralized)
+# FONT SIZES (centralized, scaled up)
 # ════════════════════════════════════════════════════════════════
 
 _BASE_FONT = 11
@@ -134,20 +138,24 @@ _BASE_TITLE = 14
 _BASE_LEGEND = 10
 _BASE_TICK = 11
 
-FONT_SIZE = _BASE_FONT * 1.3          # 14.3
-LABEL_SIZE = _BASE_LABEL * 1.3        # 15.6
-TITLE_SIZE = _BASE_TITLE * 1.3        # 18.2
-LEGEND_SIZE = _BASE_LEGEND * 2.0      # 20.0
-TICK_SIZE = _BASE_TICK * 1.3          # 14.3
-SMALL_LEGEND_SIZE = 7 * 2.0           # 14.0 (for metric-vs-gen plots)
-CHAMPION_LEGEND_SIZE = 9 * 2.0        # 18.0
+_SCALE = 1.3 * 1.3 * 1.3  # triple 30% scaling = ~2.197
 
-# ════════════════════════════════════════════════════════════════
-# LAYOUT CONSTANTS (for outside-legend placement)
-# ════════════════════════════════════════════════════════════════
+FONT_SIZE = _BASE_FONT * _SCALE          # ~24.2
+LABEL_SIZE = _BASE_LABEL * _SCALE        # ~26.4
+TITLE_SIZE = _BASE_TITLE * _SCALE        # ~30.8
+LEGEND_SIZE = _BASE_LEGEND * _SCALE      # ~22.0
+TICK_SIZE = _BASE_TICK * _SCALE          # ~24.2
+SMALL_LEGEND_SIZE = 7 * _SCALE           # ~15.4
+CHAMPION_LEGEND_SIZE = 9 * _SCALE        # ~19.8
 
-TITLE_PAD = 55
-TIGHT_LAYOUT_RECT = [0, 0, 1, 0.93]
+# Genotype plots get extra scaling
+_GENO_SCALE = _SCALE * 1.3
+GENO_FIG_SIZE = (26, 22)
+GENO_FONT_SIZE = _BASE_FONT * _GENO_SCALE
+GENO_LABEL_SIZE = _BASE_LABEL * _GENO_SCALE
+GENO_TITLE_SIZE = _BASE_TITLE * _GENO_SCALE
+GENO_TICK_SIZE = _BASE_TICK * _GENO_SCALE
+GENO_LEGEND_SIZE = _BASE_LEGEND * _GENO_SCALE
 
 
 def _apply_theme():
@@ -156,7 +164,7 @@ def _apply_theme():
         'axes.edgecolor': '#333333', 'axes.labelcolor': '#222222',
         'axes.grid': True, 'grid.color': '#dddddd', 'grid.linestyle': '--', 'grid.alpha': 0.7,
         'text.color': '#222222', 'xtick.color': '#333333', 'ytick.color': '#333333',
-        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.9,
+        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.7,
         'font.size': FONT_SIZE,
         'axes.titlesize': TITLE_SIZE,
         'axes.labelsize': LABEL_SIZE,
@@ -175,8 +183,6 @@ def load_data(path: str) -> pd.DataFrame:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
     if 'survival_rate' in df.columns:
         df['survival_pct'] = df['survival_rate'] * 100
-    if 'fish_count' in df.columns:
-        df['fish_count'] = pd.to_numeric(df['fish_count'], errors='coerce').fillna(0).astype(int)
     if 'saving' in df.columns:
         df['saving_rate'] = df['saving'] / MAX_BUDGET
     print(f"  Loaded {path}: {len(df)} rows, "
@@ -193,15 +199,17 @@ def _save(fig, filename):
     print(f"    Saved {path}")
 
 
-def _place_legend_outside(ax, fontsize, ncol=None):
-    """Place legend above the axes, outside the plot area."""
+def _filter_legend_avg_only(ax):
+    """Remove Std Dev entries from legend, keep only Average lines."""
     handles, labels = ax.get_legend_handles_labels()
-    if not handles:
-        return
-    if ncol is None:
-        ncol = min(len(handles), 4)
-    ax.legend(fontsize=fontsize, loc='lower left',
-              bbox_to_anchor=(0.0, 1.02), ncol=ncol, borderaxespad=0.0)
+    filtered_h, filtered_l = [], []
+    for h, l in zip(handles, labels):
+        if 'Std Dev' not in l:
+            filtered_h.append(h)
+            filtered_l.append(l)
+    if filtered_h:
+        ax.legend(filtered_h, filtered_l, fontsize=SMALL_LEGEND_SIZE,
+                  loc='best', framealpha=0.7)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -225,19 +233,22 @@ def _plot_metric_vs_gen(ax, df, col, ylabel, title, fmt=None, ylim=None):
 
         # Shaded region: mean ± 1 std dev
         ax.fill_between(gl, means - stds, means + stds,
-                         color=color, alpha=0.10, zorder=1,
+                         color=color, alpha=0.06, zorder=1,
                          label=f"TL {tl} ±1 Std Dev")
         # Average line
-        ax.plot(gl, means, color=color, linewidth=2.5, alpha=0.9,
-                marker='o', markersize=4, label=f"TL {tl} Average", zorder=3)
+        ax.plot(gl, means, color=color, linewidth=3.2, alpha=0.9,
+                marker='o', markersize=5, label=f"TL {tl} Average", zorder=3)
 
     ax.set_xlabel('Generation', fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
-    ax.set_title(title, fontweight='bold', pad=TITLE_PAD)
+    ax.set_title(title, fontweight='bold', pad=12)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    if ylim: ax.set_ylim(ylim)
+    if ylim:
+        ax.set_ylim(ylim)
+        if ylim == (-0.02, 1.02):
+            ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
     if fmt: ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt))
-    _place_legend_outside(ax, SMALL_LEGEND_SIZE)
+    _filter_legend_avg_only(ax)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -271,20 +282,20 @@ def _plot_metric_vs_metric(ax, df, col_x, col_y, xlabel, ylabel, title,
 
         # Shaded region: mean ± 1 std dev
         ax.fill_between(bin_centers, means - stds, means + stds,
-                         color=color, alpha=0.10, zorder=1,
+                         color=color, alpha=0.06, zorder=1,
                          label=f"TL {tl} ±1 Std Dev")
         # Average line
-        ax.plot(bin_centers, means, color=color, linewidth=2.5, alpha=0.9,
-                marker='o', markersize=4, label=f"TL {tl} Average", zorder=3)
+        ax.plot(bin_centers, means, color=color, linewidth=3.2, alpha=0.9,
+                marker='o', markersize=5, label=f"TL {tl} Average", zorder=3)
 
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
-    ax.set_title(title, fontweight='bold', pad=TITLE_PAD)
+    ax.set_title(title, fontweight='bold', pad=12)
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
     if fmt_x: ax.xaxis.set_major_formatter(mticker.FuncFormatter(fmt_x))
     if fmt_y: ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt_y))
-    _place_legend_outside(ax, SMALL_LEGEND_SIZE)
+    _filter_legend_avg_only(ax)
 
 # ════════════════════════════════════════════════════════════════
 # HEATMAP PAIR PLOT
@@ -302,7 +313,7 @@ def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
     y = ok[col_y].values
     c = ok['fitness'].values
 
-    sc = ax.scatter(x, y, c=c, cmap='RdYlGn', s=30, alpha=0.7,
+    sc = ax.scatter(x, y, c=c, cmap='RdYlGn', s=40, alpha=0.7,
                     edgecolors='#333333', linewidth=0.3, zorder=2)
 
     cbar = fig.colorbar(sc, ax=ax, shrink=0.8)
@@ -312,8 +323,124 @@ def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
     ax.set_title(title, fontweight='bold', pad=12)
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
 
     fig.tight_layout(); _save(fig, filename)
+
+
+# ════════════════════════════════════════════════════════════════
+# GENOTYPE CONVERGENCE PLOTS
+# ════════════════════════════════════════════════════════════════
+
+def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
+                                qty_label, int_label, title, filename):
+    """Plot genotype convergence: quantity/duration + interval + location."""
+    timelines = sorted(df['timeline'].unique())
+    n_timelines = len(timelines)
+    n_gens = df['generation'].max()
+
+    # Responsive width
+    fig_w = max(GENO_FIG_SIZE[0], n_gens * n_timelines * 0.35 + 6)
+    fig_h = GENO_FIG_SIZE[1]
+
+    fig = plt.figure(figsize=(fig_w, fig_h))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1], hspace=0.35, wspace=0.3)
+    ax_qty = fig.add_subplot(gs[0, 0])
+    ax_int = fig.add_subplot(gs[0, 1])
+    ax_loc = fig.add_subplot(gs[1, :])
+
+    # ── Quantity / Duration subplot ──
+    for tl in timelines:
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        gens = sorted(sdf['generation'].unique())
+        means, stds, gl = [], [], []
+        for g in gens:
+            vals = sdf[sdf['generation'] == g][qty_col].values
+            means.append(vals.mean()); stds.append(vals.std()); gl.append(g)
+        means, stds, gl = np.array(means), np.array(stds), np.array(gl)
+        ax_qty.fill_between(gl, means - stds, means + stds, color=color, alpha=0.06)
+        ax_qty.plot(gl, means, color=color, linewidth=3.2, alpha=0.9,
+                    marker='o', markersize=5, label=f"TL {tl}")
+    ax_qty.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_qty.set_ylabel(qty_label, fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_qty.set_title(qty_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
+    ax_qty.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax_qty.tick_params(labelsize=GENO_TICK_SIZE)
+    ax_qty.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
+
+    # ── Interval subplot ──
+    for tl in timelines:
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        gens = sorted(sdf['generation'].unique())
+        means, stds, gl = [], [], []
+        for g in gens:
+            vals = sdf[sdf['generation'] == g][int_col].values
+            means.append(vals.mean()); stds.append(vals.std()); gl.append(g)
+        means, stds, gl = np.array(means), np.array(stds), np.array(gl)
+        ax_int.fill_between(gl, means - stds, means + stds, color=color, alpha=0.06)
+        ax_int.plot(gl, means, color=color, linewidth=3.2, alpha=0.9,
+                    marker='o', markersize=5, label=f"TL {tl}")
+    ax_int.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_int.set_ylabel(int_label, fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_int.set_title(int_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
+    ax_int.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax_int.tick_params(labelsize=GENO_TICK_SIZE)
+    ax_int.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
+
+    # ── Location subplot (stacked bars: Center vs Random) ──
+    gens = sorted(df['generation'].unique())
+    bar_w = min(0.08, 0.7 / max(n_timelines, 1))
+    offsets = np.arange(n_timelines) - (n_timelines - 1) / 2
+
+    for i, tl in enumerate(timelines):
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        center_pcts, random_pcts = [], []
+        for g in gens:
+            gdf = sdf[sdf['generation'] == g]
+            n = len(gdf) if len(gdf) > 0 else 1
+            center_count = (gdf[loc_col] == 0).sum()
+            center_pct = center_count / n * 100
+            center_pcts.append(center_pct)
+            random_pcts.append(100 - center_pct)
+
+        x = np.array(gens) + offsets[i] * bar_w
+        # Center (solid)
+        ax_loc.bar(x, center_pcts, bar_w, color=color, alpha=0.85,
+                   edgecolor='white', linewidth=0.5,
+                   label=f"TL {tl}" if i == 0 else "")
+        # Random (hatched)
+        ax_loc.bar(x, random_pcts, bar_w, bottom=center_pcts,
+                   color=color, alpha=0.50, hatch='///',
+                   edgecolor='white', linewidth=0.5)
+
+    # Add texture legend
+    from matplotlib.patches import Patch
+    texture_handles = [
+        Patch(facecolor='gray', alpha=0.85, label='Center (solid)'),
+        Patch(facecolor='gray', alpha=0.50, hatch='///', label='Random (hatched)'),
+    ]
+    tl_handles = [Patch(facecolor=TL_COLORS[(tl - 1) % len(TL_COLORS)],
+                        label=f"TL {tl}") for tl in timelines]
+    all_handles = tl_handles + texture_handles
+    ax_loc.legend(handles=all_handles, fontsize=GENO_LEGEND_SIZE,
+                  loc='best', framealpha=0.7, ncol=min(len(all_handles), 6))
+
+    ax_loc.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_loc.set_ylabel('Location %', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_loc.set_title(f'{policy_name} Location', fontweight='bold',
+                     fontsize=GENO_TITLE_SIZE, pad=12)
+    ax_loc.set_ylim(0, 115)
+    ax_loc.yaxis.set_major_locator(mticker.MultipleLocator(10))
+    ax_loc.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax_loc.tick_params(labelsize=GENO_TICK_SIZE)
+
+    fig.suptitle(title, fontweight='bold', fontsize=GENO_TITLE_SIZE * 1.1, y=0.98)
+    fig.subplots_adjust(hspace=0.35, wspace=0.3, top=0.92, bottom=0.08)
+    _save(fig, filename)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -324,93 +451,125 @@ def plot_fitness(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'fitness', 'Fitness', 'Fitness vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_01_fitness_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_01_fitness_vs_gen.png')
 
 def plot_yield(df):
     if 'yield' not in df.columns: return
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'yield', 'Yield', 'Yield vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_02_yield_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_02_yield_vs_gen.png')
 
-def plot_saving(df):
-    if 'saving' not in df.columns: return
+def plot_saving_rate(df):
+    if 'saving_rate' not in df.columns: return
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    _plot_metric_vs_gen(ax, df, 'saving', 'Saving ($)', 'Saving vs Generation',
-                        fmt=lambda x, _: f'${x:,.0f}')
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_03_saving_vs_gen.png')
+    _plot_metric_vs_gen(ax, df, 'saving_rate', 'Saving Rate', 'Saving Rate vs Generation',
+                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+    fig.tight_layout(); _save(fig, 'plot_03_saving_rate_vs_gen.png')
 
 def plot_healthiness(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'healthiness', 'Healthiness', 'Healthiness vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_04_healthiness_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_04_healthiness_vs_gen.png')
 
 def plot_yield_vs_saving(df):
-    _plot_pair_fitness(df, 'yield', 'saving', 'Yield', 'Saving ($)',
-                       'Yield vs Saving (colored by Fitness)', 'plot_05_yield_vs_saving.png')
+    _plot_pair_fitness(df, 'yield', 'saving_rate', 'Yield', 'Saving Rate',
+                       'Yield vs Saving Rate Heatmap', 'plot_05_yield_vs_saving_heatmap.png')
 
 def plot_yield_vs_healthiness(df):
     _plot_pair_fitness(df, 'yield', 'healthiness', 'Yield', 'Healthiness',
-                       'Yield vs Healthiness (colored by Fitness)', 'plot_06_yield_vs_healthiness.png')
+                       'Yield vs Healthiness Heatmap', 'plot_06_yield_vs_healthiness_heatmap.png')
 
 def plot_saving_vs_healthiness(df):
-    _plot_pair_fitness(df, 'saving', 'healthiness', 'Saving ($)', 'Healthiness',
-                       'Saving vs Healthiness (colored by Fitness)', 'plot_07_saving_vs_healthiness.png')
+    _plot_pair_fitness(df, 'saving_rate', 'healthiness', 'Saving Rate', 'Healthiness',
+                       'Saving Rate vs Healthiness Heatmap', 'plot_07_saving_rate_vs_healthiness_heatmap.png')
 
-def plot_fitness_vs_saving(df):
-    _plot_pair_fitness(df, 'fitness', 'saving', 'Fitness', 'Saving ($)',
-                       'Fitness vs Saving (colored by Fitness)', 'plot_08_fitness_vs_saving.png')
+def plot_food_genotype(df):
+    _plot_genotype_convergence(df, 'Food', 'food_quantity', 'food_interval', 'food_location',
+                                'Food Quantity', 'Food Interval',
+                                'Food Genotype Convergence',
+                                'plot_08_food_genotype_convergence.png')
 
-def plot_fitness_vs_yield(df):
-    _plot_pair_fitness(df, 'fitness', 'yield', 'Fitness', 'Yield',
-                       'Fitness vs Yield (colored by Fitness)', 'plot_09_fitness_vs_yield.png')
+def plot_probiotic_genotype(df):
+    _plot_genotype_convergence(df, 'Probiotic', 'probiotic_quantity', 'probiotic_interval',
+                                'probiotic_location',
+                                'Probiotic Quantity', 'Probiotic Interval',
+                                'Probiotic Genotype Convergence',
+                                'plot_09_probiotic_genotype_convergence.png')
 
-def plot_fitness_vs_healthiness(df):
-    _plot_pair_fitness(df, 'fitness', 'healthiness', 'Fitness', 'Healthiness',
-                       'Fitness vs Healthiness (colored by Fitness)', 'plot_10_fitness_vs_healthiness.png')
-
-def plot_fish_count_vs_gen(df):
-    if 'fish_count' not in df.columns: return
-    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    _plot_metric_vs_gen(ax, df, 'fish_count', 'Fish Count',
-                        'Initial Fish Count vs Generation', ylim=(0, 110))
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_11_fish_count_vs_gen.png')
-
-def plot_fish_count_vs_cost(df):
-    if 'fish_count' not in df.columns or 'cost' not in df.columns: return
-    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    _plot_metric_vs_metric(ax, df, 'fish_count', 'cost', 'Fish Count', 'Cost ($)',
-                           'Fish Count vs Cost',
-                           fmt_y=lambda x, _: f'${x:,.0f}')
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_12_fish_count_vs_cost.png')
+def plot_oxygen_genotype(df):
+    _plot_genotype_convergence(df, 'Oxygen', 'oxygen_duration', 'oxygen_interval',
+                                'oxygen_location',
+                                'Oxygen Duration', 'Oxygen Interval',
+                                'Oxygen Genotype Convergence',
+                                'plot_10_oxygen_genotype_convergence.png')
 
 def plot_status(df):
-    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    status_order = ['OK', 'ALL-DEAD', 'OVER-BUDGET', 'GATEKEEPER']
+    from matplotlib.patches import Patch
+
+    timelines = sorted(df['timeline'].unique())
+    n_timelines = len(timelines)
     gens = sorted(df['generation'].unique())
-    n_timelines = df['timeline'].nunique()
-    bottom = np.zeros(len(gens))
-    for status in status_order:
-        counts = np.array([len(df[(df['generation'] == g) & (df['status'] == status)])
-                           for g in gens], dtype=float)
-        counts = counts / n_timelines
-        label = STATUS_LABELS.get(status, status)
-        ax.bar(gens, counts, bottom=bottom, color=STATUS_COLORS.get(status, '#aaa'),
-               label=label, alpha=0.85, edgecolor='white', linewidth=0.5)
-        bottom += counts
+    n_gens = len(gens)
+
+    # Responsive width
+    fig_w = max(SINGLE_FIG_SIZE[0], n_gens * n_timelines * 0.35 + 6)
+    fig, ax = plt.subplots(figsize=(fig_w, SINGLE_FIG_SIZE[1]))
+
+    status_order = ['OK', 'ALL-DEAD', 'OVER-BUDGET', 'GATEKEEPER']
+    hatches = {'OK': '', 'ALL-DEAD': '///', 'OVER-BUDGET': 'xxx', 'GATEKEEPER': '\\\\\\'}
+    bar_w = min(0.08, 0.7 / max(n_timelines, 1))
+    offsets = np.arange(n_timelines) - (n_timelines - 1) / 2
+
+    for i, tl in enumerate(timelines):
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        x_base = np.array(gens) + offsets[i] * bar_w
+
+        bottom = np.zeros(n_gens)
+        for status in status_order:
+            counts = np.array([len(sdf[(sdf['generation'] == g) & (sdf['status'] == status)])
+                               for g in gens], dtype=float)
+            hatch = hatches.get(status, '')
+            alpha = 0.85 if status == 'OK' else 0.50
+            ax.bar(x_base, counts, bar_w, bottom=bottom,
+                   color=color, alpha=alpha, hatch=hatch,
+                   edgecolor='white', linewidth=0.5)
+            bottom += counts
+
+    # Legend: timeline colors + status textures
+    tl_handles = [Patch(facecolor=TL_COLORS[(tl - 1) % len(TL_COLORS)],
+                        label=f"TL {tl}") for tl in timelines]
+    status_handles = [
+        Patch(facecolor='gray', alpha=0.85, label='OK'),
+        Patch(facecolor='gray', alpha=0.50, hatch='///', label='All Dead'),
+        Patch(facecolor='gray', alpha=0.50, hatch='xxx', label='Over Budget'),
+        Patch(facecolor='gray', alpha=0.50, hatch='\\\\\\', label='Reject'),
+    ]
+    all_handles = tl_handles + status_handles
+    ax.legend(handles=all_handles, fontsize=LEGEND_SIZE,
+              loc='upper left', framealpha=0.7,
+              ncol=min(len(all_handles), 5))
+
     ax.set_xlabel('Generation', fontweight='bold')
     ax.set_ylabel('Pond Count', fontweight='bold')
-    ax.set_title('Pond Status Distribution per Generation', fontweight='bold', pad=TITLE_PAD)
+    ax.set_title('Pond Population Distribution', fontweight='bold', pad=12)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    ax.set_ylim(0, POND_POPULATION + 1)
+    ax.set_ylim(0, POND_POPULATION * 1.25)
     ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    _place_legend_outside(ax, LEGEND_SIZE)
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_13_status.png')
+    fig.tight_layout(); _save(fig, 'plot_11_pond_population_distribution.png')
 
 def plot_champion_comparison(df):
-    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    from matplotlib.patches import Patch
+
     timelines = sorted(df['timeline'].unique())
+    n_timelines = len(timelines)
+
+    # Responsive width
+    fig_w = max(SINGLE_FIG_SIZE[0], n_timelines * 4 + 4)
+    fig, ax = plt.subplots(figsize=(fig_w, SINGLE_FIG_SIZE[1]))
+
     best_fit, best_yld, best_hlth, best_sav_rate, labels = [], [], [], [], []
     for tl in timelines:
         sdf = df[df['timeline'] == tl]
@@ -423,37 +582,42 @@ def plot_champion_comparison(df):
         sav = row.get('saving', 0)
         best_sav_rate.append(sav / MAX_BUDGET if MAX_BUDGET > 0 else 0)
         labels.append(f"TL {tl}")
-    x = np.arange(len(timelines)); w = 0.18
+    x = np.arange(n_timelines); w = 0.18
 
-    # Order: Fitness, Yield, Saving, Healthiness
     b1 = ax.bar(x - 1.5*w, best_fit,      w, label='Fitness',     color='#1f77b4', alpha=0.9, edgecolor='white')
     b2 = ax.bar(x - 0.5*w, best_yld,      w, label='Yield',       color='#2ca02c', alpha=0.9, edgecolor='white')
-    b3 = ax.bar(x + 0.5*w, best_sav_rate,  w, label='Saving',      color='#9467bd', alpha=0.9, edgecolor='white')
+    b3 = ax.bar(x + 0.5*w, best_sav_rate,  w, label='Saving Rate', color='#9467bd', alpha=0.9, edgecolor='white')
     b4 = ax.bar(x + 1.5*w, best_hlth,      w, label='Healthiness', color='#ff7f0e', alpha=0.9, edgecolor='white')
 
-    for bars in [b1, b2, b3, b4]:
-        for bar in bars:
-            h = bar.get_height()
-            if h > 0.01:
-                ax.text(bar.get_x() + bar.get_width()/2, h + 0.012, f'{h:.3f}',
-                        ha='center', va='bottom', fontsize=16, color='#333')
-
-    # Place "BEST" annotation below the bar to avoid overlapping value labels
+    # Show fitness values on all bars
     best_tl_idx = int(np.argmax(best_fit))
-    best_bar_x = best_tl_idx - 1.5*w
+    for i, bar in enumerate(b1):
+        h = bar.get_height()
+        if h > 0.01:
+            is_best = (i == best_tl_idx)
+            color = '#d62728' if is_best else '#333333'
+            weight = 'bold' if is_best else 'normal'
+            ax.text(bar.get_x() + bar.get_width()/2, h + 0.012, f'{h:.4f}',
+                    ha='center', va='bottom', fontsize=TICK_SIZE * 0.7,
+                    color=color, fontweight=weight)
+
+    # BEST annotation
+    best_bar = b1[best_tl_idx]
+    best_bar_x = best_bar.get_x() + best_bar.get_width()/2
     best_bar_h = best_fit[best_tl_idx]
     ax.annotate('BEST', xy=(best_bar_x, best_bar_h),
                 xytext=(best_bar_x, max(0, best_bar_h - 0.20)),
-                ha='center', fontsize=13, fontweight='bold', color='#d62728',
+                ha='center', fontsize=TICK_SIZE * 0.65, fontweight='bold', color='#d62728',
                 arrowprops=dict(arrowstyle='->', color='#d62728', lw=1.5))
 
     ax.set_xticks(x); ax.set_xticklabels(labels)
     ax.set_xlabel('Timeline', fontweight='bold')
     ax.set_ylabel('Score (0 - 1)', fontweight='bold')
-    ax.set_title('Comparisons of Champions From All Timelines', fontweight='bold', pad=TITLE_PAD)
-    _place_legend_outside(ax, CHAMPION_LEGEND_SIZE, ncol=4)
-    ax.set_ylim(0, 1.15)
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_14_champion_comparison.png')
+    ax.set_title('Champion Comparison', fontweight='bold', pad=12)
+    ax.legend(fontsize=CHAMPION_LEGEND_SIZE, loc='upper left', framealpha=0.7, ncol=4)
+    ax.set_ylim(0, 1.25)
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    fig.tight_layout(); _save(fig, 'plot_12_champion_comparison.png')
 
 
 # ════════════════════════════════════════════════════════════════
@@ -470,18 +634,17 @@ def main():
 
     plot_fitness(df)
     plot_yield(df)
-    plot_saving(df)
+    plot_saving_rate(df)
     plot_healthiness(df)
 
     plot_yield_vs_saving(df)
     plot_yield_vs_healthiness(df)
     plot_saving_vs_healthiness(df)
-    plot_fitness_vs_saving(df)
-    plot_fitness_vs_yield(df)
-    plot_fitness_vs_healthiness(df)
 
-    plot_fish_count_vs_gen(df)
-    plot_fish_count_vs_cost(df)
+    plot_food_genotype(df)
+    plot_probiotic_genotype(df)
+    plot_oxygen_genotype(df)
+
     plot_status(df)
     plot_champion_comparison(df)
 
@@ -492,6 +655,7 @@ def main():
 if __name__ == '__main__':
     main()
 
+
 --------------------
 File: /AquaOptima/core/behavior.py
 --------------------
@@ -500,6 +664,7 @@ File: /AquaOptima/core/behavior.py
 """
 behavior.py -- Fish behavior: PSO movement, eating, decay, cannibalism,
                fecal production, death.
+Death reason tracking: suffocated, starved, weakened, sick, parasited, cannibalized.
 """
 
 import random, math
@@ -540,6 +705,25 @@ from helpers import _dist, _clamp, _norm
 
 _WALL = 2.0
 _FLOOR_Z = POND_DEPTH - _WALL
+
+# Death reason thresholds (fraction of max stat)
+_DEATH_THRESHOLD = 0.05
+
+
+def _get_death_reasons(f):
+    """Check all possible death reasons for a fish. Returns list of reason strings."""
+    reasons = []
+    if f.oxygen <= f.max_oxygen * _DEATH_THRESHOLD:
+        reasons.append('suffocated')
+    if f.fullness <= f.max_fullness * _DEATH_THRESHOLD:
+        reasons.append('starved')
+    if f.immunity <= f.max_immunity * _DEATH_THRESHOLD:
+        reasons.append('weakened')
+    if f.is_infected:
+        reasons.append('sick')
+    if f.has_parasite:
+        reasons.append('parasited')
+    return reasons
 
 
 def decay(sim):
@@ -799,7 +983,7 @@ def pso(sim):
 
 
 def cannibal(sim):
-    """Hungry fish may eat smaller fish."""
+    """Hungry fish may eat smaller fish. Records death reasons."""
     alive = [f for f in sim.fish if f.alive]
     sim._fish_grid.insert_all(alive)
     for f in alive:
@@ -820,9 +1004,16 @@ def cannibal(sim):
             if f.mouth_size > t.body_size:
                 d = _dist(f.x, f.y, f.z, t.x, t.y, t.z)
                 if d <= t.body_size * CANNIBAL_COLLISION_RADIUS_MULT:
+                    # Get death reasons for the prey before killing
+                    reasons = _get_death_reasons(t)
+                    reasons.append('cannibalized')
+
                     t.health = 0; t.alive = False
                     f.fullness = min(f.max_fullness, f.fullness + t.body_size * CANNIBAL_FULLNESS_GAIN_MULT)
-                    sim.cannibal_events.append({'x':t.x,'y':t.y,'z':t.z,'predator':f.fid,'prey':t.fid})
+                    sim.cannibal_events.append({
+                        'x': t.x, 'y': t.y, 'z': t.z,
+                        'predator': f.fid, 'prey': t.fid,
+                        'reasons': reasons})
                     break
 
 
@@ -849,11 +1040,24 @@ def fecal(sim):
 
 
 def death(sim):
-    """Detect dead fish, spawn dead body + NH3 + disease/parasite zones."""
+    """Detect dead fish, record death reasons, spawn dead body + NH3 + disease/parasite zones."""
     for f in sim.fish:
         if not f.alive: continue
         if f.health <= 0 or f.oxygen <= 0:
+            # Get death reasons BEFORE marking as dead
+            reasons = _get_death_reasons(f)
+            if not reasons:
+                # Health dropped to 0 but no specific threshold met
+                # This can happen from accumulated small damage
+                reasons.append('weakened')
+
             f.alive = False
+
+            # Record death event with reasons
+            sim.death_events.append({
+                'x': f.x, 'y': f.y, 'z': f.z,
+                'fish_id': f.fid,
+                'reasons': reasons})
 
             will_float = random.random() < DEAD_FISH_FLOAT_CHANCE
             ft = random.randint(*DEAD_FISH_FLOAT_DURATION_RANGE) if will_float else 0
@@ -878,6 +1082,7 @@ def death(sim):
                     f.body_size*INFECTED_FISH_DISEASE_RADIUS_MULT*0.8, 'parasite',
                     max_age=PARASITE_AREA_DECAY, is_floor=True))
 
+
 --------------------
 File: /AquaOptima/core/log.py
 --------------------
@@ -885,9 +1090,10 @@ File: /AquaOptima/core/log.py
 #!/usr/bin/env python3
 """
 log.py -- Print/table formatting helpers for console output.
+Option A: fish_count is now displayed as a fixed constant, not from genotype.
 """
 
-from constants import LOC_NAMES
+from constants import LOC_NAMES, FISH_COUNT
 
 
 def _print_gen_table(gen, max_gen, n_ponds, gen_results):
@@ -930,7 +1136,7 @@ def _print_champion_detail(label: str, result: dict):
     print(f"  | {'Cost':<{LW - 2}} | {'${:.2f}'.format(cost):>{RW}} |")
     print(f"  | {'Alive / Initial':<{LW - 2}} | {'{} / {}'.format(ac, ic):>{RW}} |")
     print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
-    print(f"  | {'Fish Count':<{LW - 2}} | {g.get('fish_count', '?'):>{RW}} |")
+    print(f"  | {'Fish Count (fixed)':<{LW - 2}} | {FISH_COUNT:>{RW}} |")
     print(f"  | {'Food Interval':<{LW - 2}} | {'{} h'.format(g.get('food_interval', '?')):>{RW}} |")
     print(f"  | {'Food Quantity':<{LW - 2}} | {'{} pellets'.format(g.get('food_quantity', '?')):>{RW}} |")
     print(f"  | {'Food Location':<{LW - 2}} | {LOC_NAMES.get(g.get('food_location', -1), '?'):>{RW}} |")
@@ -966,6 +1172,7 @@ def _print_champions_summary(champions: list) -> int:
     print(f"\n  >>> Best overall: Timeline {winner.get('timeline_idx', best_idx) + 1} with Fitness = {winner['fitness']:.4f}")
     return best_idx
 
+
 --------------------
 File: /AquaOptima/core/pond.py
 --------------------
@@ -974,13 +1181,15 @@ File: /AquaOptima/core/pond.py
 """
 pond.py -- PondSim: the aquaculture simulation orchestrator (3D).
 Delegates physics to physics.py and fish behavior to behavior.py.
+Option A: Yield is now alive_count / n0 (survival rate), since fish_count is fixed.
+Tracks death_events with reasons per timestep.
 """
 
 import random, math, copy
 
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
-    W1_YIELD, W2_SAVING, W3_HEALTHINESS, MAX_FISH_COUNT,
+    W1_YIELD, W2_SAVING, W3_HEALTHINESS,
     NUM_OBSTACLES, OBSTACLE_AREA_RANGE, OBSTACLE_ASPECT_RANGE,
     OBSTACLE_MAX_WIDTH, OBSTACLE_MAX_HEIGHT, OBSTACLE_MAX_DEPTH,
     OBSTACLE_DEPTH_RANGE,
@@ -1007,7 +1216,8 @@ class PondSim:
     __slots__ = ('geno', 'runtime', 'max_budget', 'record', 'fskip',
                  'fish', 'n0', 'ts', 'objs', 'hazards', 'obstacles',
                  'oxy_pump', 'frames', 'accum_cost', 'budget_exceeded',
-                 'cannibal_events', '_fish_grid', '_obj_grid', '_next_obj_id')
+                 'cannibal_events', 'death_events',
+                 '_fish_grid', '_obj_grid', '_next_obj_id')
 
     def __init__(self, geno, fish_templates, runtime, max_budget, record=False, fskip=1):
         self.geno = geno; self.runtime = runtime; self.max_budget = max_budget
@@ -1015,7 +1225,9 @@ class PondSim:
         self.fish = copy.deepcopy(fish_templates); self.n0 = len(self.fish)
         self.ts = 0; self.objs = []; self.hazards = []; self.obstacles = []
         self.oxy_pump = 0; self.frames = []; self.accum_cost = 0.0
-        self.budget_exceeded = False; self.cannibal_events = []
+        self.budget_exceeded = False
+        self.cannibal_events = []
+        self.death_events = []
         self._fish_grid = SpatialGrid(cell_size=max(SOCIAL_DISTANCE, SENSITIVE_DISTANCE))
         self._obj_grid = SpatialGrid(cell_size=SENSITIVE_DISTANCE)
         self._make_obs()
@@ -1054,7 +1266,9 @@ class PondSim:
 
     def run(self):
         for t in range(self.runtime):
-            self.ts = t; self.cannibal_events = []
+            self.ts = t
+            self.cannibal_events = []
+            self.death_events = []
             self._step()
             if self.record and t % self.fskip == 0:
                 self.frames.append(self._frame())
@@ -1066,7 +1280,8 @@ class PondSim:
         cost = self.accum_cost
         saving = max(0, self.max_budget - cost) if not self.budget_exceeded else 0
         saving_ratio = saving / self.max_budget if self.max_budget > 0 else 0
-        yld = len(alive) / MAX_FISH_COUNT
+        # Option A: Yield = survival rate (alive / initial), since fish_count is fixed
+        yld = sr
         fit = (W1_YIELD * yld + W2_SAVING * saving_ratio + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
         return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving': saving,
                 'fitness': fit, 'cost': cost, 'alive_count': len(alive),
@@ -1154,7 +1369,9 @@ class PondSim:
                            'w':round(o.w,1),'h':round(o.h,1),'d':round(o.d,1)}
                           for o in self.obstacles],
             'alive_count': len(alive), 'total_count': self.n0,
-            'cannibal_events': list(self.cannibal_events)}
+            'cannibal_events': list(self.cannibal_events),
+            'death_events': list(self.death_events)}
+
 
 --------------------
 File: /AquaOptima/core/constants.py
@@ -1177,6 +1394,7 @@ import math
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_CSV_PATH = str(PROJECT_ROOT / 'logs' / 'results.csv')
 SIMULATION_JSON_PATH = str(PROJECT_ROOT / 'logs' / 'simulation_data.json')
+EA_LOG_PATH = str(PROJECT_ROOT / 'logs' / 'ea_log.txt')
 PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 NUM_WORKERS = None
 
@@ -1184,28 +1402,40 @@ NUM_WORKERS = None
 # ║                    EA CONFIGURATION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-MAX_BUDGET = 500.0
-AQUACULTURE_DAYS = 20
-POND_GENERATIONS = 10
-RUN_TIMELINES = 1
-POND_POPULATION = 50
+AQUACULTURE_DAYS = 30
+POND_GENERATIONS = 20
+RUN_TIMELINES = 10
+POND_POPULATION = 20
 FRAME_SKIP = 1
 EA_CROSSOVER_RATE = 0.80
-EA_MUTATION_RATE = 0.35
-EA_ELITISM_COUNT = max(2, round(0.2 * POND_POPULATION))
-EA_TOURNAMENT_K = max(4, round(0.4 * POND_POPULATION))
+EA_MUTATION_RATE = 0.25
+EA_ELITISM_COUNT = max(1, round(0.1 * POND_POPULATION))
+EA_TOURNAMENT_K = max(5, round(0.5 * POND_POPULATION))
+
+# ╔══════════════════════════════════════════════════════════════╗
+# ║              VERIFICATION CONSTANTS (Option F)              ║
+# ╚══════════════════════════════════════════════════════════════╝
+
+VERIFY_MIN_SAMPLES = 3          # Minimum samples for Wilcoxon test
+VERIFY_ALPHA = 0.05             # Significance level
+VERIFY_MAX_CASCADE_DEPTH = 3    # Max candidates to verify in cascade
+VERIFY_SKIP_THRESHOLD = 0.10    # Skip verification if averages differ this much
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 EA POLICY RANGES                            ║
 # ║  Ranges the EA can explore for genotype parameters.         ║
+# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FOOD_QUANTITY_RANGE = (5, 30)
-FOOD_INTERVAL_RANGE = (1, 12)
-PROBIOTIC_QUANTITY_RANGE = (1, 4)
-PROBIOTIC_INTERVAL_STEPS = list(range(24, 169, 12))
-OXYGEN_DURATION_RANGE = (1, 4)
-OXYGEN_INTERVAL_RANGE = (1, 20)
+FOOD_QUANTITY_RANGE = (1, 10)
+FOOD_INTERVAL_RANGE = (1, 24)
+PROBIOTIC_QUANTITY_RANGE = (0, 4)
+PROBIOTIC_INTERVAL_STEPS = list(range(12, 169, 12))
+OXYGEN_DURATION_RANGE = (1, 3)
+OXYGEN_INTERVAL_RANGE = (1, 24)
+
+# Binary location options: Center (0) or Random (9)
+LOCATION_OPTIONS = [0, 9]
 
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -1220,18 +1450,20 @@ W3_HEALTHINESS = 0.12
 # ║                    POND DIMENSIONS                          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-POND_WIDTH = 200.0
-POND_HEIGHT = 75.0
+POND_WIDTH = 180.0
+POND_HEIGHT = 85.0
 POND_DEPTH = 50.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                    FISH POPULATION                          ║
 # ║  MAX_FISH_COUNT scales with pond size via cube-root.        ║
 # ║  FISH_DENSITY_K=0.55 gives ~50 fish for 200×75×50 pond.    ║
+# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FISH_DENSITY_K = 0.55
 MAX_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_DEPTH) ** (1/3)))
+FISH_COUNT = MAX_FISH_COUNT
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FISH TRAITS (FIXED AT BIRTH)                ║
@@ -1254,7 +1486,7 @@ OXYGEN_RANGE = (80.0, 100.0)
 # ║                 STAT DECAY (PER TIMESTEP)                   ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-OXYGEN_DECAY = 0.22
+OXYGEN_DECAY = 0.25
 OXYGEN_DECAY_NH3_MULT = 3.0
 OXYGEN_PASSIVE_REGEN = 0.03
 FULLNESS_DECAY = 0.05
@@ -1264,9 +1496,9 @@ FULLNESS_COST_MOVE = 0.10
 # ║                 HEALTH DECAY & REGEN                        ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-HEALTH_DECAY_NO_FULLNESS = 0.8
-HEALTH_DECAY_INFECTED = 0.5
-HEALTH_DECAY_PARASITE = 0.7
+HEALTH_DECAY_NO_FULLNESS = 1.0
+HEALTH_DECAY_INFECTED = 0.6
+HEALTH_DECAY_PARASITE = 0.8
 HEALTH_DECAY_IN_NH3 = 0.3
 HEALTH_REGEN = 0.02
 
@@ -1285,9 +1517,9 @@ IMMUNITY_DECAY_IN_DISEASE = 18.0
 IMMUNITY_DECAY_IN_NH3 = 6.0
 IMMUNITY_REGEN = 0.02
 DISEASE_SELF_CURE_CHANCE = 0.05
-PARASITE_CONTACT_CHANCE = 0.35
-PARASITE_FULLNESS_EFFICIENCY = 0.5
-PARASITE_EXTRA_FULLNESS_DRAIN = 1.0
+PARASITE_CONTACT_CHANCE = 0.25
+PARASITE_FULLNESS_EFFICIENCY = 0.3
+PARASITE_EXTRA_FULLNESS_DRAIN = 1.5
 PARASITE_VELOCITY_MULT = 0.75
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -1295,11 +1527,11 @@ PARASITE_VELOCITY_MULT = 0.75
 # ╚══════════════════════════════════════════════════════════════╝
 
 FOOD_VALUE = 5.0
-FOOD_FULLNESS_GAIN = 10.0
+FOOD_FULLNESS_GAIN = 5.0
 FOOD_DRIFT_SPEED = 0.15
 
 PROBIOTIC_VALUE = 3.0
-PROBIOTIC_IMMUNITY_GAIN = 40.0
+PROBIOTIC_IMMUNITY_GAIN = 30.0
 PROBIOTIC_DRIFT_SPEED = 0.12
 
 OXYGEN_BUBBLE_GAIN = 20.0
@@ -1310,39 +1542,43 @@ OXYGEN_BUBBLES_PER_PUMP = 10
 # ║                 ECONOMIC (PRICES)                           ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FOOD_PRICE = 0.05
-PROBIOTIC_PRICE = 0.75
-OXYGEN_PRICE = 2.50
+FOOD_PRICE = 0.10
+PROBIOTIC_PRICE = 0.50
+OXYGEN_PRICE = 1.50
+MAX_BUDGET = 500
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 OBJECT LIFETIMES (TIMESTEPS)                ║
+# ║  Scaled for 30-day simulation (~720 timesteps).             ║
+# ║  Halved from original 60-day design to see 2-3 full         ║
+# ║  object lifecycles within the simulation window.            ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-FOOD_EXPIRE_TIMESTEPS = 48
-PROBIOTIC_EXPIRE_TIMESTEPS = 18
-FECAL_EXPIRE_TIMESTEPS = 36
-DEAD_FISH_DECAY_TIMESTEPS = 24
-NH3_EXPIRE_TIMESTEPS = 60
-DISEASE_AREA_DECAY = 36
-PARASITE_AREA_DECAY = 36
-POLLUTANT_TO_HAZARD_TIMESTEPS = 48
+FOOD_EXPIRE_TIMESTEPS = 12          # 1 day  (was 48)
+PROBIOTIC_EXPIRE_TIMESTEPS = 6     # 12h    (was 18)
+FECAL_EXPIRE_TIMESTEPS = 18         # 18h    (was 36)
+DEAD_FISH_DECAY_TIMESTEPS = 12      # 18h    (was 24)
+NH3_EXPIRE_TIMESTEPS = 36           # 1.5 days (was 60)
+DISEASE_AREA_DECAY = 24             # 1 day  (was 36)
+PARASITE_AREA_DECAY = 24            # 1 day  (was 36)
+POLLUTANT_TO_HAZARD_TIMESTEPS = 18  # 1 day  (was 48)
 DISEASE_AREA_RADIUS_DECAY = 0.990
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 SINKING & FLOATING                          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-SINK_SPEED = 0.3
-SINK_SPEED_HEAVY = 0.6
+SINK_SPEED = 0.4
+SINK_SPEED_HEAVY = 0.8
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FECAL                                       ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FECAL_DROP_INTERVAL = 3
-FECAL_BASE_CHANCE = 0.05
+FECAL_BASE_CHANCE = 0.07
 FECAL_VALUE = 3.0
-FECAL_SINK_SPEED = 0.4
+FECAL_SINK_SPEED = SINK_SPEED
 MAX_SINKING_FECAL = 100
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -1351,7 +1587,7 @@ MAX_SINKING_FECAL = 100
 
 DEAD_FISH_NH3_RADIUS = 12.0
 DEAD_FISH_FLOAT_CHANCE = 0.45
-DEAD_FISH_FLOAT_DURATION_RANGE = (12, 72)
+DEAD_FISH_FLOAT_DURATION_RANGE = (6, 36)   # Halved (was 12, 72)
 DEAD_FISH_FLOAT_SPEED = 0.4
 DEAD_FISH_POLLUTANT_MULT = 3.0
 INFECTED_FISH_DISEASE_RADIUS_MULT = 5.0
@@ -1391,10 +1627,12 @@ NH3_AREA_RADIUS_RANGE = (6.0, 14.0)
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 NATURAL SPAWN RATES                         ║
+# ║  Slightly increased for 30-day simulation to see more       ║
+# ║  environmental dynamics within the shorter window.          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-NATURAL_OXYGEN_SPAWN_RATE = 0.12
-NATURAL_NH3_SPAWN_RATE = 0.04
+NATURAL_OXYGEN_SPAWN_RATE = 0.15    # was 0.12
+NATURAL_NH3_SPAWN_RATE = 0.06       # was 0.04
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 OBSTACLES                                   ║
@@ -1487,6 +1725,7 @@ OBSTACLE_MAX_DEPTH = POND_DEPTH * OBSTACLE_MAX_DIM_FRAC
 
 NUM_OBSTACLES = max(5, round(math.sqrt(POND_WIDTH * POND_HEIGHT) * OBSTACLE_DENSITY_FACTOR))
 
+
 --------------------
 File: /AquaOptima/core/simulate.py
 --------------------
@@ -1495,11 +1734,13 @@ File: /AquaOptima/core/simulate.py
 """
 simulate.py -- Run a single pond simulation.
 This is the interface point for any decision-maker (EA, LLM, etc.).
+Option A: fish_count is fixed at FISH_COUNT, not part of genotype.
 """
 
 import random
+import time as _time
 
-from constants import MAX_BUDGET, FRAME_SKIP, RUNTIME
+from constants import MAX_BUDGET, FRAME_SKIP, RUNTIME, FISH_COUNT
 from entities import PondGenotype
 from helpers import _make_fish
 from pond import PondSim
@@ -1508,6 +1749,7 @@ from pond import PondSim
 def run_single_pond(geno_dict, runtime=None, max_budget=None,
                     record=False, frame_skip=None, seed=None):
     """Run one pond simulation from a genotype dictionary. Returns result dict."""
+    wall_start = _time.time()
     if seed is not None:
         random.seed(seed)
     if runtime is None:
@@ -1518,11 +1760,14 @@ def run_single_pond(geno_dict, runtime=None, max_budget=None,
         frame_skip = FRAME_SKIP
 
     geno = PondGenotype(**geno_dict)
-    fishes = [_make_fish(i) for i in range(geno.fish_count)]
+    fishes = [_make_fish(i) for i in range(FISH_COUNT)]
     sim = PondSim(geno, fishes, runtime, max_budget, record=record, fskip=frame_skip)
     r = sim.run()
     r['genotype'] = geno_dict
+    r['_worker_start_time'] = wall_start
+    r['_worker_elapsed'] = _time.time() - wall_start
     return r
+
 
 --------------------
 File: /AquaOptima/core/physics.py
@@ -1765,6 +2010,7 @@ File: /AquaOptima/core/entities.py
 """
 entities.py -- Simulation entity dataclasses (3D).
 PondGenotype is a pure data container -- EA operations live in ea.py.
+Option A: fish_count removed from genotype (fixed at FISH_COUNT).
 """
 
 from dataclasses import dataclass
@@ -1779,7 +2025,11 @@ from constants import (
 
 @dataclass
 class PondGenotype:
-    fish_count: int = 30
+    """
+    Genotype for pond management policies.
+    fish_count is NO LONGER part of the genotype (Option A).
+    It is fixed at constants.FISH_COUNT.
+    """
     food_interval: int = 6
     food_quantity: int = 3
     food_location: int = 0
@@ -1803,7 +2053,6 @@ class PondGenotype:
 
     def to_dict(self) -> dict:
         return {k: getattr(self, k) for k in [
-            'fish_count',
             'food_interval', 'food_quantity', 'food_location',
             'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
             'oxygen_interval', 'oxygen_duration', 'oxygen_location']}
@@ -1905,6 +2154,7 @@ class Fish:
             'base_velocity': round(self.base_velocity, 2),
             'vx': round(self.vx, 2), 'vy': round(self.vy, 2), 'vz': round(self.vz, 2),
         }
+
 
 --------------------
 File: /AquaOptima/core/helpers.py
@@ -2055,16 +2305,39 @@ File: /AquaOptima/core/ea.py
 
 #!/usr/bin/env python3
 """
-ea.py -- Evolutionary Algorithm: pond configuration evolution with parallel timelines.
-Parallelism is at the pond level within each generation.
-Last pond champion = best pond in the LAST generation of each timeline.
+ea.py -- Evolutionary Algorithm with fully parallel timelines,
+         priority-based task scheduling, and async verified selection.
+
+Priority model:
+    (timeline, generation, task_type)
+    - Lower timeline = higher priority (TL1 first)
+    - Lower generation = higher priority
+    - task_type: 0=Sim, 1=Ver  (Sim > Ver)
+
+All timelines run concurrently through a single PriorityPool.
+TL1 gets all cores; TL2/TL3 fill idle gaps.
+Results are stored per-timeline and logged sequentially at the end.
+
+Dual output:
+    - Console: real-time interleaved progress
+    - Log file: clean sequential output (all TL1, then TL2, etc.)
+
+Options A/E/F:
+    A: fish_count fixed at FISH_COUNT (not in genotype)
+    E: Memory-based fitness accumulation per timeline
+    F: Wilcoxon-verified tournament selection with cascade
 """
 
-import random, copy, csv, time as _time, multiprocessing
-from concurrent.futures import ProcessPoolExecutor, as_completed
+import random, copy, csv, time as _time, multiprocessing, hashlib, json, threading, os
+from collections import defaultdict
+from queue import Queue, Empty
+from concurrent.futures import ProcessPoolExecutor
+import heapq
+
+from scipy.stats import mannwhitneyu
 
 from constants import (
-    MAX_BUDGET, MAX_FISH_COUNT, AQUACULTURE_DAYS,
+    MAX_BUDGET, FISH_COUNT, AQUACULTURE_DAYS,
     POND_GENERATIONS, RUN_TIMELINES, POND_POPULATION,
     FRAME_SKIP, NUM_WORKERS, RUNTIME, RESULTS_CSV_PATH,
     EA_ELITISM_COUNT, EA_TOURNAMENT_K,
@@ -2072,28 +2345,60 @@ from constants import (
     FOOD_INTERVAL_RANGE, FOOD_QUANTITY_RANGE,
     PROBIOTIC_QUANTITY_RANGE, PROBIOTIC_INTERVAL_STEPS,
     OXYGEN_INTERVAL_RANGE, OXYGEN_DURATION_RANGE,
+    VERIFY_MIN_SAMPLES, VERIFY_ALPHA,
+    VERIFY_MAX_CASCADE_DEPTH, VERIFY_SKIP_THRESHOLD,
+    EA_LOG_PATH, LOCATION_OPTIONS,
 )
 
 from entities import PondGenotype
 from simulate import run_single_pond
 from log import _print_champion_detail, _print_champions_summary
 
+
 # ════════════════════════════════════════════════════════════════
-# EA GENOTYPE OPERATIONS
+# GENOTYPE IDENTITY KEY
+# ════════════════════════════════════════════════════════════════
+
+def _geno_key(geno: PondGenotype) -> str:
+    d = geno.to_dict()
+    return hashlib.md5(json.dumps(d, sort_keys=True).encode()).hexdigest()
+
+
+# ════════════════════════════════════════════════════════════════
+# MUTATION HELPERS (Gaussian perturbation)
+# ════════════════════════════════════════════════════════════════
+
+def _perturb_int(value, lo, hi, step):
+    """Perturb an integer value by ±step, clamped to [lo, hi]."""
+    new_val = value + random.randint(-step, step)
+    return max(lo, min(hi, new_val))
+
+
+def _perturb_choice(value, choices, n_steps):
+    """Perturb a value within an ordered list by ±n_steps positions."""
+    if value not in choices:
+        return random.choice(choices)
+    idx = choices.index(value)
+    new_idx = idx + random.randint(-n_steps, n_steps)
+    new_idx = max(0, min(len(choices) - 1, new_idx))
+    return choices[new_idx]
+
+
+# ════════════════════════════════════════════════════════════════
+# EA GENOTYPE OPERATIONS (Option A: no fish_count)
 # ════════════════════════════════════════════════════════════════
 
 def random_genotype() -> PondGenotype:
     return PondGenotype(
-        fish_count=random.randint(10, MAX_FISH_COUNT),
         food_interval=random.randint(*FOOD_INTERVAL_RANGE),
         food_quantity=random.randint(*FOOD_QUANTITY_RANGE),
-        food_location=random.randint(0, 9),
+        food_location=random.choice(LOCATION_OPTIONS),
         probiotic_interval=random.choice(PROBIOTIC_INTERVAL_STEPS),
         probiotic_quantity=random.randint(*PROBIOTIC_QUANTITY_RANGE),
-        probiotic_location=random.randint(0, 9),
+        probiotic_location=random.choice(LOCATION_OPTIONS),
         oxygen_interval=random.randint(*OXYGEN_INTERVAL_RANGE),
         oxygen_duration=random.randint(*OXYGEN_DURATION_RANGE),
-        oxygen_location=random.randint(0, 9))
+        oxygen_location=random.choice(LOCATION_OPTIONS))
 
 
 def crossover(a: PondGenotype, b: PondGenotype) -> PondGenotype:
@@ -2104,17 +2409,34 @@ def crossover(a: PondGenotype, b: PondGenotype) -> PondGenotype:
 
 
 def mutate(geno: PondGenotype):
+    """Gaussian perturbation mutation. Numeric genes get small adjustments.
+    Location genes (binary: Center/Random) get flipped."""
     r = EA_MUTATION_RATE
-    if random.random() < r: geno.fish_count = random.randint(10, MAX_FISH_COUNT)
-    if random.random() < r: geno.food_interval = random.randint(*FOOD_INTERVAL_RANGE)
-    if random.random() < r: geno.food_quantity = random.randint(*FOOD_QUANTITY_RANGE)
-    if random.random() < r: geno.food_location = random.randint(0, 9)
-    if random.random() < r: geno.probiotic_interval = random.choice(PROBIOTIC_INTERVAL_STEPS)
-    if random.random() < r: geno.probiotic_quantity = random.randint(*PROBIOTIC_QUANTITY_RANGE)
-    if random.random() < r: geno.probiotic_location = random.randint(0, 9)
-    if random.random() < r: geno.oxygen_interval = random.randint(*OXYGEN_INTERVAL_RANGE)
-    if random.random() < r: geno.oxygen_duration = random.randint(*OXYGEN_DURATION_RANGE)
-    if random.random() < r: geno.oxygen_location = random.randint(0, 9)
+    # Food policy
+    if random.random() < r:
+        geno.food_interval = _perturb_int(geno.food_interval, *FOOD_INTERVAL_RANGE, step=4)
+    if random.random() < r:
+        geno.food_quantity = _perturb_int(geno.food_quantity, *FOOD_QUANTITY_RANGE, step=2)
+    if random.random() < r:
+        geno.food_location = 9 if geno.food_location == 0 else 0  # binary flip
+
+    # Probiotic policy
+    if random.random() < r:
+        geno.probiotic_interval = _perturb_choice(geno.probiotic_interval,
+                                                    PROBIOTIC_INTERVAL_STEPS, n_steps=1)
+    if random.random() < r:
+        geno.probiotic_quantity = _perturb_int(geno.probiotic_quantity,
+                                                *PROBIOTIC_QUANTITY_RANGE, step=1)
+    if random.random() < r:
+        geno.probiotic_location = 9 if geno.probiotic_location == 0 else 0  # binary flip
+
+    # Oxygen policy
+    if random.random() < r:
+        geno.oxygen_interval = _perturb_int(geno.oxygen_interval, *OXYGEN_INTERVAL_RANGE, step=4)
+    if random.random() < r:
+        geno.oxygen_duration = _perturb_int(geno.oxygen_duration, *OXYGEN_DURATION_RANGE, step=1)
+    if random.random() < r:
+        geno.oxygen_location = 9 if geno.oxygen_location == 0 else 0  # binary flip
 
 
 # ════════════════════════════════════════════════════════════════
@@ -2125,36 +2447,388 @@ CSV_HEADER = [
     'timeline', 'generation', 'pond', 'status',
     'fitness', 'survival_rate', 'healthiness', 'cost',
     'saving', 'yield', 'alive_count', 'initial_count',
-    'fish_count',
     'food_interval', 'food_quantity', 'food_location',
     'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
     'oxygen_interval', 'oxygen_duration', 'oxygen_location',
 ]
 
+
 def _csv_row_data(tl_idx, gen_idx, pond_idx, status, result, geno_dict):
     return [
-        tl_idx+1, gen_idx+1, pond_idx, status,
-        f"{result.get('fitness',0):.4f}", f"{result.get('survival_rate',0):.4f}",
-        f"{result.get('avg_healthiness',0):.4f}", f"{result.get('cost',0):.2f}",
-        f"{result.get('saving',0):.2f}", f"{result.get('yield',0):.4f}",
-        result.get('alive_count',0), result.get('initial_count',0),
-        geno_dict.get('fish_count',''),
-        geno_dict.get('food_interval',''), geno_dict.get('food_quantity',''),
-        geno_dict.get('food_location',''), geno_dict.get('probiotic_interval',''),
-        geno_dict.get('probiotic_quantity',''), geno_dict.get('probiotic_location',''),
-        geno_dict.get('oxygen_interval',''), geno_dict.get('oxygen_duration',''),
-        geno_dict.get('oxygen_location',''),
+        tl_idx + 1, gen_idx + 1, pond_idx, status,
+        f"{result.get('fitness', 0):.4f}", f"{result.get('survival_rate', 0):.4f}",
+        f"{result.get('avg_healthiness', 0):.4f}", f"{result.get('cost', 0):.2f}",
+        f"{result.get('saving', 0):.2f}", f"{result.get('yield', 0):.4f}",
+        result.get('alive_count', 0), result.get('initial_count', 0),
+        geno_dict.get('food_interval', ''), geno_dict.get('food_quantity', ''),
+        geno_dict.get('food_location', ''), geno_dict.get('probiotic_interval', ''),
+        geno_dict.get('probiotic_quantity', ''), geno_dict.get('probiotic_location', ''),
+        geno_dict.get('oxygen_interval', ''), geno_dict.get('oxygen_duration', ''),
+        geno_dict.get('oxygen_location', ''),
     ]
 
-def _tournament_select(gen_results, k):
-    candidates = random.sample(gen_results, min(k, len(gen_results)))
-    winner = max(candidates, key=lambda r: r['fitness'])
-    return winner['genotype_obj']
 
 def _run_pond_worker(args):
-    """Multiprocessing target — thin wrapper around simulate.run_single_pond."""
     geno_dict, runtime, max_budget, do_rec, frame_skip, seed = args
     return run_single_pond(geno_dict, runtime, max_budget, do_rec, frame_skip, seed)
+
+
+# ════════════════════════════════════════════════════════════════
+# FITNESS MEMORY (Option E) — one per timeline
+# ════════════════════════════════════════════════════════════════
+
+class FitnessMemory:
+    def __init__(self):
+        self._samples = defaultdict(list)
+
+    def record(self, geno: PondGenotype, fitness: float):
+        self._samples[_geno_key(geno)].append(fitness)
+
+    def get_samples(self, geno: PondGenotype) -> list:
+        return self._samples.get(_geno_key(geno), [])
+
+    def get_mean(self, geno: PondGenotype) -> float:
+        s = self.get_samples(geno)
+        return sum(s) / len(s) if s else 0.0
+
+    def sample_count(self, geno: PondGenotype) -> int:
+        return len(self._samples.get(_geno_key(geno), []))
+
+
+# ════════════════════════════════════════════════════════════════
+# WILCOXON COMPARISON (Option F)
+# ════════════════════════════════════════════════════════════════
+
+def _wilcoxon_compare(samples_a, samples_b, alpha=VERIFY_ALPHA):
+    if len(samples_a) < 2 or len(samples_b) < 2:
+        mean_a = sum(samples_a) / len(samples_a)
+        mean_b = sum(samples_b) / len(samples_b)
+        if mean_a > mean_b: return 'a_better'
+        elif mean_b > mean_a: return 'b_better'
+        return 'inconclusive'
+    try:
+        stat, p = mannwhitneyu(samples_a, samples_b, alternative='two-sided')
+    except ValueError:
+        return 'inconclusive'
+    if p < alpha:
+        median_a = sorted(samples_a)[len(samples_a) // 2]
+        median_b = sorted(samples_b)[len(samples_b) // 2]
+        if median_a > median_b: return 'a_better'
+        elif median_b > median_a: return 'b_better'
+    return 'inconclusive'
+
+
+# ════════════════════════════════════════════════════════════════
+# PRIORITY POOL
+# ════════════════════════════════════════════════════════════════
+
+# Task types
+TASK_SIM = 0
+TASK_VER = 1
+
+
+class PriorityPool:
+    """
+    Persistent process pool with priority-based task scheduling.
+    Priority tuple: (timeline, generation, task_type, sequence)
+    Lower = higher priority. Sequence is a tiebreaker for FIFO within same priority.
+
+    Timeline is highest priority — TL1 gets all cores, TL2/TL3 fill idle gaps.
+    """
+
+    def __init__(self, max_workers):
+        self.executor = ProcessPoolExecutor(max_workers=max_workers)
+        self.max_workers = max_workers
+        self.in_flight = 0
+        self.pending = []           # min-heap of (priority_tuple, task_args, tag)
+        self.seq = 0                # monotonic tiebreaker
+        self.lock = threading.Lock()
+        self.result_queue = Queue() # results flow to main thread
+
+    def submit(self, task_args, timeline, gen, task_type, tag=None):
+        with self.lock:
+            self.seq += 1
+            priority = (timeline, gen, task_type, self.seq)
+            heapq.heappush(self.pending, (priority, task_args, tag))
+            self._drain()
+
+    def _drain(self):
+        """Submit highest-priority pending tasks to fill available cores."""
+        while self.in_flight < self.max_workers and self.pending:
+            priority, task_args, tag = heapq.heappop(self.pending)
+            future = self.executor.submit(_run_pond_worker, task_args)
+            self.in_flight += 1
+            future.add_done_callback(lambda f, t=tag: self._on_done(f, t))
+
+    def _on_done(self, future, tag):
+        with self.lock:
+            self.in_flight -= 1
+            try:
+                result = future.result()
+            except Exception as e:
+                result = {'fitness': 0, 'error': str(e)}
+            self.result_queue.put((tag, result))
+            self._drain()  # immediately fill the freed core
+
+    def get_result(self, timeout=None):
+        return self.result_queue.get(timeout=timeout)
+
+    def shutdown(self):
+        self.executor.shutdown(wait=True)
+
+
+# ════════════════════════════════════════════════════════════════
+# TOURNAMENT STATE MACHINE
+# ════════════════════════════════════════════════════════════════
+
+class TournamentState:
+    """
+    State machine for a single tournament with Wilcoxon cascade.
+    States: NEED_CURRENT_SAMPLES → NEED_CHALLENGER_SAMPLES → COMPARING → RESOLVED
+    """
+    def __init__(self, candidates, tournament_idx):
+        self.candidates = candidates  # sorted by memory average, descending
+        self.tournament_idx = tournament_idx
+        self.current_idx = 0
+        self.challenger_idx = 1
+        self.resolved = False
+        self.winner = None
+        self.cascade_depth = 0
+
+    def get_current(self):
+        if self.current_idx < len(self.candidates):
+            return self.candidates[self.current_idx]
+        return None
+
+    def get_challenger(self):
+        if self.challenger_idx < len(self.candidates):
+            return self.candidates[self.challenger_idx]
+        return None
+
+    def advance_cascade(self):
+        self.challenger_idx += 1
+        self.cascade_depth += 1
+
+    def resolve(self, winner):
+        self.winner = winner
+        self.resolved = True
+
+
+# ════════════════════════════════════════════════════════════════
+# TOURNAMENT MANAGER
+# ════════════════════════════════════════════════════════════════
+
+class TournamentMgr:
+    """
+    Manages all tournaments for a generation.
+    Processes verification results and advances tournament state machines.
+    Submits verification top-ups lazily per cascade depth.
+    """
+
+    def __init__(self, gen_results, n_children, k, memory, pool,
+                 tl_idx, gen_idx, runtime, max_budget):
+        self.memory = memory
+        self.pool = pool
+        self.tl_idx = tl_idx
+        self.gen_idx = gen_idx
+        self.runtime = runtime
+        self.max_budget = max_budget
+        self.n_tournaments = n_children * 2  # 2 parents per child
+        self.tournaments = []
+        self.pending_genos = {}   # geno_key → set of tournament indices waiting
+        self.ver_in_flight = 0
+        self.total_ver_evals = 0
+        self.resolved_parents = [None] * self.n_tournaments
+        self.n_resolved = 0
+        self.children = [None] * n_children
+        self.n_children_ready = 0
+
+        # Pre-draw all tournaments
+        for i in range(self.n_tournaments):
+            candidates = random.sample(gen_results, min(k, len(gen_results)))
+            candidates.sort(key=lambda r: self.memory.get_mean(r['genotype_obj']),
+                          reverse=True)
+            depth = min(VERIFY_MAX_CASCADE_DEPTH + 1, len(candidates))
+            self.tournaments.append(TournamentState(candidates[:depth], i))
+
+    def start(self):
+        """Kick off all tournaments."""
+        for t in self.tournaments:
+            self._advance(t)
+
+    def on_ver_result(self, geno_key, result):
+        """Called when a verification eval completes."""
+        fitness = result.get('fitness', 0)
+        elapsed = result.get('_worker_elapsed', 0)
+        self.ver_in_flight -= 1
+
+        # Find the genotype object and record
+        waiting = self.pending_genos.pop(geno_key, set())
+        for t_idx in waiting:
+            t = self.tournaments[t_idx]
+            for c in t.candidates:
+                if _geno_key(c['genotype_obj']) == geno_key:
+                    self.memory.record(c['genotype_obj'], fitness)
+                    break
+            break  # record once
+
+        # Advance all tournaments that were waiting for this genotype
+        for t_idx in waiting:
+            t = self.tournaments[t_idx]
+            if not t.resolved:
+                self._advance(t)
+
+        return elapsed
+
+    def _advance(self, t):
+        """Try to advance a tournament's state machine."""
+        if t.resolved:
+            return
+
+        current = t.get_current()
+        if current is None:
+            t.resolve(t.candidates[0] if t.candidates else None)
+            self._on_resolved(t)
+            return
+
+        current_geno = current['genotype_obj']
+        current_key = _geno_key(current_geno)
+        current_samples = self.memory.sample_count(current_geno)
+
+        # Ensure current has enough samples
+        if current_samples < VERIFY_MIN_SAMPLES:
+            needed = VERIFY_MIN_SAMPLES - current_samples
+            self._submit_topups(current_geno, current_key, t.tournament_idx, needed)
+            return  # wait for results
+
+        challenger = t.get_challenger()
+
+        # No more challengers or max cascade depth reached
+        if challenger is None or t.cascade_depth >= VERIFY_MAX_CASCADE_DEPTH:
+            t.resolve(current)
+            self._on_resolved(t)
+            return
+
+        challenger_geno = challenger['genotype_obj']
+        challenger_key = _geno_key(challenger_geno)
+
+        # Skip threshold check before verifying challenger
+        current_mean = self.memory.get_mean(current_geno)
+        challenger_mean = self.memory.get_mean(challenger_geno)
+        if current_mean - challenger_mean > VERIFY_SKIP_THRESHOLD:
+            t.resolve(current)
+            self._on_resolved(t)
+            return
+
+        # Ensure challenger has enough samples
+        challenger_samples = self.memory.sample_count(challenger_geno)
+        if challenger_samples < VERIFY_MIN_SAMPLES:
+            needed = VERIFY_MIN_SAMPLES - challenger_samples
+            self._submit_topups(challenger_geno, challenger_key, t.tournament_idx, needed)
+            return  # wait for results
+
+        # Both have enough samples — Wilcoxon compare
+        current_s = self.memory.get_samples(current_geno)
+        challenger_s = self.memory.get_samples(challenger_geno)
+        result = _wilcoxon_compare(current_s, challenger_s)
+
+        if result == 'a_better':
+            # Current confirmed
+            t.resolve(current)
+            self._on_resolved(t)
+        elif result == 'b_better':
+            # Challenger dethroned current
+            t.current_idx = t.challenger_idx
+            t.advance_cascade()
+            self._advance(t)  # recurse with new current
+        else:
+            # Inconclusive — try next challenger, current holds
+            t.advance_cascade()
+            self._advance(t)
+
+    def _submit_topups(self, geno, geno_key, tournament_idx, needed):
+        """Submit verification evals, deduplicating across tournaments."""
+        if geno_key in self.pending_genos:
+            # Already in flight — just register this tournament as waiting
+            self.pending_genos[geno_key].add(tournament_idx)
+            return
+
+        self.pending_genos[geno_key] = {tournament_idx}
+        for _ in range(needed):
+            seed = random.randint(0, 2**31)
+            task_args = (geno.to_dict(), self.runtime, MAX_BUDGET, False, FRAME_SKIP, seed)
+            tag = ('ver', self.tl_idx, self.gen_idx, geno_key)
+            self.pool.submit(task_args, self.tl_idx, self.gen_idx, TASK_VER, tag=tag)
+            self.ver_in_flight += 1
+            self.total_ver_evals += 1
+
+    def _on_resolved(self, t):
+        """Called when a tournament resolves."""
+        idx = t.tournament_idx
+        self.resolved_parents[idx] = t.winner
+        self.n_resolved += 1
+
+        # Check if pair partner is also resolved
+        pair_idx = idx // 2
+        a_idx = pair_idx * 2
+        b_idx = pair_idx * 2 + 1
+
+        if b_idx < self.n_tournaments:
+            if (self.resolved_parents[a_idx] is not None and
+                self.resolved_parents[b_idx] is not None and
+                self.children[pair_idx] is None):
+                # Both parents ready — create child
+                parent_a = self.resolved_parents[a_idx]['genotype_obj']
+                parent_b = self.resolved_parents[b_idx]['genotype_obj']
+                if random.random() < EA_CROSSOVER_RATE:
+                    child = crossover(parent_a, parent_b)
+                else:
+                    child = copy.deepcopy(parent_a)
+                mutate(child)
+                self.children[pair_idx] = child
+                self.n_children_ready += 1
+
+    @property
+    def all_resolved(self):
+        return self.n_resolved >= self.n_tournaments
+
+    @property
+    def all_children_ready(self):
+        expected = self.n_tournaments // 2
+        return self.n_children_ready >= expected
+
+
+# ════════════════════════════════════════════════════════════════
+# TIMELINE STATE
+# ════════════════════════════════════════════════════════════════
+
+class TimelineState:
+    def __init__(self, tl_idx, n_timelines):
+        self.tl_idx = tl_idx
+        self.n_timelines = n_timelines
+        self.gen = 0
+        self.ponds = [random_genotype() for _ in range(POND_POPULATION)]
+        self.memory = FitnessMemory()
+        self.gen_results = []
+        self.sim_pending = 0
+        self.tournament_mgr = None
+        self.finished = False
+        self.csv_rows = []
+        self.champion = None
+        self.log_lines = []
+
+        # Timing — core-time based
+        self.gen_core_time = {}       # gen → cumulative core-seconds
+        self.total_core_time = 0.0    # cumulative core-seconds across all gens
+
+        # Diagnostics — wall-clock for overlap detection
+        self.first_sim_start = None   # wall-clock: first sim actually started
+        self.last_ver_complete = None  # wall-clock: last ver completed
+
+    def _fmt_core_time(self, seconds):
+        if seconds < 60:
+            return f"{seconds:.1f}s"
+        return f"{seconds / 60:.1f}m"
 
 
 # ════════════════════════════════════════════════════════════════
@@ -2168,179 +2842,438 @@ class EA:
     def run(self, record_best=True):
         wall_start = _time.time()
         workers = NUM_WORKERS or max(1, multiprocessing.cpu_count())
-        print(f"\n{'='*72}")
+
+        print(f"\n{'=' * 72}")
         print(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA")
-        print(f"{'='*72}")
-        print(f"  Fish: 10-{MAX_FISH_COUNT} (evolved)  |  Days: {AQUACULTURE_DAYS}  |  "
+        print(f"{'=' * 72}")
+        print(f"  Fish: {FISH_COUNT} (fixed)  |  Days: {AQUACULTURE_DAYS}  |  "
               f"Budget: ${MAX_BUDGET:.2f}  |  Workers: {workers}")
         print(f"  Ponds/gen: {POND_POPULATION}  |  Generations: {POND_GENERATIONS}  |  "
               f"Timelines: {RUN_TIMELINES}")
-        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Tournament(K={EA_TOURNAMENT_K})")
-        print(f"  Parallelism: {workers} cores per generation")
+        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified Tournament(K={EA_TOURNAMENT_K})")
+        print(f"  Verification: Wilcoxon α={VERIFY_ALPHA}, min_samples={VERIFY_MIN_SAMPLES}, "
+              f"cascade_depth={VERIFY_MAX_CASCADE_DEPTH}")
+        print(f"  Mutation: Gaussian perturbation (rate={EA_MUTATION_RATE})")
+        print(f"  Location: Binary (Center/Random)")
+        print(f"  Parallelism: {workers} cores, persistent pool, priority scheduling")
         print(f"  Champion: Best pond in last generation")
-        print(f"{'='*72}")
+        print(f"{'=' * 72}")
 
+        pool = PriorityPool(max_workers=workers)
+
+        # Initialize all timelines
+        timelines = []
+        for tl_idx in range(RUN_TIMELINES):
+            tl = TimelineState(tl_idx, RUN_TIMELINES)
+            timelines.append(tl)
+
+        # Pre-schedule all Gen-1 Sims for all timelines
+        for tl in timelines:
+            self._submit_gen_sims(tl, pool)
+
+        # Event-driven main loop
+        while not all(tl.finished for tl in timelines):
+            try:
+                tag, result = pool.get_result(timeout=120)
+            except Empty:
+                print("  WARNING: Timeout waiting for result")
+                break
+
+            if tag is None:
+                continue
+
+            tag_type = tag[0]
+            tl_idx = tag[1]
+            tl = timelines[tl_idx]
+
+            if tag_type == 'sim':
+                self._handle_sim_result(tl, tag, result, pool)
+            elif tag_type == 'ver':
+                self._handle_ver_result(tl, tag, result, pool)
+
+        pool.shutdown()
+
+        # ── Collect results and print sequentially ──
         all_csv_rows = []
         timeline_champions = []
 
-        for tl_idx in range(RUN_TIMELINES):
-            tl_start = _time.time()
-            print(f"\n  --- Timeline {tl_idx+1}/{RUN_TIMELINES} ---\n")
+        for tl in timelines:
+            all_csv_rows.extend(tl.csv_rows)
 
-            tl_seed = random.randint(0, 2**31)
-            random.seed(tl_seed)
+            # Print stored log lines
+            print(f"\n  --- Timeline {tl.tl_idx + 1}/{RUN_TIMELINES} ---\n")
+            for line in tl.log_lines:
+                print(line)
 
-            ponds = [random_genotype() for _ in range(POND_POPULATION)]
-            last_gen_results = None
-            csv_rows = []
-
-            for gen in range(POND_GENERATIONS):
-                if len(ponds) <= 1 and last_gen_results is not None: break
-                is_last = (gen == POND_GENERATIONS - 1)
-                do_rec = record_best and is_last
-                gen_start = _time.time()
-
-                gen_results = []
-                sim_tasks = []
-                sim_indices = []
-
-                for p_idx, geno in enumerate(ponds):
-                    if geno.per_cycle_cost() > MAX_BUDGET:
-                        r = {'fitness':0.0,'survival_rate':0,'avg_healthiness':0,
-                             'saving':0,'cost':geno.total_cost(self.runtime),'yield':0,
-                             'genotype_obj':geno,'genotype':geno.to_dict(),
-                             'frames':[],'budget_exceeded':True,
-                             'alive_count':0,'initial_count':geno.fish_count,'status':'GATEKEEPER'}
-                        gen_results.append((p_idx, r))
-                        csv_rows.append(_csv_row_data(tl_idx,gen,p_idx,'GATEKEEPER',r,geno.to_dict()))
-                    else:
-                        sim_seed = random.randint(0, 2**31)
-                        sim_tasks.append((geno.to_dict(), self.runtime, MAX_BUDGET,
-                                         do_rec, FRAME_SKIP, sim_seed))
-                        sim_indices.append((p_idx, geno))
-
-                if sim_tasks:
-                    with ProcessPoolExecutor(max_workers=workers) as pool:
-                        futures = {}
-                        for i, task in enumerate(sim_tasks):
-                            fut = pool.submit(_run_pond_worker, task)
-                            futures[fut] = i
-
-                        for fut in as_completed(futures):
-                            i = futures[fut]
-                            p_idx, geno = sim_indices[i]
-                            r = fut.result()
-                            r['genotype_obj'] = geno
-                            if r.get('budget_exceeded'):
-                                r['status'] = 'OVER-BUDGET'; r['fitness'] = 0.0
-                            elif r.get('alive_count', 0) == 0:
-                                r['status'] = 'ALL-DEAD'
-                            else:
-                                r['status'] = 'OK'
-                            gen_results.append((p_idx, r))
-                            csv_rows.append(_csv_row_data(tl_idx,gen,p_idx,r['status'],r,r['genotype']))
-
-                gen_results.sort(key=lambda x: x[1]['fitness'], reverse=True)
-                sorted_results = [r for _, r in gen_results]
-                last_gen_results = sorted_results
-
-                best_gen_fit = sorted_results[0]['fitness'] if sorted_results else 0
-                n_ok = sum(1 for r in sorted_results if r.get('status') == 'OK')
-                n_dead = sum(1 for r in sorted_results if r.get('status') == 'ALL-DEAD')
-                n_over = sum(1 for r in sorted_results if r.get('status') == 'OVER-BUDGET')
-                n_gate = sum(1 for r in sorted_results if r.get('status') == 'GATEKEEPER')
-                gen_elapsed = _time.time() - gen_start
-                print(f"    TL {tl_idx+1} | Gen {gen+1:>2}/{POND_GENERATIONS} | "
-                      f"Best: {best_gen_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
-                      f"Over$: {n_over:>2} | Reject: {n_gate:>2} | {gen_elapsed:.1f}s")
-
-                if not is_last:
-                    if len(sorted_results) <= EA_ELITISM_COUNT:
-                        break
-                    elite_genos = [r['genotype_obj'] for r in sorted_results[:EA_ELITISM_COUNT]]
-                    new_ponds = [copy.deepcopy(g) for g in elite_genos]
-                    while len(new_ponds) < len(ponds):
-                        parent_a = _tournament_select(sorted_results, EA_TOURNAMENT_K)
-                        parent_b = _tournament_select(sorted_results, EA_TOURNAMENT_K)
-                        if random.random() < EA_CROSSOVER_RATE:
-                            child = crossover(parent_a, parent_b)
-                        else:
-                            child = copy.deepcopy(parent_a)
-                        mutate(child)
-                        new_ponds.append(child)
-                    ponds = new_ponds
-
-            # ── Last pond champion = best in last generation ──
-            last_champ = None
-            if last_gen_results:
-                for r in last_gen_results:
-                    if r.get('fitness', 0) > 0:
-                        last_champ = r
-                        break
-                if last_champ is None:
-                    last_champ = last_gen_results[0]
-                    last_champ['is_latest_dead'] = True
-                    print(f"    TL {tl_idx+1} | No valid last pond champion -- using Latest Dead")
-
-            if last_champ:
-                last_champ['timeline_idx'] = tl_idx
-                last_champ.pop('genotype_obj', None)
+            champ = tl.champion
+            if champ:
+                champ['timeline_idx'] = tl.tl_idx
+                timeline_champions.append(champ)
+                tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
+                core_str = tl._fmt_core_time(tl.total_core_time)
+                print(f"\n  Timeline {tl.tl_idx + 1} finished ({core_str} core) | "
+                      f"Fitness={champ['fitness']:.4f} | "
+                      f"Alive={champ.get('alive_count', 0)}/{champ.get('initial_count', 0)}{tag}")
             else:
-                last_champ = {
-                    'timeline_idx':tl_idx,'fitness':0,'survival_rate':0,
-                    'avg_healthiness':0,'saving':0,'cost':0,'yield':0,
-                    'genotype':random_genotype().to_dict(),'frames':[],'alive_count':0,
-                    'initial_count':0,'is_latest_dead':True}
-
-            tl_elapsed = _time.time() - tl_start
-            tag = " [LATEST DEAD]" if last_champ.get('is_latest_dead') else ""
-            print(f"\n  Timeline {tl_idx+1} finished ({tl_elapsed:.1f}s) | "
-                  f"Fitness={last_champ['fitness']:.4f} | "
-                  f"Alive={last_champ.get('alive_count',0)}/{last_champ.get('initial_count',0)}{tag}")
-
-            all_csv_rows.extend(csv_rows)
-            timeline_champions.append(last_champ)
+                timeline_champions.append({
+                    'timeline_idx': tl.tl_idx, 'fitness': 0, 'survival_rate': 0,
+                    'avg_healthiness': 0, 'saving': 0, 'cost': 0, 'yield': 0,
+                    'genotype': random_genotype().to_dict(), 'frames': [],
+                    'alive_count': 0, 'initial_count': 0, 'is_latest_dead': True})
+                print(f"\n  Timeline {tl.tl_idx + 1}: No survivors.")
 
         # ── Save CSV ──
+        os.makedirs(os.path.dirname(RESULTS_CSV_PATH), exist_ok=True)
         with open(RESULTS_CSV_PATH, 'w', newline='') as f:
-            writer = csv.writer(f); writer.writerow(CSV_HEADER); writer.writerows(all_csv_rows)
+            writer = csv.writer(f)
+            writer.writerow(CSV_HEADER)
+            writer.writerows(all_csv_rows)
         print(f"\n  Saved {RESULTS_CSV_PATH} ({len(all_csv_rows)} rows)")
 
-        # ── Print last pond champions ──
+        # ── Print champions ──
         for champ in timeline_champions:
-            tl = champ.get('timeline_idx', 0)
+            tl_i = champ.get('timeline_idx', 0)
             tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
             if champ['fitness'] > 0 or champ.get('is_latest_dead'):
-                _print_champion_detail(f"TL {tl+1} Last Pond Champion{tag}", champ)
-            else:
-                print(f"\n  Timeline {tl+1}: No survivors.")
+                _print_champion_detail(f"TL {tl_i + 1} Last Pond Champion{tag}", champ)
 
-        real_champs = [c for c in timeline_champions if c.get('fitness',0) > 0 and not c.get('is_latest_dead')]
+        real_champs = [c for c in timeline_champions
+                       if c.get('fitness', 0) > 0 and not c.get('is_latest_dead')]
         if real_champs:
             valid = real_champs
         else:
             valid = [c for c in timeline_champions if c.get('genotype')]
 
         if not valid:
-            print(f"\n{'='*72}\n  No valid champions across all {RUN_TIMELINES} timelines.\n{'='*72}")
+            print(f"\n{'=' * 72}\n  No valid champions.\n{'=' * 72}")
+            self._write_log_file(timelines, timeline_champions, wall_start)
             return None
 
-        print(f"\n{'='*72}")
+        print(f"\n{'=' * 72}")
         best_idx = _print_champions_summary(timeline_champions)
         champ = timeline_champions[best_idx]
 
-        # ── Re-run best pond champion with recording if needed ──
+        # Re-run best champion with recording if needed
         if record_best and not champ.get('frames'):
             tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
-            print(f"\n  Re-running last pond champion{tag} (TL {champ['timeline_idx']+1}) with frame recording...")
+            print(f"\n  Re-running champion{tag} (TL {champ['timeline_idx'] + 1}) with recording...")
             res = run_single_pond(champ['genotype'], self.runtime, MAX_BUDGET, True, FRAME_SKIP)
             champ['frames'] = res['frames']
 
         wall_elapsed = _time.time() - wall_start
         tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
-        _print_champion_detail(f"BEST POND CHAMPION{tag}  (TL {champ['timeline_idx']+1})", champ)
+        _print_champion_detail(f"BEST POND CHAMPION{tag}  (TL {champ['timeline_idx'] + 1})", champ)
         print(f"\n  Total wall time: {wall_elapsed:.1f}s")
+
+        # ── Diagnostics ──
+        self._print_diagnostics(timelines, wall_start)
+
+        # ── Write log file ──
+        self._write_log_file(timelines, timeline_champions, wall_start)
+
         return champ
+
+    # ────────────────────────────────────────────────────────────
+    # SUBMIT GENERATION SIMS
+    # ────────────────────────────────────────────────────────────
+
+    def _submit_gen_sims(self, tl, pool):
+        """Submit all pond simulations for the current generation."""
+        tl.gen_results = []
+        tl.sim_pending = 0
+        tl.gen_core_time[tl.gen] = 0.0
+
+        is_last = (tl.gen == POND_GENERATIONS - 1)
+        do_rec = is_last  # only record frames on last generation
+
+        for p_idx, geno in enumerate(tl.ponds):
+            # Gatekeeper check
+            if geno.per_cycle_cost() > MAX_BUDGET:
+                r = {'fitness': 0.0, 'survival_rate': 0, 'avg_healthiness': 0,
+                     'saving': 0, 'cost': geno.total_cost(self.runtime), 'yield': 0,
+                     'genotype_obj': geno, 'genotype': geno.to_dict(),
+                     'frames': [], 'budget_exceeded': True,
+                     'alive_count': 0, 'initial_count': FISH_COUNT,
+                     'status': 'GATEKEEPER', '_worker_elapsed': 0}
+                tl.gen_results.append(r)
+                tl.memory.record(geno, 0.0)
+                tl.csv_rows.append(_csv_row_data(tl.tl_idx, tl.gen, p_idx,
+                                                  'GATEKEEPER', r, geno.to_dict()))
+                continue
+
+            seed = random.randint(0, 2**31)
+            task_args = (geno.to_dict(), self.runtime, MAX_BUDGET,
+                        do_rec, FRAME_SKIP, seed)
+            tag = ('sim', tl.tl_idx, tl.gen, p_idx)
+            pool.submit(task_args, tl.tl_idx, tl.gen, TASK_SIM, tag=tag)
+            tl.sim_pending += 1
+
+        # If all were gatekeepered, advance immediately
+        if tl.sim_pending == 0:
+            self._on_all_sims_done(tl, pool)
+
+    # ────────────────────────────────────────────────────────────
+    # HANDLE SIM RESULT
+    # ────────────────────────────────────────────────────────────
+
+    def _handle_sim_result(self, tl, tag, result, pool):
+        _, tl_idx, gen_idx, p_idx = tag
+
+        # Track core-time
+        elapsed = result.get('_worker_elapsed', 0)
+        if gen_idx not in tl.gen_core_time:
+            tl.gen_core_time[gen_idx] = 0.0
+        tl.gen_core_time[gen_idx] += elapsed
+        tl.total_core_time += elapsed
+
+        # Track wall-clock start for diagnostics
+        worker_start = result.get('_worker_start_time', 0)
+        if tl.first_sim_start is None or worker_start < tl.first_sim_start:
+            tl.first_sim_start = worker_start
+
+        geno = tl.ponds[p_idx]
+        result['genotype_obj'] = geno
+        result['genotype'] = geno.to_dict()
+
+        if result.get('budget_exceeded'):
+            result['status'] = 'OVER-BUDGET'
+            result['fitness'] = 0.0
+        elif result.get('alive_count', 0) == 0:
+            result['status'] = 'ALL-DEAD'
+        else:
+            result['status'] = 'OK'
+
+        tl.gen_results.append(result)
+        tl.memory.record(geno, result.get('fitness', 0))
+        tl.csv_rows.append(_csv_row_data(tl.tl_idx, gen_idx, p_idx,
+                                          result['status'], result, result['genotype']))
+
+        tl.sim_pending -= 1
+        if tl.sim_pending <= 0:
+            self._on_all_sims_done(tl, pool)
+
+    # ────────────────────────────────────────────────────────────
+    # ALL SIMS DONE → START TOURNAMENTS
+    # ────────────────────────────────────────────────────────────
+
+    def _on_all_sims_done(self, tl, pool):
+        """All sims for this generation are done. Start tournament selection."""
+        gen = tl.gen
+        is_last = (gen == POND_GENERATIONS - 1)
+
+        # Sort results
+        tl.gen_results.sort(key=lambda r: r.get('fitness', 0), reverse=True)
+
+        # Log generation stats
+        self._log_gen(tl, gen)
+
+        if is_last:
+            self._finish_timeline(tl)
+            return
+
+        if len(tl.gen_results) <= EA_ELITISM_COUNT:
+            self._finish_timeline(tl)
+            return
+
+        # Start tournament selection
+        n_children = POND_POPULATION - EA_ELITISM_COUNT
+        mgr = TournamentMgr(
+            tl.gen_results, n_children, EA_TOURNAMENT_K,
+            tl.memory, pool, tl.tl_idx, gen, self.runtime, MAX_BUDGET)
+        tl.tournament_mgr = mgr
+        mgr.start()
+
+        # Check if all tournaments resolved immediately (no verification needed)
+        if mgr.all_resolved and mgr.all_children_ready:
+            self._on_tournaments_done(tl, pool)
+
+    # ────────────────────────────────────────────────────────────
+    # HANDLE VER RESULT
+    # ────────────────────────────────────────────────────────────
+
+    def _handle_ver_result(self, tl, tag, result, pool):
+        _, tl_idx, gen_idx, geno_key = tag
+
+        # Track core-time
+        elapsed = result.get('_worker_elapsed', 0)
+        if gen_idx not in tl.gen_core_time:
+            tl.gen_core_time[gen_idx] = 0.0
+        tl.gen_core_time[gen_idx] += elapsed
+        tl.total_core_time += elapsed
+
+        # Track wall-clock completion for diagnostics
+        tl.last_ver_complete = _time.time()
+
+        mgr = tl.tournament_mgr
+        if mgr is None:
+            return
+
+        mgr.on_ver_result(geno_key, result)
+
+        # Check if all tournaments resolved
+        if mgr.all_resolved and mgr.all_children_ready:
+            self._on_tournaments_done(tl, pool)
+
+    # ────────────────────────────────────────────────────────────
+    # TOURNAMENTS DONE → BUILD NEXT GENERATION
+    # ────────────────────────────────────────────────────────────
+
+    def _on_tournaments_done(self, tl, pool):
+        """All tournaments resolved. Build next generation and submit."""
+        mgr = tl.tournament_mgr
+        gen = tl.gen
+
+        # Log verification count
+        ver_line = f"           Verification: {mgr.total_ver_evals} extra evals (async)"
+        tl.log_lines.append(ver_line)
+        print(f"    {ver_line.strip()}")
+
+        # Build next generation: elites + children
+        sorted_results = tl.gen_results
+        elite_genos = [r['genotype_obj'] for r in sorted_results[:EA_ELITISM_COUNT]]
+        new_ponds = [copy.deepcopy(g) for g in elite_genos]
+
+        for child in mgr.children:
+            if child is not None:
+                new_ponds.append(child)
+
+        # Fill any remaining slots
+        while len(new_ponds) < POND_POPULATION:
+            new_ponds.append(copy.deepcopy(random.choice(elite_genos)))
+
+        tl.ponds = new_ponds[:POND_POPULATION]
+        tl.gen += 1
+        tl.tournament_mgr = None
+
+        # Submit next generation
+        self._submit_gen_sims(tl, pool)
+
+    # ────────────────────────────────────────────────────────────
+    # FINISH TIMELINE
+    # ────────────────────────────────────────────────────────────
+
+    def _finish_timeline(self, tl):
+        """Timeline complete — pick champion."""
+        last_results = tl.gen_results
+        champ = None
+        if last_results:
+            for r in last_results:
+                if r.get('fitness', 0) > 0:
+                    champ = r
+                    break
+            if champ is None:
+                champ = last_results[0]
+                champ['is_latest_dead'] = True
+
+        if champ:
+            champ.pop('genotype_obj', None)
+
+        tl.champion = champ
+        tl.finished = True
+
+        tag = " [LATEST DEAD]" if (champ and champ.get('is_latest_dead')) else ""
+        fit = champ['fitness'] if champ else 0
+        alive = champ.get('alive_count', 0) if champ else 0
+        init = champ.get('initial_count', 0) if champ else 0
+        core_str = tl._fmt_core_time(tl.total_core_time)
+        line = (f"    [TL {tl.tl_idx + 1}] ✓ Finished ({core_str} core) | "
+                f"Fitness={fit:.4f} | Alive={alive}/{init}{tag}")
+        tl.log_lines.append(line)
+        print(line)
+
+    # ────────────────────────────────────────────────────────────
+    # LOGGING
+    # ────────────────────────────────────────────────────────────
+
+    def _log_gen(self, tl, gen):
+        """Log a generation's results — console (real-time) + stored for file."""
+        sorted_results = tl.gen_results
+        best_fit = sorted_results[0]['fitness'] if sorted_results else 0
+        n_ok = sum(1 for r in sorted_results if r.get('status') == 'OK')
+        n_dead = sum(1 for r in sorted_results if r.get('status') == 'ALL-DEAD')
+        n_over = sum(1 for r in sorted_results if r.get('status') == 'OVER-BUDGET')
+        n_gate = sum(1 for r in sorted_results if r.get('status') == 'GATEKEEPER')
+
+        gen_core = tl.gen_core_time.get(gen, 0)
+        total_core = tl.total_core_time
+
+        gen_core_str = f"{gen_core:.1f}s"
+        total_core_str = tl._fmt_core_time(total_core)
+
+        line = (f"    [TL {tl.tl_idx + 1}] Gen {gen + 1:>2}/{POND_GENERATIONS} | "
+                f"Best(avg): {best_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
+                f"Over$: {n_over:>2} | Reject: {n_gate:>2} | "
+                f"{gen_core_str} (core) | Total: {total_core_str} (core)")
+        tl.log_lines.append(line)
+        print(line)
+
+    # ────────────────────────────────────────────────────────────
+    # DIAGNOSTICS
+    # ────────────────────────────────────────────────────────────
+
+    def _print_diagnostics(self, timelines, wall_start):
+        print(f"\n  {'=' * 60}")
+        print(f"  TIMELINE OVERLAP DIAGNOSTICS")
+        print(f"  {'=' * 60}")
+        for tl in timelines:
+            first = tl.first_sim_start - wall_start if tl.first_sim_start else 0
+            last = tl.last_ver_complete - wall_start if tl.last_ver_complete else 0
+            core_str = tl._fmt_core_time(tl.total_core_time)
+            print(f"    TL {tl.tl_idx + 1}: First Sim started @ {first:.1f}s  |  "
+                  f"Last Ver completed @ {last:.1f}s  |  Core time: {core_str}")
+
+        for i in range(len(timelines) - 1):
+            a = timelines[i]
+            b = timelines[i + 1]
+            a_start = a.first_sim_start or 0
+            a_end = a.last_ver_complete or 0
+            b_start = b.first_sim_start or 0
+            b_end = b.last_ver_complete or 0
+            if a_start and b_start and a_end and b_end:
+                overlap_start = max(a_start, b_start)
+                overlap_end = min(a_end, b_end)
+                if overlap_start < overlap_end:
+                    dur = overlap_end - overlap_start
+                    print(f"    ✓ TL {a.tl_idx + 1} and TL {b.tl_idx + 1} OVERLAP "
+                          f"({overlap_start - wall_start:.1f}s - {overlap_end - wall_start:.1f}s, "
+                          f"{dur:.1f}s)")
+                else:
+                    print(f"    ✗ TL {a.tl_idx + 1} and TL {b.tl_idx + 1}: No overlap")
+
+    # ────────────────────────────────────────────────────────────
+    # LOG FILE
+    # ────────────────────────────────────────────────────────────
+
+    def _write_log_file(self, timelines, timeline_champions, wall_start):
+        """Write clean sequential log to file."""
+        os.makedirs(os.path.dirname(EA_LOG_PATH), exist_ok=True)
+        with open(EA_LOG_PATH, 'w') as f:
+            f.write(f"{'=' * 72}\n")
+            f.write(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- EA LOG\n")
+            f.write(f"{'=' * 72}\n\n")
+
+            for tl in timelines:
+                f.write(f"  --- Timeline {tl.tl_idx + 1}/{RUN_TIMELINES} ---\n\n")
+                for line in tl.log_lines:
+                    f.write(f"{line}\n")
+                f.write(f"\n")
+
+            # Diagnostics
+            f.write(f"\n  {'=' * 60}\n")
+            f.write(f"  TIMELINE OVERLAP DIAGNOSTICS\n")
+            f.write(f"  {'=' * 60}\n")
+            for tl in timelines:
+                first = tl.first_sim_start - wall_start if tl.first_sim_start else 0
+                last = tl.last_ver_complete - wall_start if tl.last_ver_complete else 0
+                core_str = tl._fmt_core_time(tl.total_core_time)
+                f.write(f"    TL {tl.tl_idx + 1}: First Sim started @ {first:.1f}s  |  "
+                        f"Last Ver completed @ {last:.1f}s  |  Core time: {core_str}\n")
+
+            wall_elapsed = _time.time() - wall_start
+            f.write(f"\n  Total wall time: {wall_elapsed:.1f}s\n")
+
+        print(f"  Saved {EA_LOG_PATH}")
+
 
 --------------------
 File: /AquaOptima/visuals/ui.js
@@ -2349,6 +3282,8 @@ File: /AquaOptima/visuals/ui.js
 /**
  * ui.js -- Controls, stats bar, genotype bar.
  * Default speed 7. Loop toggle. Play/Pause before Restart.
+ * Option A: fish_count is a separate field, not part of genotype.
+ * Death reason tracking: suffocated, starved, weakened, sick, parasited, cannibalized.
  */
 
 export const state = {
@@ -2478,9 +3413,16 @@ export function signalFrameReady() {
   btnJumpFwd.style.cursor = "";
 }
 
-export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
-  cannibalCount = cannibalCount || 0;
-  deathCount = deathCount || 0;
+export function updateUI(frame, totalFrames, deathReasons) {
+  deathReasons = deathReasons || {};
+  const deaths = deathReasons.deaths || 0;
+  const suffocated = deathReasons.suffocated || 0;
+  const starved = deathReasons.starved || 0;
+  const weakened = deathReasons.weakened || 0;
+  const sick = deathReasons.sick || 0;
+  const parasited = deathReasons.parasited || 0;
+  const cannibalized = deathReasons.cannibalized || 0;
+
   const p2 = (n) => String(n).padStart(2, "0");
   const p4 = (n) => String(n).padStart(4, "0");
   timeDisplay.textContent = `Day ${p2(frame.day)} | Hour ${p2(frame.hour)} | Frame ${p4(state.currentFrame + 1)}/${p4(totalFrames)}`;
@@ -2513,13 +3455,19 @@ export function updateUI(frame, totalFrames, cannibalCount, deathCount) {
     <div class="stat-chip"><span class="stat-chip-label">Health</span><span class="stat-chip-value">${fm(sH)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">O2</span><span class="stat-chip-value">${fm(sO)}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">O₂</span><span class="stat-chip-value">${fm(sO)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Infected</span><span class="stat-chip-value">${nInf}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Parasitized</span><span class="stat-chip-value">${nPar}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">Deaths</span><span class="stat-chip-value">${deathCount}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">Cannibalized</span><span class="stat-chip-value">${cannibalCount}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Objects</span><span class="stat-chip-value">${frame.objects.length}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Hazards</span><span class="stat-chip-value">${frame.hazards.length}</span></div>
+    <div class="stat-chip stat-chip-separator"></div>
+    <div class="stat-chip"><span class="stat-chip-label">☠ Deaths</span><span class="stat-chip-value">${deaths}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">💨 Suffocated</span><span class="stat-chip-value">${suffocated}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🍽 Starved</span><span class="stat-chip-value">${starved}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">💔 Weakened</span><span class="stat-chip-value">${weakened}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🤒 Sick</span><span class="stat-chip-value">${sick}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🪱 Parasited</span><span class="stat-chip-value">${parasited}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">🦷 Cannibalized</span><span class="stat-chip-value">${cannibalized}</span></div>
   `;
 }
 
@@ -2539,16 +3487,18 @@ function _populateGenotype(data) {
       "Right-Center",
       "Random",
     ][v] || "?";
+  // Option A: fish_count is a separate field, not in genotype
+  const fishCount = data.fish_count || "?";
   genotypeBar.innerHTML = `
     <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${data.fitness.toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Yield:</span><span class="geno-chip-value">${(data.yield || 0).toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Survival:</span><span class="geno-chip-value">${(data.survival_rate * 100).toFixed(1)}%</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${data.cost.toFixed(2)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Saving:</span><span class="geno-chip-value">$${(data.saving || 0).toFixed(2)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${g.fish_count}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${fishCount} (fixed)</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">O2:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">O₂:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
   `;
 }
 
@@ -4462,6 +5412,7 @@ File: /AquaOptima/visuals/loop.js
 /**
  * loop.js -- Main render/animation loop and frame advancement.
  * Supports loop mode (restart when finished).
+ * Tracks death reasons: suffocated, starved, weakened, sick, parasited, cannibalized.
  */
 
 import { clearEffects, detectKills, updateEffects } from "./effects.js";
@@ -4478,8 +5429,21 @@ let frames = [];
 let totalFrames = 0;
 let lastTime = 0;
 let prevFrameIdx = -1;
-let cumulativeCannibalCount = 0;
-let cumulativeDeathCount = 0;
+
+// Death reason counters
+let deathReasons = _emptyReasons();
+
+function _emptyReasons() {
+  return {
+    deaths: 0,
+    suffocated: 0,
+    starved: 0,
+    weakened: 0,
+    sick: 0,
+    parasited: 0,
+    cannibalized: 0,
+  };
+}
 
 export function startLoop(sc, ec, oc, efc, framesData, pond) {
   sceneCtx = sc;
@@ -4491,49 +5455,70 @@ export function startLoop(sc, ec, oc, efc, framesData, pond) {
   requestAnimationFrame(tick);
 }
 
-function _countEvents(upTo) {
-  let cannibals = 0,
-    deaths = 0;
-  let prevFishIds = null;
-  for (let i = 0; i <= upTo && i < frames.length; i++) {
-    const f = frames[i];
-    if (f.cannibal_events) cannibals += f.cannibal_events.length;
-
-    if (i > 0 && prevFishIds) {
-      const curIds = new Set(
-        f.fish.filter((fi) => fi.alive).map((fi) => fi.id),
-      );
-      const cannibalPreyIds = new Set();
-      if (f.cannibal_events) {
-        for (const ev of f.cannibal_events) cannibalPreyIds.add(ev.prey);
-      }
-      for (const pid of prevFishIds) {
-        if (!curIds.has(pid) && !cannibalPreyIds.has(pid)) deaths++;
+function _processFrameDeathEvents(frame) {
+  // Process death_events (natural deaths)
+  if (frame.death_events) {
+    for (const ev of frame.death_events) {
+      deathReasons.deaths++;
+      const reasons = ev.reasons || [];
+      for (const r of reasons) {
+        if (deathReasons.hasOwnProperty(r)) {
+          deathReasons[r]++;
+        }
       }
     }
-    prevFishIds = new Set(f.fish.filter((fi) => fi.alive).map((fi) => fi.id));
   }
-  return { cannibals, deaths };
+
+  // Process cannibal_events (cannibalism deaths)
+  if (frame.cannibal_events) {
+    for (const ev of frame.cannibal_events) {
+      deathReasons.deaths++;
+      const reasons = ev.reasons || ["cannibalized"];
+      for (const r of reasons) {
+        if (deathReasons.hasOwnProperty(r)) {
+          deathReasons[r]++;
+        }
+      }
+    }
+  }
 }
 
-function _countFrameDeaths(frame, prevFrame) {
-  if (!prevFrame) return 0;
-  const curIds = new Set(frame.fish.filter((f) => f.alive).map((f) => f.id));
-  const cannibalPreyIds = new Set();
-  if (frame.cannibal_events) {
-    for (const ev of frame.cannibal_events) cannibalPreyIds.add(ev.prey);
+function _countEventsUpTo(upTo) {
+  const reasons = _emptyReasons();
+  for (let i = 0; i <= upTo && i < frames.length; i++) {
+    const f = frames[i];
+
+    // Death events
+    if (f.death_events) {
+      for (const ev of f.death_events) {
+        reasons.deaths++;
+        const rs = ev.reasons || [];
+        for (const r of rs) {
+          if (reasons.hasOwnProperty(r)) {
+            reasons[r]++;
+          }
+        }
+      }
+    }
+
+    // Cannibal events
+    if (f.cannibal_events) {
+      for (const ev of f.cannibal_events) {
+        reasons.deaths++;
+        const rs = ev.reasons || ["cannibalized"];
+        for (const r of rs) {
+          if (reasons.hasOwnProperty(r)) {
+            reasons[r]++;
+          }
+        }
+      }
+    }
   }
-  let deaths = 0;
-  for (const pf of prevFrame.fish) {
-    if (!pf.alive) continue;
-    if (!curIds.has(pf.id) && !cannibalPreyIds.has(pf.id)) deaths++;
-  }
-  return deaths;
+  return reasons;
 }
 
 function _resetCounters() {
-  cumulativeCannibalCount = 0;
-  cumulativeDeathCount = 0;
+  deathReasons = _emptyReasons();
   clearEffects(effectsCtx);
 }
 
@@ -4551,9 +5536,7 @@ function tick(timestamp) {
   // Detect rewind
   if (state.currentFrame < prevFrameIdx) {
     clearEffects(effectsCtx);
-    const counts = _countEvents(state.currentFrame);
-    cumulativeCannibalCount = counts.cannibals;
-    cumulativeDeathCount = counts.deaths;
+    deathReasons = _countEventsUpTo(state.currentFrame);
   }
 
   // Manual frame stepping while paused (includes jump)
@@ -4562,9 +5545,7 @@ function tick(timestamp) {
       for (let i = prevFrameIdx + 1; i <= state.currentFrame; i++) {
         const f = frames[i];
         const prev = i > 0 ? frames[i - 1] : null;
-        if (f.cannibal_events)
-          cumulativeCannibalCount += f.cannibal_events.length;
-        cumulativeDeathCount += _countFrameDeaths(f, prev);
+        _processFrameDeathEvents(f);
         detectKills(effectsCtx, f, prev);
       }
       updateEffects(effectsCtx, sceneCtx, true);
@@ -4573,7 +5554,7 @@ function tick(timestamp) {
     const frame = frames[state.currentFrame];
     updateEntities(entitiesCtx, frame, sceneCtx);
     updateObjects(objectsCtx, frame);
-    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateUI(frame, totalFrames, deathReasons);
     updateSelection(frame);
     _render();
     signalFrameReady();
@@ -4599,23 +5580,20 @@ function tick(timestamp) {
     const frame = frames[state.currentFrame];
     const prev = state.currentFrame > 0 ? frames[state.currentFrame - 1] : null;
 
-    if (frame.cannibal_events) {
-      cumulativeCannibalCount += frame.cannibal_events.length;
-    }
-    cumulativeDeathCount += _countFrameDeaths(frame, prev);
+    _processFrameDeathEvents(frame);
 
     updateEntities(entitiesCtx, frame, sceneCtx);
     updateObjects(objectsCtx, frame);
     detectKills(effectsCtx, frame, prev);
     updateEffects(effectsCtx, sceneCtx, true);
-    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateUI(frame, totalFrames, deathReasons);
     updateSelection(frame);
   } else {
     const frame = frames[state.currentFrame];
     updateEntities(entitiesCtx, frame, sceneCtx);
     updateObjects(objectsCtx, frame);
     updateEffects(effectsCtx, sceneCtx, false);
-    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateUI(frame, totalFrames, deathReasons);
     updateSelection(frame);
   }
 

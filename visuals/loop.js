@@ -1,6 +1,7 @@
 /**
  * loop.js -- Main render/animation loop and frame advancement.
  * Supports loop mode (restart when finished).
+ * Tracks death reasons: suffocated, starved, weakened, sick, parasited, cannibalized.
  */
 
 import { clearEffects, detectKills, updateEffects } from "./effects.js";
@@ -17,8 +18,21 @@ let frames = [];
 let totalFrames = 0;
 let lastTime = 0;
 let prevFrameIdx = -1;
-let cumulativeCannibalCount = 0;
-let cumulativeDeathCount = 0;
+
+// Death reason counters
+let deathReasons = _emptyReasons();
+
+function _emptyReasons() {
+  return {
+    deaths: 0,
+    suffocated: 0,
+    starved: 0,
+    weakened: 0,
+    sick: 0,
+    parasited: 0,
+    cannibalized: 0,
+  };
+}
 
 export function startLoop(sc, ec, oc, efc, framesData, pond) {
   sceneCtx = sc;
@@ -30,49 +44,70 @@ export function startLoop(sc, ec, oc, efc, framesData, pond) {
   requestAnimationFrame(tick);
 }
 
-function _countEvents(upTo) {
-  let cannibals = 0,
-    deaths = 0;
-  let prevFishIds = null;
-  for (let i = 0; i <= upTo && i < frames.length; i++) {
-    const f = frames[i];
-    if (f.cannibal_events) cannibals += f.cannibal_events.length;
-
-    if (i > 0 && prevFishIds) {
-      const curIds = new Set(
-        f.fish.filter((fi) => fi.alive).map((fi) => fi.id),
-      );
-      const cannibalPreyIds = new Set();
-      if (f.cannibal_events) {
-        for (const ev of f.cannibal_events) cannibalPreyIds.add(ev.prey);
-      }
-      for (const pid of prevFishIds) {
-        if (!curIds.has(pid) && !cannibalPreyIds.has(pid)) deaths++;
+function _processFrameDeathEvents(frame) {
+  // Process death_events (natural deaths)
+  if (frame.death_events) {
+    for (const ev of frame.death_events) {
+      deathReasons.deaths++;
+      const reasons = ev.reasons || [];
+      for (const r of reasons) {
+        if (deathReasons.hasOwnProperty(r)) {
+          deathReasons[r]++;
+        }
       }
     }
-    prevFishIds = new Set(f.fish.filter((fi) => fi.alive).map((fi) => fi.id));
   }
-  return { cannibals, deaths };
+
+  // Process cannibal_events (cannibalism deaths)
+  if (frame.cannibal_events) {
+    for (const ev of frame.cannibal_events) {
+      deathReasons.deaths++;
+      const reasons = ev.reasons || ["cannibalized"];
+      for (const r of reasons) {
+        if (deathReasons.hasOwnProperty(r)) {
+          deathReasons[r]++;
+        }
+      }
+    }
+  }
 }
 
-function _countFrameDeaths(frame, prevFrame) {
-  if (!prevFrame) return 0;
-  const curIds = new Set(frame.fish.filter((f) => f.alive).map((f) => f.id));
-  const cannibalPreyIds = new Set();
-  if (frame.cannibal_events) {
-    for (const ev of frame.cannibal_events) cannibalPreyIds.add(ev.prey);
+function _countEventsUpTo(upTo) {
+  const reasons = _emptyReasons();
+  for (let i = 0; i <= upTo && i < frames.length; i++) {
+    const f = frames[i];
+
+    // Death events
+    if (f.death_events) {
+      for (const ev of f.death_events) {
+        reasons.deaths++;
+        const rs = ev.reasons || [];
+        for (const r of rs) {
+          if (reasons.hasOwnProperty(r)) {
+            reasons[r]++;
+          }
+        }
+      }
+    }
+
+    // Cannibal events
+    if (f.cannibal_events) {
+      for (const ev of f.cannibal_events) {
+        reasons.deaths++;
+        const rs = ev.reasons || ["cannibalized"];
+        for (const r of rs) {
+          if (reasons.hasOwnProperty(r)) {
+            reasons[r]++;
+          }
+        }
+      }
+    }
   }
-  let deaths = 0;
-  for (const pf of prevFrame.fish) {
-    if (!pf.alive) continue;
-    if (!curIds.has(pf.id) && !cannibalPreyIds.has(pf.id)) deaths++;
-  }
-  return deaths;
+  return reasons;
 }
 
 function _resetCounters() {
-  cumulativeCannibalCount = 0;
-  cumulativeDeathCount = 0;
+  deathReasons = _emptyReasons();
   clearEffects(effectsCtx);
 }
 
@@ -90,9 +125,7 @@ function tick(timestamp) {
   // Detect rewind
   if (state.currentFrame < prevFrameIdx) {
     clearEffects(effectsCtx);
-    const counts = _countEvents(state.currentFrame);
-    cumulativeCannibalCount = counts.cannibals;
-    cumulativeDeathCount = counts.deaths;
+    deathReasons = _countEventsUpTo(state.currentFrame);
   }
 
   // Manual frame stepping while paused (includes jump)
@@ -101,9 +134,7 @@ function tick(timestamp) {
       for (let i = prevFrameIdx + 1; i <= state.currentFrame; i++) {
         const f = frames[i];
         const prev = i > 0 ? frames[i - 1] : null;
-        if (f.cannibal_events)
-          cumulativeCannibalCount += f.cannibal_events.length;
-        cumulativeDeathCount += _countFrameDeaths(f, prev);
+        _processFrameDeathEvents(f);
         detectKills(effectsCtx, f, prev);
       }
       updateEffects(effectsCtx, sceneCtx, true);
@@ -112,7 +143,7 @@ function tick(timestamp) {
     const frame = frames[state.currentFrame];
     updateEntities(entitiesCtx, frame, sceneCtx);
     updateObjects(objectsCtx, frame);
-    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateUI(frame, totalFrames, deathReasons);
     updateSelection(frame);
     _render();
     signalFrameReady();
@@ -138,23 +169,20 @@ function tick(timestamp) {
     const frame = frames[state.currentFrame];
     const prev = state.currentFrame > 0 ? frames[state.currentFrame - 1] : null;
 
-    if (frame.cannibal_events) {
-      cumulativeCannibalCount += frame.cannibal_events.length;
-    }
-    cumulativeDeathCount += _countFrameDeaths(frame, prev);
+    _processFrameDeathEvents(frame);
 
     updateEntities(entitiesCtx, frame, sceneCtx);
     updateObjects(objectsCtx, frame);
     detectKills(effectsCtx, frame, prev);
     updateEffects(effectsCtx, sceneCtx, true);
-    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateUI(frame, totalFrames, deathReasons);
     updateSelection(frame);
   } else {
     const frame = frames[state.currentFrame];
     updateEntities(entitiesCtx, frame, sceneCtx);
     updateObjects(objectsCtx, frame);
     updateEffects(effectsCtx, sceneCtx, false);
-    updateUI(frame, totalFrames, cumulativeCannibalCount, cumulativeDeathCount);
+    updateUI(frame, totalFrames, deathReasons);
     updateSelection(frame);
   }
 

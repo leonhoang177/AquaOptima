@@ -17,8 +17,8 @@ from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION, 
 CSV_PATH = RESULTS_CSV_PATH
 OUTPUT_DIR = PLOTS_DIR
 
-DPI = 180
-SINGLE_FIG_SIZE = (12, 10)
+DPI = 280
+SINGLE_FIG_SIZE = (20, 17)
 
 TL_COLORS = [
     '#1f77b4', '#d62728', '#2ca02c', '#ff7f0e', '#9467bd',
@@ -36,7 +36,7 @@ STATUS_LABELS = {
 }
 
 # ════════════════════════════════════════════════════════════════
-# FONT SIZES (centralized)
+# FONT SIZES (centralized, scaled up)
 # ════════════════════════════════════════════════════════════════
 
 _BASE_FONT = 11
@@ -45,20 +45,24 @@ _BASE_TITLE = 14
 _BASE_LEGEND = 10
 _BASE_TICK = 11
 
-FONT_SIZE = _BASE_FONT * 1.3          # 14.3
-LABEL_SIZE = _BASE_LABEL * 1.3        # 15.6
-TITLE_SIZE = _BASE_TITLE * 1.3        # 18.2
-LEGEND_SIZE = _BASE_LEGEND * 2.0      # 20.0
-TICK_SIZE = _BASE_TICK * 1.3          # 14.3
-SMALL_LEGEND_SIZE = 7 * 2.0           # 14.0 (for metric-vs-gen plots)
-CHAMPION_LEGEND_SIZE = 9 * 2.0        # 18.0
+_SCALE = 1.3 * 1.3 * 1.3  # triple 30% scaling = ~2.197
 
-# ════════════════════════════════════════════════════════════════
-# LAYOUT CONSTANTS (for outside-legend placement)
-# ════════════════════════════════════════════════════════════════
+FONT_SIZE = _BASE_FONT * _SCALE          # ~24.2
+LABEL_SIZE = _BASE_LABEL * _SCALE        # ~26.4
+TITLE_SIZE = _BASE_TITLE * _SCALE        # ~30.8
+LEGEND_SIZE = _BASE_LEGEND * _SCALE      # ~22.0
+TICK_SIZE = _BASE_TICK * _SCALE          # ~24.2
+SMALL_LEGEND_SIZE = 7 * _SCALE           # ~15.4
+CHAMPION_LEGEND_SIZE = 9 * _SCALE        # ~19.8
 
-TITLE_PAD = 75
-TIGHT_LAYOUT_RECT = [0, 0, 1, 0.90]
+# Genotype plots get extra scaling
+_GENO_SCALE = _SCALE * 1.3
+GENO_FIG_SIZE = (26, 22)
+GENO_FONT_SIZE = _BASE_FONT * _GENO_SCALE
+GENO_LABEL_SIZE = _BASE_LABEL * _GENO_SCALE
+GENO_TITLE_SIZE = _BASE_TITLE * _GENO_SCALE
+GENO_TICK_SIZE = _BASE_TICK * _GENO_SCALE
+GENO_LEGEND_SIZE = _BASE_LEGEND * _GENO_SCALE
 
 
 def _apply_theme():
@@ -67,7 +71,7 @@ def _apply_theme():
         'axes.edgecolor': '#333333', 'axes.labelcolor': '#222222',
         'axes.grid': True, 'grid.color': '#dddddd', 'grid.linestyle': '--', 'grid.alpha': 0.7,
         'text.color': '#222222', 'xtick.color': '#333333', 'ytick.color': '#333333',
-        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.9,
+        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.7,
         'font.size': FONT_SIZE,
         'axes.titlesize': TITLE_SIZE,
         'axes.labelsize': LABEL_SIZE,
@@ -102,28 +106,17 @@ def _save(fig, filename):
     print(f"    Saved {path}")
 
 
-def _responsive_fig_size(df):
-    """Return (width, height) and title_pad scaled to number of timelines."""
-    n_tl = df['timeline'].nunique()
-    legend_items = n_tl * 2  # average + std dev per timeline
-    legend_rows = max(1, (legend_items + 3) // 4)  # 4 items per row
-    extra_height = legend_rows * 0.8
-    extra_pad = legend_rows * 18
-    height = SINGLE_FIG_SIZE[1] + extra_height
-    pad = TITLE_PAD + extra_pad
-    rect_top = max(0.82, 0.90 - legend_rows * 0.02)
-    return (SINGLE_FIG_SIZE[0], height), pad, [0, 0, 1, rect_top]
-
-
-def _place_legend_outside(ax, fontsize, ncol=None):
-    """Place legend above the axes, outside the plot area."""
+def _filter_legend_avg_only(ax):
+    """Remove Std Dev entries from legend, keep only Average lines."""
     handles, labels = ax.get_legend_handles_labels()
-    if not handles:
-        return
-    if ncol is None:
-        ncol = min(len(handles), 4)
-    ax.legend(fontsize=fontsize, loc='lower left',
-              bbox_to_anchor=(0.0, 1.02), ncol=ncol, borderaxespad=0.0)
+    filtered_h, filtered_l = [], []
+    for h, l in zip(handles, labels):
+        if 'Std Dev' not in l:
+            filtered_h.append(h)
+            filtered_l.append(l)
+    if filtered_h:
+        ax.legend(filtered_h, filtered_l, fontsize=SMALL_LEGEND_SIZE,
+                  loc='best', framealpha=0.7)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -150,16 +143,19 @@ def _plot_metric_vs_gen(ax, df, col, ylabel, title, fmt=None, ylim=None):
                          color=color, alpha=0.06, zorder=1,
                          label=f"TL {tl} ±1 Std Dev")
         # Average line
-        ax.plot(gl, means, color=color, linewidth=2.5, alpha=0.9,
-                marker='o', markersize=4, label=f"TL {tl} Average", zorder=3)
+        ax.plot(gl, means, color=color, linewidth=3.2, alpha=0.9,
+                marker='o', markersize=5, label=f"TL {tl} Average", zorder=3)
 
     ax.set_xlabel('Generation', fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
-    ax.set_title(title, fontweight='bold', pad=TITLE_PAD)
+    ax.set_title(title, fontweight='bold', pad=12)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    if ylim: ax.set_ylim(ylim)
+    if ylim:
+        ax.set_ylim(ylim)
+        if ylim == (-0.02, 1.02):
+            ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
     if fmt: ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt))
-    _place_legend_outside(ax, SMALL_LEGEND_SIZE)
+    _filter_legend_avg_only(ax)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -196,17 +192,17 @@ def _plot_metric_vs_metric(ax, df, col_x, col_y, xlabel, ylabel, title,
                          color=color, alpha=0.06, zorder=1,
                          label=f"TL {tl} ±1 Std Dev")
         # Average line
-        ax.plot(bin_centers, means, color=color, linewidth=2.5, alpha=0.9,
-                marker='o', markersize=4, label=f"TL {tl} Average", zorder=3)
+        ax.plot(bin_centers, means, color=color, linewidth=3.2, alpha=0.9,
+                marker='o', markersize=5, label=f"TL {tl} Average", zorder=3)
 
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
-    ax.set_title(title, fontweight='bold', pad=TITLE_PAD)
+    ax.set_title(title, fontweight='bold', pad=12)
     if xlim: ax.set_xlim(xlim)
     if ylim: ax.set_ylim(ylim)
     if fmt_x: ax.xaxis.set_major_formatter(mticker.FuncFormatter(fmt_x))
     if fmt_y: ax.yaxis.set_major_formatter(mticker.FuncFormatter(fmt_y))
-    _place_legend_outside(ax, SMALL_LEGEND_SIZE)
+    _filter_legend_avg_only(ax)
 
 # ════════════════════════════════════════════════════════════════
 # HEATMAP PAIR PLOT
@@ -224,7 +220,7 @@ def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
     y = ok[col_y].values
     c = ok['fitness'].values
 
-    sc = ax.scatter(x, y, c=c, cmap='RdYlGn', s=30, alpha=0.7,
+    sc = ax.scatter(x, y, c=c, cmap='RdYlGn', s=40, alpha=0.7,
                     edgecolors='#333333', linewidth=0.3, zorder=2)
 
     cbar = fig.colorbar(sc, ax=ax, shrink=0.8)
@@ -234,94 +230,123 @@ def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
     ax.set_title(title, fontweight='bold', pad=12)
+    ax.xaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
 
     fig.tight_layout(); _save(fig, filename)
 
 
 # ════════════════════════════════════════════════════════════════
-# POLICY CONVERGENCE PLOTS
+# GENOTYPE CONVERGENCE PLOTS
 # ════════════════════════════════════════════════════════════════
 
-def _plot_policy_convergence(df, params, title, filename):
-    """Plot convergence of policy parameters over generations.
-    params: list of (column_name, display_name, is_location) tuples.
-    """
-    n_tl = df['timeline'].nunique()
-    n_params = len(params)
+def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
+                                qty_label, int_label, title, filename):
+    """Plot genotype convergence: quantity/duration + interval + location."""
+    timelines = sorted(df['timeline'].unique())
+    n_timelines = len(timelines)
+    n_gens = df['generation'].max()
 
-    fig_h = 4.5 * n_params + 1.5
-    fig, axes = plt.subplots(n_params, 1, figsize=(12, fig_h), sharex=True)
-    if n_params == 1:
-        axes = [axes]
+    # Responsive width
+    fig_w = max(GENO_FIG_SIZE[0], n_gens * n_timelines * 0.35 + 6)
+    fig_h = GENO_FIG_SIZE[1]
 
-    for ax_idx, (col, display_name, is_location) in enumerate(params):
-        ax = axes[ax_idx]
-        if col not in df.columns:
-            ax.set_visible(False)
-            continue
+    fig = plt.figure(figsize=(fig_w, fig_h))
+    gs = fig.add_gridspec(2, 2, height_ratios=[1, 1], hspace=0.35, wspace=0.3)
+    ax_qty = fig.add_subplot(gs[0, 0])
+    ax_int = fig.add_subplot(gs[0, 1])
+    ax_loc = fig.add_subplot(gs[1, :])
 
-        if is_location:
-            # Heatmap: for each generation, show distribution of location choices
-            from constants import LOC_NAMES
-            gens = sorted(df['generation'].unique())
-            loc_ids = sorted(LOC_NAMES.keys())
-            n_locs = len(loc_ids)
+    # ── Quantity / Duration subplot ──
+    for tl in timelines:
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        gens = sorted(sdf['generation'].unique())
+        means, stds, gl = [], [], []
+        for g in gens:
+            vals = sdf[sdf['generation'] == g][qty_col].values
+            means.append(vals.mean()); stds.append(vals.std()); gl.append(g)
+        means, stds, gl = np.array(means), np.array(stds), np.array(gl)
+        ax_qty.fill_between(gl, means - stds, means + stds, color=color, alpha=0.06)
+        ax_qty.plot(gl, means, color=color, linewidth=3.2, alpha=0.9,
+                    marker='o', markersize=5, label=f"TL {tl}")
+    ax_qty.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_qty.set_ylabel(qty_label, fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_qty.set_title(qty_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
+    ax_qty.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax_qty.tick_params(labelsize=GENO_TICK_SIZE)
+    ax_qty.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
 
-            for tl in sorted(df['timeline'].unique()):
-                sdf = df[df['timeline'] == tl]
-                color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
-                mode_vals = []
-                for g in gens:
-                    gdf = sdf[sdf['generation'] == g]
-                    vals = gdf[col].dropna().astype(int)
-                    if len(vals) > 0:
-                        mode_vals.append(vals.mode().iloc[0])
-                    else:
-                        mode_vals.append(0)
-                ax.plot(gens, mode_vals, color=color, linewidth=2.5, alpha=0.9,
-                        marker='s', markersize=5, label=f"TL {tl} Mode")
+    # ── Interval subplot ──
+    for tl in timelines:
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        gens = sorted(sdf['generation'].unique())
+        means, stds, gl = [], [], []
+        for g in gens:
+            vals = sdf[sdf['generation'] == g][int_col].values
+            means.append(vals.mean()); stds.append(vals.std()); gl.append(g)
+        means, stds, gl = np.array(means), np.array(stds), np.array(gl)
+        ax_int.fill_between(gl, means - stds, means + stds, color=color, alpha=0.06)
+        ax_int.plot(gl, means, color=color, linewidth=3.2, alpha=0.9,
+                    marker='o', markersize=5, label=f"TL {tl}")
+    ax_int.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_int.set_ylabel(int_label, fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_int.set_title(int_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
+    ax_int.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax_int.tick_params(labelsize=GENO_TICK_SIZE)
+    ax_int.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
 
-            ax.set_ylabel(display_name, fontweight='bold')
-            ax.set_yticks(loc_ids)
-            ax.set_yticklabels([LOC_NAMES.get(i, str(i)) for i in loc_ids],
-                               fontsize=TICK_SIZE * 0.75)
-            ax.set_ylim(-0.5, max(loc_ids) + 0.5)
-        else:
-            # Numeric parameter: mean ± std dev
-            for tl in sorted(df['timeline'].unique()):
-                sdf = df[df['timeline'] == tl]
-                color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
-                gens = sorted(sdf['generation'].unique())
-                means, stds, gl = [], [], []
-                for g in gens:
-                    vals = pd.to_numeric(sdf[sdf['generation'] == g][col], errors='coerce').dropna()
-                    if len(vals) > 0:
-                        means.append(vals.mean())
-                        stds.append(vals.std())
-                    else:
-                        means.append(0)
-                        stds.append(0)
-                    gl.append(g)
-                means = np.array(means)
-                stds = np.array(stds)
-                gl = np.array(gl)
+    # ── Location subplot (stacked bars: Center vs Random) ──
+    gens = sorted(df['generation'].unique())
+    bar_w = min(0.08, 0.7 / max(n_timelines, 1))
+    offsets = np.arange(n_timelines) - (n_timelines - 1) / 2
 
-                ax.fill_between(gl, means - stds, means + stds,
-                                color=color, alpha=0.06, zorder=1,
-                                label=f"TL {tl} ±1 Std Dev")
-                ax.plot(gl, means, color=color, linewidth=2.5, alpha=0.9,
-                        marker='o', markersize=4, label=f"TL {tl} Average", zorder=3)
+    for i, tl in enumerate(timelines):
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        center_pcts, random_pcts = [], []
+        for g in gens:
+            gdf = sdf[sdf['generation'] == g]
+            n = len(gdf) if len(gdf) > 0 else 1
+            center_count = (gdf[loc_col] == 0).sum()
+            center_pct = center_count / n * 100
+            center_pcts.append(center_pct)
+            random_pcts.append(100 - center_pct)
 
-            ax.set_ylabel(display_name, fontweight='bold')
+        x = np.array(gens) + offsets[i] * bar_w
+        # Center (solid)
+        ax_loc.bar(x, center_pcts, bar_w, color=color, alpha=0.85,
+                   edgecolor='white', linewidth=0.5,
+                   label=f"TL {tl}" if i == 0 else "")
+        # Random (hatched)
+        ax_loc.bar(x, random_pcts, bar_w, bottom=center_pcts,
+                   color=color, alpha=0.50, hatch='///',
+                   edgecolor='white', linewidth=0.5)
 
-        ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-        ax.grid(True, alpha=0.3)
-        if ax_idx == 0:
-            _place_legend_outside(ax, SMALL_LEGEND_SIZE * 0.85)
+    # Add texture legend
+    from matplotlib.patches import Patch
+    texture_handles = [
+        Patch(facecolor='gray', alpha=0.85, label='Center (solid)'),
+        Patch(facecolor='gray', alpha=0.50, hatch='///', label='Random (hatched)'),
+    ]
+    tl_handles = [Patch(facecolor=TL_COLORS[(tl - 1) % len(TL_COLORS)],
+                        label=f"TL {tl}") for tl in timelines]
+    all_handles = tl_handles + texture_handles
+    ax_loc.legend(handles=all_handles, fontsize=GENO_LEGEND_SIZE,
+                  loc='best', framealpha=0.7, ncol=min(len(all_handles), 6))
 
-    axes[-1].set_xlabel('Generation', fontweight='bold')
-    fig.suptitle(title, fontweight='bold', fontsize=TITLE_SIZE, y=1.01)
-    fig.tight_layout()
+    ax_loc.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_loc.set_ylabel('Location %', fontweight='bold', fontsize=GENO_LABEL_SIZE)
+    ax_loc.set_title(f'{policy_name} Location', fontweight='bold',
+                     fontsize=GENO_TITLE_SIZE, pad=12)
+    ax_loc.set_ylim(0, 115)
+    ax_loc.yaxis.set_major_locator(mticker.MultipleLocator(10))
+    ax_loc.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
+    ax_loc.tick_params(labelsize=GENO_TICK_SIZE)
+
+    fig.suptitle(title, fontweight='bold', fontsize=GENO_TITLE_SIZE * 1.1, y=0.98)
+    fig.subplots_adjust(hspace=0.35, wspace=0.3, top=0.92, bottom=0.08)
     _save(fig, filename)
 
 
@@ -330,38 +355,30 @@ def _plot_policy_convergence(df, params, title, filename):
 # ════════════════════════════════════════════════════════════════
 
 def plot_fitness(df):
-    fig_size, pad, rect = _responsive_fig_size(df)
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'fitness', 'Fitness', 'Fitness vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    ax.set_title('Fitness vs Generation', fontweight='bold', pad=pad)
-    fig.tight_layout(rect=rect); _save(fig, 'plot_01_fitness_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_01_fitness_vs_gen.png')
 
 def plot_yield(df):
     if 'yield' not in df.columns: return
-    fig_size, pad, rect = _responsive_fig_size(df)
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'yield', 'Yield', 'Yield vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    ax.set_title('Yield vs Generation', fontweight='bold', pad=pad)
-    fig.tight_layout(rect=rect); _save(fig, 'plot_02_yield_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_02_yield_vs_gen.png')
 
 def plot_saving_rate(df):
     if 'saving_rate' not in df.columns: return
-    fig_size, pad, rect = _responsive_fig_size(df)
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'saving_rate', 'Saving Rate', 'Saving Rate vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    ax.set_title('Saving Rate vs Generation', fontweight='bold', pad=pad)
-    fig.tight_layout(rect=rect); _save(fig, 'plot_03_saving_rate_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_03_saving_rate_vs_gen.png')
 
 def plot_healthiness(df):
-    fig_size, pad, rect = _responsive_fig_size(df)
-    fig, ax = plt.subplots(figsize=fig_size)
+    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'healthiness', 'Healthiness', 'Healthiness vs Generation',
                         fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    ax.set_title('Healthiness vs Generation', fontweight='bold', pad=pad)
-    fig.tight_layout(rect=rect); _save(fig, 'plot_04_healthiness_vs_gen.png')
+    fig.tight_layout(); _save(fig, 'plot_04_healthiness_vs_gen.png')
 
 def plot_yield_vs_saving(df):
     _plot_pair_fitness(df, 'yield', 'saving_rate', 'Yield', 'Saving Rate',
@@ -375,62 +392,91 @@ def plot_saving_vs_healthiness(df):
     _plot_pair_fitness(df, 'saving_rate', 'healthiness', 'Saving Rate', 'Healthiness',
                        'Saving Rate vs Healthiness Heatmap', 'plot_07_saving_rate_vs_healthiness_heatmap.png')
 
-def plot_food_convergence(df):
-    params = [
-        ('food_quantity', 'Food Quantity', False),
-        ('food_interval', 'Food Interval (h)', False),
-        ('food_location', 'Food Location', True),
-    ]
-    _plot_policy_convergence(df, params,
-                             'Food Genotype Convergence',
-                             'plot_08_food_genotype_convergence.png')
+def plot_food_genotype(df):
+    _plot_genotype_convergence(df, 'Food', 'food_quantity', 'food_interval', 'food_location',
+                                'Food Quantity', 'Food Interval',
+                                'Food Genotype Convergence',
+                                'plot_08_food_genotype_convergence.png')
 
-def plot_probiotic_convergence(df):
-    params = [
-        ('probiotic_quantity', 'Probiotic Quantity', False),
-        ('probiotic_interval', 'Probiotic Interval (h)', False),
-        ('probiotic_location', 'Probiotic Location', True),
-    ]
-    _plot_policy_convergence(df, params,
-                             'Probiotic Genotype Convergence',
-                             'plot_09_probiotic_genotype_convergence.png')
+def plot_probiotic_genotype(df):
+    _plot_genotype_convergence(df, 'Probiotic', 'probiotic_quantity', 'probiotic_interval',
+                                'probiotic_location',
+                                'Probiotic Quantity', 'Probiotic Interval',
+                                'Probiotic Genotype Convergence',
+                                'plot_09_probiotic_genotype_convergence.png')
 
-def plot_oxygen_convergence(df):
-    params = [
-        ('oxygen_duration', 'O2 Duration (h)', False),
-        ('oxygen_interval', 'O2 Interval (h)', False),
-        ('oxygen_location', 'O2 Location', True),
-    ]
-    _plot_policy_convergence(df, params,
-                             'Oxygen Genotype Convergence',
-                             'plot_10_oxygen_genotype_convergence.png')
+def plot_oxygen_genotype(df):
+    _plot_genotype_convergence(df, 'Oxygen', 'oxygen_duration', 'oxygen_interval',
+                                'oxygen_location',
+                                'Oxygen Duration', 'Oxygen Interval',
+                                'Oxygen Genotype Convergence',
+                                'plot_10_oxygen_genotype_convergence.png')
 
 def plot_status(df):
-    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    status_order = ['OK', 'ALL-DEAD', 'OVER-BUDGET', 'GATEKEEPER']
+    from matplotlib.patches import Patch
+
+    timelines = sorted(df['timeline'].unique())
+    n_timelines = len(timelines)
     gens = sorted(df['generation'].unique())
-    n_timelines = df['timeline'].nunique()
-    bottom = np.zeros(len(gens))
-    for status in status_order:
-        counts = np.array([len(df[(df['generation'] == g) & (df['status'] == status)])
-                           for g in gens], dtype=float)
-        counts = counts / n_timelines
-        label = STATUS_LABELS.get(status, status)
-        ax.bar(gens, counts, bottom=bottom, color=STATUS_COLORS.get(status, '#aaa'),
-               label=label, alpha=0.85, edgecolor='white', linewidth=0.5)
-        bottom += counts
+    n_gens = len(gens)
+
+    # Responsive width
+    fig_w = max(SINGLE_FIG_SIZE[0], n_gens * n_timelines * 0.35 + 6)
+    fig, ax = plt.subplots(figsize=(fig_w, SINGLE_FIG_SIZE[1]))
+
+    status_order = ['OK', 'ALL-DEAD', 'OVER-BUDGET', 'GATEKEEPER']
+    hatches = {'OK': '', 'ALL-DEAD': '///', 'OVER-BUDGET': 'xxx', 'GATEKEEPER': '\\\\\\'}
+    bar_w = min(0.08, 0.7 / max(n_timelines, 1))
+    offsets = np.arange(n_timelines) - (n_timelines - 1) / 2
+
+    for i, tl in enumerate(timelines):
+        sdf = df[df['timeline'] == tl]
+        color = TL_COLORS[(tl - 1) % len(TL_COLORS)]
+        x_base = np.array(gens) + offsets[i] * bar_w
+
+        bottom = np.zeros(n_gens)
+        for status in status_order:
+            counts = np.array([len(sdf[(sdf['generation'] == g) & (sdf['status'] == status)])
+                               for g in gens], dtype=float)
+            hatch = hatches.get(status, '')
+            alpha = 0.85 if status == 'OK' else 0.50
+            ax.bar(x_base, counts, bar_w, bottom=bottom,
+                   color=color, alpha=alpha, hatch=hatch,
+                   edgecolor='white', linewidth=0.5)
+            bottom += counts
+
+    # Legend: timeline colors + status textures
+    tl_handles = [Patch(facecolor=TL_COLORS[(tl - 1) % len(TL_COLORS)],
+                        label=f"TL {tl}") for tl in timelines]
+    status_handles = [
+        Patch(facecolor='gray', alpha=0.85, label='OK'),
+        Patch(facecolor='gray', alpha=0.50, hatch='///', label='All Dead'),
+        Patch(facecolor='gray', alpha=0.50, hatch='xxx', label='Over Budget'),
+        Patch(facecolor='gray', alpha=0.50, hatch='\\\\\\', label='Reject'),
+    ]
+    all_handles = tl_handles + status_handles
+    ax.legend(handles=all_handles, fontsize=LEGEND_SIZE,
+              loc='upper left', framealpha=0.7,
+              ncol=min(len(all_handles), 5))
+
     ax.set_xlabel('Generation', fontweight='bold')
     ax.set_ylabel('Pond Count', fontweight='bold')
-    ax.set_title('Pond Population Distribution', fontweight='bold', pad=TITLE_PAD)
+    ax.set_title('Pond Population Distribution', fontweight='bold', pad=12)
     ax.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    ax.set_ylim(0, POND_POPULATION + 1)
+    ax.set_ylim(0, POND_POPULATION * 1.25)
     ax.yaxis.set_major_locator(mticker.MaxNLocator(integer=True))
-    _place_legend_outside(ax, LEGEND_SIZE)
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_11_pond_population_distribution.png')
+    fig.tight_layout(); _save(fig, 'plot_11_pond_population_distribution.png')
 
 def plot_champion_comparison(df):
-    fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
+    from matplotlib.patches import Patch
+
     timelines = sorted(df['timeline'].unique())
+    n_timelines = len(timelines)
+
+    # Responsive width
+    fig_w = max(SINGLE_FIG_SIZE[0], n_timelines * 4 + 4)
+    fig, ax = plt.subplots(figsize=(fig_w, SINGLE_FIG_SIZE[1]))
+
     best_fit, best_yld, best_hlth, best_sav_rate, labels = [], [], [], [], []
     for tl in timelines:
         sdf = df[df['timeline'] == tl]
@@ -443,37 +489,42 @@ def plot_champion_comparison(df):
         sav = row.get('saving', 0)
         best_sav_rate.append(sav / MAX_BUDGET if MAX_BUDGET > 0 else 0)
         labels.append(f"TL {tl}")
-    x = np.arange(len(timelines)); w = 0.18
+    x = np.arange(n_timelines); w = 0.18
 
-    # Order: Fitness, Yield, Saving Rate, Healthiness
-    b1 = ax.bar(x - 1.5*w, best_fit,      w, label='Fitness',      color='#1f77b4', alpha=0.9, edgecolor='white')
-    b2 = ax.bar(x - 0.5*w, best_yld,      w, label='Yield',        color='#2ca02c', alpha=0.9, edgecolor='white')
-    b3 = ax.bar(x + 0.5*w, best_sav_rate,  w, label='Saving Rate',  color='#9467bd', alpha=0.9, edgecolor='white')
-    b4 = ax.bar(x + 1.5*w, best_hlth,      w, label='Healthiness',  color='#ff7f0e', alpha=0.9, edgecolor='white')
+    b1 = ax.bar(x - 1.5*w, best_fit,      w, label='Fitness',     color='#1f77b4', alpha=0.9, edgecolor='white')
+    b2 = ax.bar(x - 0.5*w, best_yld,      w, label='Yield',       color='#2ca02c', alpha=0.9, edgecolor='white')
+    b3 = ax.bar(x + 0.5*w, best_sav_rate,  w, label='Saving Rate', color='#9467bd', alpha=0.9, edgecolor='white')
+    b4 = ax.bar(x + 1.5*w, best_hlth,      w, label='Healthiness', color='#ff7f0e', alpha=0.9, edgecolor='white')
 
-    for bars in [b1, b2, b3, b4]:
-        for bar in bars:
-            h = bar.get_height()
-            if h > 0.01:
-                ax.text(bar.get_x() + bar.get_width()/2, h + 0.012, f'{h:.3f}',
-                        ha='center', va='bottom', fontsize=16, color='#333')
-
-    # Place "BEST" annotation below the bar to avoid overlapping value labels
+    # Show fitness values on all bars
     best_tl_idx = int(np.argmax(best_fit))
-    best_bar_x = best_tl_idx - 1.5*w
+    for i, bar in enumerate(b1):
+        h = bar.get_height()
+        if h > 0.01:
+            is_best = (i == best_tl_idx)
+            color = '#d62728' if is_best else '#333333'
+            weight = 'bold' if is_best else 'normal'
+            ax.text(bar.get_x() + bar.get_width()/2, h + 0.012, f'{h:.4f}',
+                    ha='center', va='bottom', fontsize=TICK_SIZE * 0.7,
+                    color=color, fontweight=weight)
+
+    # BEST annotation
+    best_bar = b1[best_tl_idx]
+    best_bar_x = best_bar.get_x() + best_bar.get_width()/2
     best_bar_h = best_fit[best_tl_idx]
     ax.annotate('BEST', xy=(best_bar_x, best_bar_h),
                 xytext=(best_bar_x, max(0, best_bar_h - 0.20)),
-                ha='center', fontsize=13, fontweight='bold', color='#d62728',
+                ha='center', fontsize=TICK_SIZE * 0.65, fontweight='bold', color='#d62728',
                 arrowprops=dict(arrowstyle='->', color='#d62728', lw=1.5))
 
     ax.set_xticks(x); ax.set_xticklabels(labels)
     ax.set_xlabel('Timeline', fontweight='bold')
     ax.set_ylabel('Score (0 - 1)', fontweight='bold')
-    ax.set_title('Champion Comparison', fontweight='bold', pad=TITLE_PAD)
-    _place_legend_outside(ax, CHAMPION_LEGEND_SIZE, ncol=4)
-    ax.set_ylim(0, 1.15)
-    fig.tight_layout(rect=TIGHT_LAYOUT_RECT); _save(fig, 'plot_12_champion_comparison.png')
+    ax.set_title('Champion Comparison', fontweight='bold', pad=12)
+    ax.legend(fontsize=CHAMPION_LEGEND_SIZE, loc='upper left', framealpha=0.7, ncol=4)
+    ax.set_ylim(0, 1.25)
+    ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    fig.tight_layout(); _save(fig, 'plot_12_champion_comparison.png')
 
 
 # ════════════════════════════════════════════════════════════════
@@ -497,9 +548,9 @@ def main():
     plot_yield_vs_healthiness(df)
     plot_saving_vs_healthiness(df)
 
-    plot_food_convergence(df)
-    plot_probiotic_convergence(df)
-    plot_oxygen_convergence(df)
+    plot_food_genotype(df)
+    plot_probiotic_genotype(df)
+    plot_oxygen_genotype(df)
 
     plot_status(df)
     plot_champion_comparison(df)
