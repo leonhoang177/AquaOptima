@@ -11,19 +11,717 @@
   Parallelism: 8 cores, persistent pool, priority scheduling
   Champion: Best pond in last generation
 ========================================================================
-    [TL 1] Gen  1/20 | Best: 0.5638 | Avg: 0.3742 | OK: 17 | Dead:  2 | Over$:  1 | Reject:  0 | 89.1s | Total: 1.5m
-	  Extra Verification: 32 (async)
-    [TL 2] Gen  1/20 | Best: 0.6536 | Avg: 0.3263 | OK: 15 | Dead:  3 | Over$:  2 | Reject:  0 | 99.2s | Total: 1.7m
-    [TL 1] Gen  2/20 | Best: 0.6297 | Avg: 0.5211 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 105.0s | Total: 6.5m
-	  Extra Verification: 27 (async)
-    [TL 1] Gen  3/20 | Best: 0.7070 | Avg: 0.5458 | OK: 18 | Dead:  2 | Over$:  0 | Reject:  0 | 141.4s | Total: 11.4m
-	  Extra Verification: 27 (async)
-	  Extra Verification: 27 (async)
-    [TL 1] Gen  4/20 | Best: 0.7607 | Avg: 0.6086 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 254.5s | Total: 19.7m
-	  Extra Verification: 24 (async)
-    [TL 2] Gen  2/20 | Best: 0.8119 | Avg: 0.6143 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 135.3s | Total: 6.4m
-    [TL 1] Gen  5/20 | Best: 0.7863 | Avg: 0.5616 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 213.4s | Total: 27.8m
-	  Extra Verification: 22 (async)
-	  Extra Verification: 16 (async)
-    [TL 1] Gen  6/20 | Best: 0.7805 | Avg: 0.5732 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 238.8s | Total: 35.1m
-	  Extra Verification: 24 (async)
+    [TL 1] Gen  1/20 | Best: 0.5996 | Avg: 0.3192 | OK: 14 | Dead:  2 | Over$:  4 | Reject:  0 | 101.3s | Total: 1.7m
+    [TL 2] Gen  1/20 | Best: 0.6872 | Avg: 0.2886 | OK: 11 | Dead:  3 | Over$:  6 | Reject:  0 | 114.6s | Total: 1.9m
+	  Extra Async Verifications: 30
+	  Extra Async Verifications: 18
+    [TL 1] Gen  2/20 | Best: 0.7273 | Avg: 0.5174 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 138.9s | Total: 6.4m
+	  Extra Async Verifications: 21
+    [TL 1] Gen  3/20 | Best: 0.8087 | Avg: 0.5039 | OK: 17 | Dead:  0 | Over$:  3 | Reject:  0 | 200.9s | Total: 12.9m
+    [TL 2] Gen  2/20 | Best: 0.7196 | Avg: 0.4990 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 181.0s | Total: 6.8m
+	  Extra Async Verifications: 22
+    [TL 1] Gen  4/20 | Best: 0.7710 | Avg: 0.6039 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 205.7s | Total: 19.9m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 19
+    [TL 1] Gen  5/20 | Best: 0.7459 | Avg: 0.6094 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 202.9s | Total: 26.9m
+	  Extra Async Verifications: 15
+    [TL 2] Gen  3/20 | Best: 0.7414 | Avg: 0.5559 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 191.2s | Total: 13.1m
+    [TL 3] Gen  1/20 | Best: 0.6089 | Avg: 0.3656 | OK: 15 | Dead:  2 | Over$:  3 | Reject:  0 | 117.0s | Total: 1.9m
+    [TL 1] Gen  6/20 | Best: 0.7806 | Avg: 0.6224 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 197.0s | Total: 33.0m
+	  Extra Async Verifications: 21
+	  Extra Async Verifications: 22
+    [TL 1] Gen  7/20 | Best: 0.7312 | Avg: 0.5597 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 199.1s | Total: 40.2m
+	  Extra Async Verifications: 18
+    [TL 1] Gen  8/20 | Best: 0.7586 | Avg: 0.5900 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 229.4s | Total: 47.3m
+    [TL 2] Gen  4/20 | Best: 0.7384 | Avg: 0.6223 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 195.4s | Total: 20.1m
+	  Extra Async Verifications: 17
+    [TL 1] Gen  9/20 | Best: 0.7899 | Avg: 0.6299 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 216.6s | Total: 54.1m
+	  Extra Async Verifications: 16
+	  Extra Async Verifications: 25
+    [TL 1] Gen 10/20 | Best: 0.7488 | Avg: 0.6208 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 207.1s | Total: 60.7m
+	  Extra Async Verifications: 24
+    [TL 1] Gen 11/20 | Best: 0.7529 | Avg: 0.6439 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 239.1s | Total: 69.2m
+    [TL 2] Gen  5/20 | Best: 0.7773 | Avg: 0.6095 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 219.7s | Total: 28.3m
+	  Extra Async Verifications: 19
+    [TL 1] Gen 12/20 | Best: 0.7513 | Avg: 0.6448 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 238.3s | Total: 77.2m
+	  Extra Async Verifications: 21
+	  Extra Async Verifications: 30
+    [TL 1] Gen 13/20 | Best: 0.7815 | Avg: 0.5707 | OK: 17 | Dead:  0 | Over$:  3 | Reject:  0 | 260.5s | Total: 86.0m
+	  Extra Async Verifications: 10
+    [TL 1] Gen 14/20 | Best: 0.7894 | Avg: 0.5933 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 233.1s | Total: 91.9m
+    [TL 2] Gen  6/20 | Best: 0.7796 | Avg: 0.5533 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 199.2s | Total: 36.8m
+	  Extra Async Verifications: 12
+    [TL 1] Gen 15/20 | Best: 0.7831 | Avg: 0.6540 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 222.5s | Total: 97.7m
+	  Extra Async Verifications: 23
+	  Extra Async Verifications: 7
+    [TL 1] Gen 16/20 | Best: 0.7925 | Avg: 0.6228 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 223.1s | Total: 102.8m
+	  Extra Async Verifications: 13
+    [TL 1] Gen 17/20 | Best: 0.8046 | Avg: 0.6355 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 220.0s | Total: 108.9m
+    [TL 2] Gen  7/20 | Best: 0.7660 | Avg: 0.6243 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 235.4s | Total: 44.6m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 18
+    [TL 1] Gen 18/20 | Best: 0.7764 | Avg: 0.6153 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 215.7s | Total: 115.9m
+	  Extra Async Verifications: 19
+	  Extra Async Verifications: 18
+    [TL 1] Gen 19/20 | Best: 0.8106 | Avg: 0.6859 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 219.8s | Total: 123.2m
+	  Extra Async Verifications: 15
+    [TL 1] Gen 20/20 | Best: 0.7811 | Avg: 0.5952 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 240.0s | Total: 130.0m
+    [TL 1] ✓ Finished (130.0m) | Fitness=0.7811 | Alive=44/50
+    [TL 2] Gen  8/20 | Best: 0.7722 | Avg: 0.6043 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 253.5s | Total: 52.6m
+    [TL 3] Gen  2/20 | Best: 0.6398 | Avg: 0.5365 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 152.3s | Total: 7.3m
+	  Extra Async Verifications: 18
+    [TL 2] Gen  9/20 | Best: 0.7775 | Avg: 0.6652 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 207.9s | Total: 59.7m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 20
+    [TL 2] Gen 10/20 | Best: 0.8104 | Avg: 0.6671 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 194.9s | Total: 66.6m
+	  Extra Async Verifications: 9
+    [TL 2] Gen 11/20 | Best: 0.7759 | Avg: 0.6411 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 194.1s | Total: 71.6m
+    [TL 3] Gen  3/20 | Best: 0.7332 | Avg: 0.5926 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 186.7s | Total: 14.5m
+    [TL 4] Gen  1/20 | Best: 0.6445 | Avg: 0.3433 | OK: 16 | Dead:  1 | Over$:  3 | Reject:  0 | 117.9s | Total: 2.0m
+	  Extra Async Verifications: 18
+    [TL 2] Gen 12/20 | Best: 0.7964 | Avg: 0.6688 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 198.5s | Total: 78.2m
+	  Extra Async Verifications: 10
+    [TL 2] Gen 13/20 | Best: 0.7866 | Avg: 0.6896 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 195.7s | Total: 83.1m
+	  Extra Async Verifications: 30
+	  Extra Async Verifications: 30
+    [TL 2] Gen 14/20 | Best: 0.7835 | Avg: 0.6834 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 207.1s | Total: 92.0m
+	  Extra Async Verifications: 24
+    [TL 3] Gen  4/20 | Best: 0.7525 | Avg: 0.6336 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 233.1s | Total: 23.4m
+    [TL 2] Gen 15/20 | Best: 0.7911 | Avg: 0.6377 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 166.9s | Total: 99.1m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 18
+    [TL 2] Gen 16/20 | Best: 0.7822 | Avg: 0.7022 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 219.8s | Total: 107.0m
+	  Extra Async Verifications: 24
+    [TL 2] Gen 17/20 | Best: 0.7849 | Avg: 0.6312 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 242.2s | Total: 115.6m
+    [TL 3] Gen  5/20 | Best: 0.7851 | Avg: 0.5558 | OK: 17 | Dead:  2 | Over$:  1 | Reject:  0 | 232.2s | Total: 31.2m
+	  Extra Async Verifications: 23
+    [TL 2] Gen 18/20 | Best: 0.7501 | Avg: 0.6106 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 223.0s | Total: 123.7m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 23
+    [TL 2] Gen 19/20 | Best: 0.8016 | Avg: 0.6555 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 206.6s | Total: 131.0m
+	  Extra Async Verifications: 10
+    [TL 2] Gen 20/20 | Best: 0.8036 | Avg: 0.6398 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 195.3s | Total: 136.0m
+    [TL 2] ✓ Finished (136.0m) | Fitness=0.8036 | Alive=45/50
+    [TL 3] Gen  6/20 | Best: 0.7644 | Avg: 0.6382 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 210.0s | Total: 39.1m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 21
+    [TL 3] Gen  7/20 | Best: 0.8117 | Avg: 0.5982 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 247.1s | Total: 46.7m
+    [TL 4] Gen  2/20 | Best: 0.6696 | Avg: 0.5075 | OK: 16 | Dead:  4 | Over$:  0 | Reject:  0 | 143.6s | Total: 6.8m
+	  Extra Async Verifications: 30
+    [TL 3] Gen  8/20 | Best: 0.8150 | Avg: 0.5644 | OK: 17 | Dead:  0 | Over$:  3 | Reject:  0 | 223.3s | Total: 56.2m
+	  Extra Async Verifications: 24
+	  Extra Async Verifications: 26
+    [TL 3] Gen  9/20 | Best: 0.8030 | Avg: 0.6301 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 225.0s | Total: 64.5m
+	  Extra Async Verifications: 21
+    [TL 4] Gen  3/20 | Best: 0.7668 | Avg: 0.6422 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 168.8s | Total: 12.7m
+    [TL 3] Gen 10/20 | Best: 0.7910 | Avg: 0.6111 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 253.2s | Total: 72.9m
+	  Extra Async Verifications: 15
+    [TL 3] Gen 11/20 | Best: 0.7800 | Avg: 0.6169 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 232.5s | Total: 80.1m
+	  Extra Async Verifications: 26
+	  Extra Async Verifications: 21
+    [TL 3] Gen 12/20 | Best: 0.7780 | Avg: 0.6631 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 204.9s | Total: 87.5m
+	  Extra Async Verifications: 21
+    [TL 4] Gen  4/20 | Best: 0.7689 | Avg: 0.6363 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 183.9s | Total: 19.5m
+    [TL 5] Gen  1/20 | Best: 0.5918 | Avg: 0.3269 | OK: 14 | Dead:  2 | Over$:  4 | Reject:  0 | 104.1s | Total: 1.7m
+    [TL 3] Gen 13/20 | Best: 0.7639 | Avg: 0.6644 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 220.7s | Total: 95.0m
+	  Extra Async Verifications: 18
+    [TL 3] Gen 14/20 | Best: 0.8269 | Avg: 0.6879 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 262.8s | Total: 103.2m
+	  Extra Async Verifications: 23
+	  Extra Async Verifications: 15
+    [TL 3] Gen 15/20 | Best: 0.8119 | Avg: 0.7025 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 228.6s | Total: 110.0m
+    [TL 4] Gen  5/20 | Best: 0.8139 | Avg: 0.5875 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 241.8s | Total: 27.6m
+	  Extra Async Verifications: 15
+	  Extra Async Verifications: 18
+    [TL 3] Gen 16/20 | Best: 0.7792 | Avg: 0.5749 | OK: 17 | Dead:  2 | Over$:  1 | Reject:  0 | 219.7s | Total: 116.9m
+	  Extra Async Verifications: 15
+    [TL 3] Gen 17/20 | Best: 0.8018 | Avg: 0.6300 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 240.4s | Total: 123.9m
+    [TL 4] Gen  6/20 | Best: 0.7676 | Avg: 0.6447 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 270.0s | Total: 35.9m
+	  Extra Async Verifications: 6
+	  Extra Async Verifications: 12
+    [TL 3] Gen 18/20 | Best: 0.7962 | Avg: 0.5778 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 220.5s | Total: 129.0m
+	  Extra Async Verifications: 9
+    [TL 3] Gen 19/20 | Best: 0.7920 | Avg: 0.6596 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 212.3s | Total: 134.1m
+    [TL 4] Gen  7/20 | Best: 0.7338 | Avg: 0.5689 | OK: 18 | Dead:  2 | Over$:  0 | Reject:  0 | 276.5s | Total: 42.6m
+	  Extra Async Verifications: 18
+    [TL 3] Gen 20/20 | Best: 0.7498 | Avg: 0.6303 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 211.4s | Total: 141.1m
+    [TL 3] ✓ Finished (141.1m) | Fitness=0.7498 | Alive=39/50
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 29
+    [TL 4] Gen  8/20 | Best: 0.7736 | Avg: 0.6323 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 269.0s | Total: 51.1m
+    [TL 5] Gen  2/20 | Best: 0.6595 | Avg: 0.5229 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 110.8s | Total: 6.2m
+	  Extra Async Verifications: 23
+    [TL 4] Gen  9/20 | Best: 0.7675 | Avg: 0.6313 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 204.8s | Total: 59.8m
+	  Extra Async Verifications: 30
+	  Extra Async Verifications: 9
+    [TL 4] Gen 10/20 | Best: 0.7821 | Avg: 0.6778 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 180.9s | Total: 64.9m
+    [TL 5] Gen  3/20 | Best: 0.7350 | Avg: 0.6138 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 157.6s | Total: 11.8m
+	  Extra Async Verifications: 6
+	  Extra Async Verifications: 18
+    [TL 4] Gen 11/20 | Best: 0.7882 | Avg: 0.6347 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 221.5s | Total: 69.7m
+	  Extra Async Verifications: 21
+    [TL 5] Gen  4/20 | Best: 0.7850 | Avg: 0.6551 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 177.8s | Total: 17.2m
+    [TL 4] Gen 12/20 | Best: 0.7778 | Avg: 0.5576 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 222.8s | Total: 77.0m
+	  Extra Async Verifications: 24
+    [TL 4] Gen 13/20 | Best: 0.7992 | Avg: 0.6506 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 241.1s | Total: 85.1m
+	  Extra Async Verifications: 26
+    [TL 6] Gen  1/20 | Best: 0.6420 | Avg: 0.2442 | OK: 11 | Dead:  2 | Over$:  7 | Reject:  0 | 134.6s | Total: 2.2m
+	  Extra Async Verifications: 22
+    [TL 4] Gen 14/20 | Best: 0.7984 | Avg: 0.6573 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 211.7s | Total: 93.0m
+    [TL 5] Gen  5/20 | Best: 0.7794 | Avg: 0.6995 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 216.7s | Total: 24.9m
+	  Extra Async Verifications: 26
+    [TL 4] Gen 15/20 | Best: 0.7842 | Avg: 0.6464 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 212.2s | Total: 101.3m
+	  Extra Async Verifications: 12
+	  Extra Async Verifications: 22
+    [TL 4] Gen 16/20 | Best: 0.7836 | Avg: 0.6655 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 207.0s | Total: 106.6m
+	  Extra Async Verifications: 13
+    [TL 4] Gen 17/20 | Best: 0.7935 | Avg: 0.5244 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 239.6s | Total: 112.9m
+    [TL 5] Gen  6/20 | Best: 0.8133 | Avg: 0.6521 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 215.0s | Total: 32.8m
+	  Extra Async Verifications: 7
+    [TL 4] Gen 18/20 | Best: 0.7810 | Avg: 0.6357 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 226.5s | Total: 118.1m
+	  Extra Async Verifications: 12
+	  Extra Async Verifications: 20
+    [TL 4] Gen 19/20 | Best: 0.7787 | Avg: 0.6161 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 214.3s | Total: 125.3m
+	  Extra Async Verifications: 17
+    [TL 5] Gen  7/20 | Best: 0.7693 | Avg: 0.6075 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 227.5s | Total: 39.1m
+    [TL 4] Gen 20/20 | Best: 0.7891 | Avg: 0.6819 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 248.7s | Total: 132.6m
+    [TL 4] ✓ Finished (132.6m) | Fitness=0.7891 | Alive=45/50
+	  Extra Async Verifications: 28
+	  Extra Async Verifications: 26
+    [TL 5] Gen  8/20 | Best: 0.7551 | Avg: 0.5898 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 239.6s | Total: 48.7m
+    [TL 6] Gen  2/20 | Best: 0.7105 | Avg: 0.4480 | OK: 16 | Dead:  0 | Over$:  4 | Reject:  0 | 279.6s | Total: 10.4m
+	  Extra Async Verifications: 19
+    [TL 5] Gen  9/20 | Best: 0.7840 | Avg: 0.5898 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 222.3s | Total: 56.2m
+    [TL 7] Gen  1/20 | Best: 0.6796 | Avg: 0.3410 | OK: 13 | Dead:  3 | Over$:  4 | Reject:  0 | 130.4s | Total: 2.2m
+	  Extra Async Verifications: 15
+	  Extra Async Verifications: 12
+    [TL 5] Gen 10/20 | Best: 0.7909 | Avg: 0.6414 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 242.8s | Total: 62.5m
+	  Extra Async Verifications: 18
+    [TL 5] Gen 11/20 | Best: 0.7730 | Avg: 0.6622 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 244.2s | Total: 70.5m
+    [TL 6] Gen  3/20 | Best: 0.6691 | Avg: 0.4534 | OK: 16 | Dead:  0 | Over$:  4 | Reject:  0 | 301.1s | Total: 18.3m
+	  Extra Async Verifications: 16
+    [TL 5] Gen 12/20 | Best: 0.7982 | Avg: 0.5567 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 247.4s | Total: 78.1m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 24
+    [TL 5] Gen 13/20 | Best: 0.7552 | Avg: 0.6251 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 225.8s | Total: 86.5m
+    [TL 6] Gen  4/20 | Best: 0.6627 | Avg: 0.5344 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 284.4s | Total: 28.0m
+	  Extra Async Verifications: 14
+    [TL 5] Gen 14/20 | Best: 0.7820 | Avg: 0.6016 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 247.9s | Total: 93.5m
+	  Extra Async Verifications: 20
+	  Extra Async Verifications: 21
+    [TL 5] Gen 15/20 | Best: 0.7906 | Avg: 0.6825 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 228.2s | Total: 101.6m
+	  Extra Async Verifications: 18
+    [TL 5] Gen 16/20 | Best: 0.7662 | Avg: 0.6676 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 188.0s | Total: 108.1m
+	  Extra Async Verifications: 21
+    [TL 6] Gen  5/20 | Best: 0.7435 | Avg: 0.5691 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 292.7s | Total: 38.6m
+    [TL 5] Gen 17/20 | Best: 0.8109 | Avg: 0.6784 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 165.7s | Total: 114.1m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 21
+    [TL 5] Gen 18/20 | Best: 0.8254 | Avg: 0.6238 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 171.8s | Total: 119.6m
+	  Extra Async Verifications: 19
+    [TL 5] Gen 19/20 | Best: 0.7985 | Avg: 0.6723 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 156.0s | Total: 125.2m
+	  Extra Async Verifications: 30
+	  Extra Async Verifications: 16
+    [TL 6] Gen  6/20 | Best: 0.7036 | Avg: 0.5200 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 260.0s | Total: 47.5m
+    [TL 5] Gen 20/20 | Best: 0.7833 | Avg: 0.6365 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 193.6s | Total: 130.7m
+    [TL 5] ✓ Finished (130.7m) | Fitness=0.7833 | Alive=44/50
+	  Extra Async Verifications: 12
+    [TL 6] Gen  7/20 | Best: 0.7250 | Avg: 0.4743 | OK: 15 | Dead:  1 | Over$:  4 | Reject:  0 | 268.5s | Total: 54.6m
+    [TL 7] Gen  2/20 | Best: 0.7414 | Avg: 0.5962 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 183.3s | Total: 8.6m
+	  Extra Async Verifications: 24
+    [TL 6] Gen  8/20 | Best: 0.7223 | Avg: 0.4388 | OK: 14 | Dead:  2 | Over$:  4 | Reject:  0 | 264.9s | Total: 64.4m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 24
+    [TL 6] Gen  9/20 | Best: 0.7401 | Avg: 0.6264 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 232.4s | Total: 72.2m
+	  Extra Async Verifications: 19
+    [TL 6] Gen 10/20 | Best: 0.7207 | Avg: 0.5824 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 250.7s | Total: 80.0m
+	  Extra Async Verifications: 13
+    [TL 7] Gen  3/20 | Best: 0.7412 | Avg: 0.6284 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 228.1s | Total: 16.4m
+    [TL 6] Gen 11/20 | Best: 0.7232 | Avg: 0.5184 | OK: 17 | Dead:  2 | Over$:  1 | Reject:  0 | 214.6s | Total: 86.1m
+	  Extra Async Verifications: 17
+	  Extra Async Verifications: 18
+    [TL 6] Gen 12/20 | Best: 0.7435 | Avg: 0.5324 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 225.9s | Total: 93.1m
+	  Extra Async Verifications: 21
+    [TL 6] Gen 13/20 | Best: 0.7464 | Avg: 0.6065 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 233.3s | Total: 101.1m
+    [TL 8] Gen  1/20 | Best: 0.6111 | Avg: 0.3090 | OK: 16 | Dead:  0 | Over$:  4 | Reject:  0 | 92.9s | Total: 1.5m
+    [TL 7] Gen  4/20 | Best: 0.7301 | Avg: 0.5754 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 193.6s | Total: 22.7m
+	  Extra Async Verifications: 15
+    [TL 6] Gen 14/20 | Best: 0.7536 | Avg: 0.5646 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 231.9s | Total: 108.0m
+	  Extra Async Verifications: 13
+	  Extra Async Verifications: 21
+    [TL 6] Gen 15/20 | Best: 0.7860 | Avg: 0.6190 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 206.3s | Total: 115.4m
+	  Extra Async Verifications: 23
+    [TL 6] Gen 16/20 | Best: 0.7852 | Avg: 0.6175 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 193.6s | Total: 122.3m
+    [TL 7] Gen  5/20 | Best: 0.7759 | Avg: 0.6824 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 213.5s | Total: 28.7m
+	  Extra Async Verifications: 23
+    [TL 6] Gen 17/20 | Best: 0.7498 | Avg: 0.6073 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 212.9s | Total: 129.8m
+	  Extra Async Verifications: 13
+	  Extra Async Verifications: 21
+    [TL 6] Gen 18/20 | Best: 0.7502 | Avg: 0.5804 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 199.3s | Total: 136.8m
+	  Extra Async Verifications: 24
+    [TL 7] Gen  6/20 | Best: 0.7596 | Avg: 0.6143 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 190.3s | Total: 34.1m
+	  Extra Async Verifications: 18
+    [TL 6] Gen 19/20 | Best: 0.7623 | Avg: 0.6270 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 195.7s | Total: 143.2m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 15
+    [TL 6] Gen 20/20 | Best: 0.7829 | Avg: 0.6426 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 224.2s | Total: 149.4m
+    [TL 6] ✓ Finished (149.4m) | Fitness=0.7829 | Alive=44/50
+    [TL 7] Gen  7/20 | Best: 0.7650 | Avg: 0.6103 | OK: 18 | Dead:  2 | Over$:  0 | Reject:  0 | 198.5s | Total: 41.6m
+    [TL 8] Gen  2/20 | Best: 0.7359 | Avg: 0.5596 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 126.9s | Total: 5.3m
+	  Extra Async Verifications: 33
+    [TL 7] Gen  8/20 | Best: 0.8075 | Avg: 0.6297 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 195.5s | Total: 50.4m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 25
+    [TL 7] Gen  9/20 | Best: 0.7705 | Avg: 0.6241 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 172.1s | Total: 57.6m
+	  Extra Async Verifications: 19
+    [TL 7] Gen 10/20 | Best: 0.8166 | Avg: 0.5816 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 180.8s | Total: 63.4m
+    [TL 8] Gen  3/20 | Best: 0.7885 | Avg: 0.5837 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 206.2s | Total: 11.6m
+	  Extra Async Verifications: 24
+    [TL 7] Gen 11/20 | Best: 0.7710 | Avg: 0.6615 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 166.7s | Total: 69.9m
+	  Extra Async Verifications: 22
+	  Extra Async Verifications: 24
+    [TL 7] Gen 12/20 | Best: 0.7909 | Avg: 0.7027 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 198.0s | Total: 76.8m
+	  Extra Async Verifications: 12
+    [TL 8] Gen  4/20 | Best: 0.8227 | Avg: 0.6525 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 182.5s | Total: 18.1m
+    [TL 7] Gen 13/20 | Best: 0.8130 | Avg: 0.6788 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 166.2s | Total: 81.2m
+	  Extra Async Verifications: 18
+    [TL 9] Gen  1/20 | Best: 0.6209 | Avg: 0.3878 | OK: 18 | Dead:  2 | Over$:  0 | Reject:  0 | 116.5s | Total: 1.9m
+    [TL 7] Gen 14/20 | Best: 0.7980 | Avg: 0.7078 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 205.4s | Total: 87.9m
+	  Extra Async Verifications: 21
+	  Extra Async Verifications: 24
+    [TL 7] Gen 15/20 | Best: 0.8241 | Avg: 0.6167 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 190.8s | Total: 95.5m
+	  Extra Async Verifications: 27
+    [TL 8] Gen  5/20 | Best: 0.7896 | Avg: 0.6758 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 208.4s | Total: 25.2m
+    [TL 7] Gen 16/20 | Best: 0.7855 | Avg: 0.6472 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 225.4s | Total: 104.2m
+	  Extra Async Verifications: 21
+	  Extra Async Verifications: 14
+    [TL 7] Gen 17/20 | Best: 0.8158 | Avg: 0.6141 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 211.0s | Total: 111.0m
+	  Extra Async Verifications: 23
+    [TL 8] Gen  6/20 | Best: 0.8127 | Avg: 0.6442 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 213.6s | Total: 31.2m
+    [TL 7] Gen 18/20 | Best: 0.7895 | Avg: 0.6807 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 211.5s | Total: 118.9m
+	  Extra Async Verifications: 15
+	  Extra Async Verifications: 13
+    [TL 7] Gen 19/20 | Best: 0.7857 | Avg: 0.6166 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 214.3s | Total: 124.9m
+	  Extra Async Verifications: 18
+    [TL 8] Gen  7/20 | Best: 0.8022 | Avg: 0.6444 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 213.2s | Total: 36.9m
+	  Extra Async Verifications: 27
+    [TL 7] Gen 20/20 | Best: 0.8088 | Avg: 0.6810 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 245.9s | Total: 132.4m
+    [TL 7] ✓ Finished (132.4m) | Fitness=0.8088 | Alive=45/50
+	  Extra Async Verifications: 18
+    [TL 8] Gen  8/20 | Best: 0.7703 | Avg: 0.6610 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 186.0s | Total: 43.0m
+	  Extra Async Verifications: 18
+    [TL 9] Gen  2/20 | Best: 0.7229 | Avg: 0.4979 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 168.1s | Total: 7.8m
+    [TL 8] Gen  9/20 | Best: 0.8336 | Avg: 0.5394 | OK: 17 | Dead:  0 | Over$:  3 | Reject:  0 | 238.6s | Total: 50.2m
+	  Extra Async Verifications: 15
+    [TL 8] Gen 10/20 | Best: 0.7706 | Avg: 0.5366 | OK: 16 | Dead:  0 | Over$:  4 | Reject:  0 | 249.0s | Total: 56.7m
+	  Extra Async Verifications: 17
+	  Extra Async Verifications: 23
+    [TL 8] Gen 11/20 | Best: 0.7778 | Avg: 0.6407 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 200.8s | Total: 64.3m
+	  Extra Async Verifications: 21
+    [TL 8] Gen 12/20 | Best: 0.7796 | Avg: 0.6348 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 247.9s | Total: 72.3m
+    [TL 9] Gen  3/20 | Best: 0.7643 | Avg: 0.5761 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 226.6s | Total: 14.8m
+	  Extra Async Verifications: 15
+    [TL 8] Gen 13/20 | Best: 0.7721 | Avg: 0.5618 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 214.3s | Total: 78.5m
+	  Extra Async Verifications: 14
+	  Extra Async Verifications: 24
+    [TL 8] Gen 14/20 | Best: 0.7753 | Avg: 0.5761 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 176.5s | Total: 83.6m
+	  Extra Async Verifications: 10
+    [TL 8] Gen 15/20 | Best: 0.7756 | Avg: 0.5623 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 187.0s | Total: 88.3m
+	  Extra Async Verifications: 17
+    [TL 9] Gen  4/20 | Best: 0.7522 | Avg: 0.6086 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 232.9s | Total: 23.5m
+    [TL 8] Gen 16/20 | Best: 0.7883 | Avg: 0.6744 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 158.6s | Total: 93.7m
+	  Extra Async Verifications: 27
+    [TL 8] Gen 17/20 | Best: 0.8156 | Avg: 0.6742 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 171.1s | Total: 100.2m
+	  Extra Async Verifications: 24
+	  Extra Async Verifications: 18
+    [TL 8] Gen 18/20 | Best: 0.7732 | Avg: 0.6447 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 174.5s | Total: 105.9m
+	  Extra Async Verifications: 15
+    [TL 9] Gen  5/20 | Best: 0.7581 | Avg: 0.4646 | OK: 15 | Dead:  0 | Over$:  5 | Reject:  0 | 277.0s | Total: 32.6m
+    [TL 8] Gen 19/20 | Best: 0.7965 | Avg: 0.6493 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 178.2s | Total: 111.2m
+	  Extra Async Verifications: 13
+    [TL 10] Gen  1/20 | Best: 0.6046 | Avg: 0.2933 | OK: 13 | Dead:  2 | Over$:  5 | Reject:  0 | 105.0s | Total: 1.7m
+    [TL 8] Gen 20/20 | Best: 0.7880 | Avg: 0.6928 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 196.4s | Total: 116.3m
+    [TL 8] ✓ Finished (116.3m) | Fitness=0.7880 | Alive=44/50
+	  Extra Async Verifications: 18
+    [TL 9] Gen  6/20 | Best: 0.7435 | Avg: 0.4941 | OK: 16 | Dead:  1 | Over$:  3 | Reject:  0 | 266.9s | Total: 41.6m
+	  Extra Async Verifications: 23
+	  Extra Async Verifications: 21
+    [TL 9] Gen  7/20 | Best: 0.7543 | Avg: 0.4776 | OK: 16 | Dead:  0 | Over$:  4 | Reject:  0 | 249.5s | Total: 50.4m
+    [TL 10] Gen  2/20 | Best: 0.6748 | Avg: 0.5463 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 122.0s | Total: 5.7m
+	  Extra Async Verifications: 21
+    [TL 9] Gen  8/20 | Best: 0.7663 | Avg: 0.5147 | OK: 16 | Dead:  1 | Over$:  3 | Reject:  0 | 254.7s | Total: 59.1m
+	  Extra Async Verifications: 27
+	  Extra Async Verifications: 20
+    [TL 9] Gen  9/20 | Best: 0.7713 | Avg: 0.5601 | OK: 17 | Dead:  1 | Over$:  2 | Reject:  0 | 247.9s | Total: 67.5m
+	  Extra Async Verifications: 24
+    [TL 10] Gen  3/20 | Best: 0.7242 | Avg: 0.6282 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 150.3s | Total: 11.2m
+    [TL 9] Gen 10/20 | Best: 0.7944 | Avg: 0.6409 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 223.2s | Total: 76.3m
+	  Extra Async Verifications: 12
+	  Extra Async Verifications: 23
+    [TL 9] Gen 11/20 | Best: 0.7642 | Avg: 0.5838 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 249.5s | Total: 83.0m
+	  Extra Async Verifications: 15
+    [TL 10] Gen  4/20 | Best: 0.7551 | Avg: 0.6382 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 160.8s | Total: 16.9m
+    [TL 9] Gen 12/20 | Best: 0.7823 | Avg: 0.6140 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 242.1s | Total: 90.3m
+	  Extra Async Verifications: 15
+	  Extra Async Verifications: 18
+    [TL 9] Gen 13/20 | Best: 0.7855 | Avg: 0.6294 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 243.8s | Total: 97.3m
+	  Extra Async Verifications: 27
+    [TL 9] Gen 14/20 | Best: 0.7704 | Avg: 0.6592 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 213.1s | Total: 106.5m
+    [TL 10] Gen  5/20 | Best: 0.8012 | Avg: 0.6762 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 166.5s | Total: 22.3m
+	  Extra Async Verifications: 24
+    [TL 9] Gen 15/20 | Best: 0.7961 | Avg: 0.5277 | OK: 17 | Dead:  2 | Over$:  1 | Reject:  0 | 250.3s | Total: 115.3m
+	  Extra Async Verifications: 29
+	  Extra Async Verifications: 15
+    [TL 9] Gen 16/20 | Best: 0.7807 | Avg: 0.6561 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 245.6s | Total: 123.3m
+    [TL 10] Gen  6/20 | Best: 0.7860 | Avg: 0.6373 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 183.5s | Total: 29.8m
+	  Extra Async Verifications: 18
+    [TL 9] Gen 17/20 | Best: 0.7901 | Avg: 0.6686 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 235.6s | Total: 131.2m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 15
+    [TL 9] Gen 18/20 | Best: 0.8003 | Avg: 0.5714 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 192.3s | Total: 136.9m
+	  Extra Async Verifications: 24
+    [TL 10] Gen  7/20 | Best: 0.7698 | Avg: 0.6589 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 172.7s | Total: 35.5m
+    [TL 9] Gen 19/20 | Best: 0.8089 | Avg: 0.6496 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 213.6s | Total: 145.0m
+	  Extra Async Verifications: 18
+	  Extra Async Verifications: 27
+    [TL 9] Gen 20/20 | Best: 0.7827 | Avg: 0.6449 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 207.0s | Total: 153.2m
+    [TL 9] ✓ Finished (153.2m) | Fitness=0.7827 | Alive=47/50
+    [TL 10] Gen  8/20 | Best: 0.7862 | Avg: 0.6690 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 161.0s | Total: 40.9m
+	  Extra Async Verifications: 21
+    [TL 10] Gen  9/20 | Best: 0.7799 | Avg: 0.6766 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 172.5s | Total: 46.9m
+	  Extra Async Verifications: 8
+    [TL 10] Gen 10/20 | Best: 0.8203 | Avg: 0.6572 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 164.6s | Total: 50.7m
+	  Extra Async Verifications: 23
+    [TL 10] Gen 11/20 | Best: 0.7917 | Avg: 0.6519 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 157.5s | Total: 56.7m
+	  Extra Async Verifications: 27
+    [TL 10] Gen 12/20 | Best: 0.7404 | Avg: 0.6518 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 143.4s | Total: 63.1m
+	  Extra Async Verifications: 21
+    [TL 10] Gen 13/20 | Best: 0.7863 | Avg: 0.6695 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 161.5s | Total: 68.5m
+	  Extra Async Verifications: 23
+    [TL 10] Gen 14/20 | Best: 0.8012 | Avg: 0.6307 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 185.4s | Total: 75.0m
+	  Extra Async Verifications: 27
+    [TL 10] Gen 15/20 | Best: 0.7779 | Avg: 0.6212 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 196.8s | Total: 82.3m
+	  Extra Async Verifications: 24
+    [TL 10] Gen 16/20 | Best: 0.7759 | Avg: 0.6934 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 182.0s | Total: 88.9m
+	  Extra Async Verifications: 18
+    [TL 10] Gen 17/20 | Best: 0.7789 | Avg: 0.6229 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 160.1s | Total: 94.5m
+	  Extra Async Verifications: 18
+    [TL 10] Gen 18/20 | Best: 0.7817 | Avg: 0.5989 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 175.1s | Total: 99.7m
+	  Extra Async Verifications: 18
+    [TL 10] Gen 19/20 | Best: 0.8045 | Avg: 0.6785 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 179.8s | Total: 105.3m
+	  Extra Async Verifications: 15
+    [TL 10] Gen 20/20 | Best: 0.8158 | Avg: 0.6853 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 196.8s | Total: 110.9m
+    [TL 10] ✓ Finished (110.9m) | Fitness=0.8158 | Alive=47/50
+
+  Saved /Users/leonh/IT/Personal/AquaOptima/logs/results.csv (4000 rows)
+
+  +--------------------------------------------------------+
+  |                TL 1 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7811 |
+  | Survival Rate          |                        0.8800 |
+  | Saving Rate            |                        0.5570 |
+  | Healthiness            |                        0.9440 |
+  | Cost                   |                       $221.50 |
+  | Alive / Initial        |                       44 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           4 h |
+  | Food Quantity          |                     8 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                          36 h |
+  | Probiotic Quantity     |                     1 pellets |
+  | Probiotic Location     |                             ? |
+  | O2 Interval            |                          16 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 2 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.8036 |
+  | Survival Rate          |                        0.9000 |
+  | Saving Rate            |                        0.5968 |
+  | Healthiness            |                        0.9306 |
+  | Cost                   |                       $201.60 |
+  | Alive / Initial        |                       45 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           5 h |
+  | Food Quantity          |                     9 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                          24 h |
+  | Probiotic Quantity     |                     0 pellets |
+  | Probiotic Location     |                        Center |
+  | O2 Interval            |                          15 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 3 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7498 |
+  | Survival Rate          |                        0.7800 |
+  | Saving Rate            |                        0.6490 |
+  | Healthiness            |                        0.8884 |
+  | Cost                   |                       $175.50 |
+  | Alive / Initial        |                       39 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           7 h |
+  | Food Quantity          |                    10 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                         156 h |
+  | Probiotic Quantity     |                     2 pellets |
+  | Probiotic Location     |                             ? |
+  | O2 Interval            |                          16 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 4 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7891 |
+  | Survival Rate          |                        0.9000 |
+  | Saving Rate            |                        0.5500 |
+  | Healthiness            |                        0.9379 |
+  | Cost                   |                       $225.00 |
+  | Alive / Initial        |                       45 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           2 h |
+  | Food Quantity          |                     5 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                         168 h |
+  | Probiotic Quantity     |                     0 pellets |
+  | Probiotic Location     |                             ? |
+  | O2 Interval            |                          24 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 5 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7833 |
+  | Survival Rate          |                        0.8800 |
+  | Saving Rate            |                        0.5830 |
+  | Healthiness            |                        0.8910 |
+  | Cost                   |                       $208.50 |
+  | Alive / Initial        |                       44 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           4 h |
+  | Food Quantity          |                     8 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                          48 h |
+  | Probiotic Quantity     |                     1 pellets |
+  | Probiotic Location     |                        Center |
+  | O2 Interval            |                          19 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 6 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7829 |
+  | Survival Rate          |                        0.8800 |
+  | Saving Rate            |                        0.5620 |
+  | Healthiness            |                        0.9454 |
+  | Cost                   |                       $219.00 |
+  | Alive / Initial        |                       44 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           3 h |
+  | Food Quantity          |                     6 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                          36 h |
+  | Probiotic Quantity     |                     3 pellets |
+  | Probiotic Location     |                             ? |
+  | O2 Interval            |                          24 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 7 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.8088 |
+  | Survival Rate          |                        0.9000 |
+  | Saving Rate            |                        0.6130 |
+  | Healthiness            |                        0.9296 |
+  | Cost                   |                       $193.50 |
+  | Alive / Initial        |                       45 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           4 h |
+  | Food Quantity          |                     8 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                         132 h |
+  | Probiotic Quantity     |                     0 pellets |
+  | Probiotic Location     |                        Center |
+  | O2 Interval            |                          22 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 8 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7880 |
+  | Survival Rate          |                        0.8800 |
+  | Saving Rate            |                        0.5830 |
+  | Healthiness            |                        0.9300 |
+  | Cost                   |                       $208.50 |
+  | Alive / Initial        |                       44 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           5 h |
+  | Food Quantity          |                    10 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                         144 h |
+  | Probiotic Quantity     |                     0 pellets |
+  | Probiotic Location     |                        Center |
+  | O2 Interval            |                          17 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 9 Last Pond Champion                 |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.7827 |
+  | Survival Rate          |                        0.9400 |
+  | Saving Rate            |                        0.4660 |
+  | Healthiness            |                        0.9331 |
+  | Cost                   |                       $267.00 |
+  | Alive / Initial        |                       47 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           4 h |
+  | Food Quantity          |                    10 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                         132 h |
+  | Probiotic Quantity     |                     1 pellets |
+  | Probiotic Location     |                        Center |
+  | O2 Interval            |                          13 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  +--------------------------------------------------------+
+  |                TL 10 Last Pond Champion                |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.8158 |
+  | Survival Rate          |                        0.9400 |
+  | Saving Rate            |                        0.5830 |
+  | Healthiness            |                        0.8869 |
+  | Cost                   |                       $208.50 |
+  | Alive / Initial        |                       47 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           5 h |
+  | Food Quantity          |                    10 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                          36 h |
+  | Probiotic Quantity     |                     0 pellets |
+  | Probiotic Location     |                             ? |
+  | O2 Interval            |                          17 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+========================================================================
+
+  +================================================================================+
+  |                       ALL TIMELINE CHAMPIONS -- SUMMARY                        |
+  +------------+----------+----------------+-------------+-------------+--------------+
+  |   Timeline |  Fitness |  Survival Rate | Saving Rate | Healthiness |         Cost |
+  +------------+----------+----------------+-------------+-------------+--------------+
+  |          1 |   0.7811 |         0.8800 |      0.5570 |      0.9440 | $     221.50 |
+  |          2 |   0.8036 |         0.9000 |      0.5968 |      0.9306 | $     201.60 |
+  |          3 |   0.7498 |         0.7800 |      0.6490 |      0.8884 | $     175.50 |
+  |          4 |   0.7891 |         0.9000 |      0.5500 |      0.9379 | $     225.00 |
+  |          5 |   0.7833 |         0.8800 |      0.5830 |      0.8910 | $     208.50 |
+  |          6 |   0.7829 |         0.8800 |      0.5620 |      0.9454 | $     219.00 |
+  |          7 |   0.8088 |         0.9000 |      0.6130 |      0.9296 | $     193.50 |
+  |          8 |   0.7880 |         0.8800 |      0.5830 |      0.9300 | $     208.50 |
+  |          9 |   0.7827 |         0.9400 |      0.4660 |      0.9331 | $     267.00 |
+  |         10 |   0.8158 |         0.9400 |      0.5830 |      0.8869 | $     208.50 |
+  +------------+----------+----------------+-------------+-------------+--------------+
+
+  >>> Best overall: Timeline 10 with Fitness = 0.8158
+
+  +--------------------------------------------------------+
+  |              BEST POND CHAMPION  (TL 10)               |
+  +------------------------+-------------------------------+
+  | Metric                 |                         Value |
+  +------------------------+-------------------------------+
+  | Fitness                |                        0.8158 |
+  | Survival Rate          |                        0.9400 |
+  | Saving Rate            |                        0.5830 |
+  | Healthiness            |                        0.8869 |
+  | Cost                   |                       $208.50 |
+  | Alive / Initial        |                       47 / 50 |
+  +------------------------+-------------------------------+
+  | Initial Fish Count     |                            50 |
+  | Food Interval          |                           5 h |
+  | Food Quantity          |                    10 pellets |
+  | Food Location          |                             ? |
+  | Probiotic Interval     |                          36 h |
+  | Probiotic Quantity     |                     0 pellets |
+  | Probiotic Location     |                             ? |
+  | O2 Interval            |                          17 h |
+  | O2 Duration            |                           1 h |
+  | O2 Location            |                             ? |
+  +------------------------+-------------------------------+
+
+  Total wall time: 10103.9s
+
+  ============================================================
+  TIMELINE OVERLAP DIAGNOSTICS
+  ============================================================
+    TL 1: First Sim started @ 1.3s  |  Last Ver completed @ 1369.0s  |  Run time: 130.0m
+    TL 2: First Sim started @ 10.2s  |  Last Ver completed @ 2291.1s  |  Run time: 136.0m
+    TL 3: First Sim started @ 40.3s  |  Last Ver completed @ 3396.6s  |  Run time: 141.1m
+    TL 4: First Sim started @ 1183.5s  |  Last Ver completed @ 4343.6s  |  Run time: 132.6m
+    TL 5: First Sim started @ 1634.3s  |  Last Ver completed @ 5414.5s  |  Run time: 130.7m
+    TL 6: First Sim started @ 2839.4s  |  Last Ver completed @ 6461.3s  |  Run time: 149.4m
+    TL 7: First Sim started @ 3868.2s  |  Last Ver completed @ 7431.1s  |  Run time: 132.4m
+    TL 8: First Sim started @ 4606.4s  |  Last Ver completed @ 8278.8s  |  Run time: 116.3m
+    TL 9: First Sim started @ 5971.2s  |  Last Ver completed @ 9464.3s  |  Run time: 153.2m
+    TL 10: First Sim started @ 6991.0s  |  Last Ver completed @ 10059.6s  |  Run time: 110.9m
+    ✓ TL 1 and TL 2 OVERLAP (10.2s - 1369.0s, 1358.8s)
+    ✓ TL 2 and TL 3 OVERLAP (40.3s - 2291.1s, 2250.7s)
+    ✓ TL 3 and TL 4 OVERLAP (1183.5s - 3396.6s, 2213.1s)
+    ✓ TL 4 and TL 5 OVERLAP (1634.3s - 4343.6s, 2709.2s)
+    ✓ TL 5 and TL 6 OVERLAP (2839.4s - 5414.5s, 2575.2s)
+    ✓ TL 6 and TL 7 OVERLAP (3868.2s - 6461.3s, 2593.1s)
+    ✓ TL 7 and TL 8 OVERLAP (4606.4s - 7431.1s, 2824.7s)
+    ✓ TL 8 and TL 9 OVERLAP (5971.2s - 8278.8s, 2307.6s)
+    ✓ TL 9 and TL 10 OVERLAP (6991.0s - 9464.3s, 2473.3s)
+
+  Saved /Users/leonh/IT/Personal/AquaOptima/logs/demo.txt
