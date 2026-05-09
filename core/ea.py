@@ -575,18 +575,17 @@ class EA:
         print(f"\n{'=' * 72}")
         print(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA")
         print(f"{'=' * 72}")
-        print(f"  Initial Fish: {INITIAL_FISH_COUNT}  |  Days: {AQUACULTURE_DAYS}  |  "
+        print(f"  Initial-Fish: {INITIAL_FISH_COUNT}  |  Simulation-Days: {AQUACULTURE_DAYS}  |  "
               f"Budget: ${MAX_BUDGET:.2f}")
-        print(f"  Ponds/gen: {POND_POPULATION}  |  Generations: {POND_GENERATIONS}  |  "
+        print(f"  Pond-Population: {POND_POPULATION}  |  Pond-Generations: {POND_GENERATIONS}  |  "
               f"Timelines: {RUN_TIMELINES}")
-        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified Tournament(K={EA_TOURNAMENT_K})")
+        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified-Tournament(K={EA_TOURNAMENT_K})")
         print(f"  Verification: Wilcoxon α={VERIFY_ALPHA}, min_samples={VERIFY_MIN_SAMPLES}, "
               f"cascade_depth={VERIFY_MAX_CASCADE_DEPTH}")
         print(f"  Mutation: Gaussian perturbation (rate={EA_MUTATION_RATE})")
         print(f"  Location: Binary (Center/Random)")
         print(f"  Parallelism: {workers} cores, persistent pool, priority scheduling")
         print(f"  Champion: Best pond in last generation")
-        print(f"  Worker Cores: {workers}")
         print(f"{'=' * 72}")
 
         pool = PriorityPool(max_workers=workers)
@@ -845,7 +844,7 @@ class EA:
         gen = tl.gen
 
         # Log verification count
-        print(f"\t  Extra Verification: {mgr.total_ver_evals} (async)")
+        print(f"\t  Extra Async Verifications: {mgr.total_ver_evals}")
 
         # Build next generation: elites + children
         sorted_results = tl.gen_results

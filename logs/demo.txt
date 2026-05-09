@@ -2,156 +2,28 @@
 ========================================================================
   LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA
 ========================================================================
-  Initial Fish: 50  |  Days: 10  |  Budget: $1000.00
-  Ponds/gen: 3  |  Generations: 3  |  Timelines: 3
-  Selection: Elitism(1) + Verified Tournament(K=5)
+  Initial-Fish: 50  |  Simulation-Days: 30  |  Budget: $500.00
+  Pond-Population: 20  |  Pond-Generations: 20  |  Timelines: 10
+  Selection: Elitism(2) + Verified-Tournament(K=10)
   Verification: Wilcoxon α=0.05, min_samples=3, cascade_depth=3
   Mutation: Gaussian perturbation (rate=0.25)
   Location: Binary (Center/Random)
   Parallelism: 8 cores, persistent pool, priority scheduling
   Champion: Best pond in last generation
-  Worker Cores: 8
 ========================================================================
-    [TL 1] Gen  1/3 | Best: 0.7029 | Avg: 0.5584 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 8.0s | Total: 8.0s
-    [TL 3] Gen  1/3 | Best: 0.9191 | Avg: 0.7859 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 8.1s | Total: 8.1s
-	  Extra Verification: 3 (async)
-    [TL 2] Gen  1/3 | Best: 0.8095 | Avg: 0.6992 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 11.1s | Total: 11.1s
-    [TL 1] Gen  2/3 | Best: 0.7141 | Avg: 0.6577 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 7.6s | Total: 21.6s
-	  Extra Verification: 3 (async)
-	  Extra Verification: 6 (async)
-    [TL 1] Gen  3/3 | Best: 0.7645 | Avg: 0.7414 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 8.1s | Total: 36.2s
-    [TL 1] ✓ Finished (36.2s) | Fitness=0.7645 | Alive=33/50
-	  Extra Verification: 6 (async)
-    [TL 3] Gen  2/3 | Best: 0.9185 | Avg: 0.8644 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 11.0s | Total: 37.2s
-	  Extra Verification: 3 (async)
-    [TL 2] Gen  2/3 | Best: 0.8415 | Avg: 0.8136 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 14.4s | Total: 50.1s
-    [TL 3] Gen  3/3 | Best: 0.9197 | Avg: 0.8358 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 14.0s | Total: 1.0m
-    [TL 3] ✓ Finished (1.0m) | Fitness=0.9197 | Alive=50/50
-	  Extra Verification: 6 (async)
-    [TL 2] Gen  3/3 | Best: 0.9242 | Avg: 0.8146 | OK:  3 | Dead:  0 | Over$:  0 | Reject:  0 | 12.0s | Total: 1.5m
-    [TL 2] ✓ Finished (1.5m) | Fitness=0.9242 | Alive=49/50
-
-  Saved /Users/leonh/IT/Personal/AquaOptima/logs/results.csv (27 rows)
-
-  +--------------------------------------------------------+
-  |                TL 1 Last Pond Champion                 |
-  +------------------------+-------------------------------+
-  | Metric                 |                         Value |
-  +------------------------+-------------------------------+
-  | Fitness                |                        0.7645 |
-  | Survival Rate          |                        0.6600 |
-  | Saving Rate            |                        0.9568 |
-  | Healthiness            |                        0.7143 |
-  | Cost                   |                        $43.20 |
-  | Alive / Initial        |                       33 / 50 |
-  +------------------------+-------------------------------+
-  | Initial Fish Count     |                            50 |
-  | Food Interval          |                          13 h |
-  | Food Quantity          |                     8 pellets |
-  | Food Location          |                        Center |
-  | Probiotic Interval     |                          12 h |
-  | Probiotic Quantity     |                     1 pellets |
-  | Probiotic Location     |                        Center |
-  | O2 Interval            |                          21 h |
-  | O2 Duration            |                           1 h |
-  | O2 Location            |                        Center |
-  +------------------------+-------------------------------+
-
-  +--------------------------------------------------------+
-  |                TL 2 Last Pond Champion                 |
-  +------------------------+-------------------------------+
-  | Metric                 |                         Value |
-  +------------------------+-------------------------------+
-  | Fitness                |                        0.9242 |
-  | Survival Rate          |                        0.9800 |
-  | Saving Rate            |                        0.8265 |
-  | Healthiness            |                        0.9368 |
-  | Cost                   |                       $173.50 |
-  | Alive / Initial        |                       49 / 50 |
-  +------------------------+-------------------------------+
-  | Initial Fish Count     |                            50 |
-  | Food Interval          |                           2 h |
-  | Food Quantity          |                    10 pellets |
-  | Food Location          |                        Random |
-  | Probiotic Interval     |                         120 h |
-  | Probiotic Quantity     |                     4 pellets |
-  | Probiotic Location     |                        Center |
-  | O2 Interval            |                          23 h |
-  | O2 Duration            |                           3 h |
-  | O2 Location            |                        Center |
-  +------------------------+-------------------------------+
-
-  +--------------------------------------------------------+
-  |                TL 3 Last Pond Champion                 |
-  +------------------------+-------------------------------+
-  | Metric                 |                         Value |
-  +------------------------+-------------------------------+
-  | Fitness                |                        0.9197 |
-  | Survival Rate          |                        1.0000 |
-  | Saving Rate            |                        0.7660 |
-  | Healthiness            |                        0.9742 |
-  | Cost                   |                       $234.00 |
-  | Alive / Initial        |                       50 / 50 |
-  +------------------------+-------------------------------+
-  | Initial Fish Count     |                            50 |
-  | Food Interval          |                           2 h |
-  | Food Quantity          |                     9 pellets |
-  | Food Location          |                        Random |
-  | Probiotic Interval     |                          72 h |
-  | Probiotic Quantity     |                     3 pellets |
-  | Probiotic Location     |                        Random |
-  | O2 Interval            |                           6 h |
-  | O2 Duration            |                           2 h |
-  | O2 Location            |                        Center |
-  +------------------------+-------------------------------+
-
-========================================================================
-
-  +================================================================================+
-  |                       ALL TIMELINE CHAMPIONS -- SUMMARY                        |
-  +------------+----------+----------------+-------------+-------------+--------------+
-  |   Timeline |  Fitness |  Survival Rate | Saving Rate | Healthiness |         Cost |
-  +------------+----------+----------------+-------------+-------------+--------------+
-  |          1 |   0.7645 |         0.6600 |      0.9568 |      0.7143 | $      43.20 |
-  |          2 |   0.9242 |         0.9800 |      0.8265 |      0.9368 | $     173.50 |
-  |          3 |   0.9197 |         1.0000 |      0.7660 |      0.9742 | $     234.00 |
-  +------------+----------+----------------+-------------+-------------+--------------+
-
-  >>> Best overall: Timeline 2 with Fitness = 0.9242
-
-  +--------------------------------------------------------+
-  |               BEST POND CHAMPION  (TL 2)               |
-  +------------------------+-------------------------------+
-  | Metric                 |                         Value |
-  +------------------------+-------------------------------+
-  | Fitness                |                        0.9242 |
-  | Survival Rate          |                        0.9800 |
-  | Saving Rate            |                        0.8265 |
-  | Healthiness            |                        0.9368 |
-  | Cost                   |                       $173.50 |
-  | Alive / Initial        |                       49 / 50 |
-  +------------------------+-------------------------------+
-  | Initial Fish Count     |                            50 |
-  | Food Interval          |                           2 h |
-  | Food Quantity          |                    10 pellets |
-  | Food Location          |                        Random |
-  | Probiotic Interval     |                         120 h |
-  | Probiotic Quantity     |                     4 pellets |
-  | Probiotic Location     |                        Center |
-  | O2 Interval            |                          23 h |
-  | O2 Duration            |                           3 h |
-  | O2 Location            |                        Center |
-  +------------------------+-------------------------------+
-
-  Total wall time: 35.6s
-
-  ============================================================
-  TIMELINE OVERLAP DIAGNOSTICS
-  ============================================================
-    TL 1: First Sim started @ 1.8s  |  Last Ver completed @ 13.8s  |  Run time: 36.2s
-    TL 2: First Sim started @ 1.9s  |  Last Ver completed @ 34.4s  |  Run time: 1.5m
-    TL 3: First Sim started @ 2.0s  |  Last Ver completed @ 25.4s  |  Run time: 1.0m
-    ✓ TL 1 and TL 2 OVERLAP (1.9s - 13.8s, 11.9s)
-    ✓ TL 2 and TL 3 OVERLAP (2.0s - 25.4s, 23.4s)
-
-  Saved /Users/leonh/IT/Personal/AquaOptima/logs/demo.txt
+    [TL 1] Gen  1/20 | Best: 0.5638 | Avg: 0.3742 | OK: 17 | Dead:  2 | Over$:  1 | Reject:  0 | 89.1s | Total: 1.5m
+	  Extra Verification: 32 (async)
+    [TL 2] Gen  1/20 | Best: 0.6536 | Avg: 0.3263 | OK: 15 | Dead:  3 | Over$:  2 | Reject:  0 | 99.2s | Total: 1.7m
+    [TL 1] Gen  2/20 | Best: 0.6297 | Avg: 0.5211 | OK: 20 | Dead:  0 | Over$:  0 | Reject:  0 | 105.0s | Total: 6.5m
+	  Extra Verification: 27 (async)
+    [TL 1] Gen  3/20 | Best: 0.7070 | Avg: 0.5458 | OK: 18 | Dead:  2 | Over$:  0 | Reject:  0 | 141.4s | Total: 11.4m
+	  Extra Verification: 27 (async)
+	  Extra Verification: 27 (async)
+    [TL 1] Gen  4/20 | Best: 0.7607 | Avg: 0.6086 | OK: 19 | Dead:  0 | Over$:  1 | Reject:  0 | 254.5s | Total: 19.7m
+	  Extra Verification: 24 (async)
+    [TL 2] Gen  2/20 | Best: 0.8119 | Avg: 0.6143 | OK: 19 | Dead:  1 | Over$:  0 | Reject:  0 | 135.3s | Total: 6.4m
+    [TL 1] Gen  5/20 | Best: 0.7863 | Avg: 0.5616 | OK: 18 | Dead:  1 | Over$:  1 | Reject:  0 | 213.4s | Total: 27.8m
+	  Extra Verification: 22 (async)
+	  Extra Verification: 16 (async)
+    [TL 1] Gen  6/20 | Best: 0.7805 | Avg: 0.5732 | OK: 18 | Dead:  0 | Over$:  2 | Reject:  0 | 238.8s | Total: 35.1m
+	  Extra Verification: 24 (async)

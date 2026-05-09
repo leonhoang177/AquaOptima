@@ -23,10 +23,10 @@ NUM_WORKERS = None
 # ║                    EA CONFIGURATION                         ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-AQUACULTURE_DAYS = 10
-POND_GENERATIONS = 3
-RUN_TIMELINES = 3
-POND_POPULATION = 3
+AQUACULTURE_DAYS = 30
+POND_GENERATIONS = 20
+RUN_TIMELINES = 10
+POND_POPULATION = 20
 FRAME_SKIP = 1
 EA_CROSSOVER_RATE = 0.80
 EA_MUTATION_RATE = 0.25
@@ -165,7 +165,7 @@ OXYGEN_BUBBLES_PER_PUMP = 10
 FOOD_PRICE = 0.10
 PROBIOTIC_PRICE = 0.50
 OXYGEN_PRICE = 1.50
-MAX_BUDGET = 1000
+MAX_BUDGET = 500
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 OBJECT LIFETIMES (TIMESTEPS)                ║
@@ -314,23 +314,16 @@ PSO_SWARM_HUNGRY_THRESHOLD = 0.7
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 DROP LOCATIONS                              ║
+# ║  Only Center and Random are used.                           ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 class DropLocation(IntEnum):
     CENTER = 0
-    TOP_LEFT = 1
-    TOP_RIGHT = 2
-    BOT_LEFT = 3
-    BOT_RIGHT = 4
-    TOP_CENTER = 5
-    BOT_CENTER = 6
-    LEFT_CENTER = 7
-    RIGHT_CENTER = 8
-    RANDOM = 9
+    RANDOM = 1
 
 LOC_NAMES = {
-    0: 'Center', 1: 'Top-Left', 2: 'Top-Right', 3: 'Bot-Left', 4: 'Bot-Right',
-    5: 'Top-Center', 6: 'Bot-Center', 7: 'Left-Center', 8: 'Right-Center', 9: 'Random'
+    0: 'Center',
+    1: 'Random',
 }
 
 # ════════════════════════════════════════════════════════════════

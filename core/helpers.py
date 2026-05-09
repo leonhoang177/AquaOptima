@@ -29,7 +29,8 @@ def _norm(vx, vy, vz):
 
 
 def _drop_pos(loc: int):
-    """Return (x, y) for a drop location. Z is handled by caller."""
+    """Return (x, y) for a drop location. Z is handled by caller.
+    Only Center and Random are supported."""
     W, H = POND_WIDTH, POND_HEIGHT
     mx, my = W * 0.15, H * 0.15
     jx = random.uniform(-mx * 0.3, mx * 0.3)
@@ -37,23 +38,8 @@ def _drop_pos(loc: int):
 
     if loc == DropLocation.CENTER:
         return W / 2 + jx, H / 2 + jy
-    elif loc == DropLocation.TOP_LEFT:
-        return mx + jx, my + jy
-    elif loc == DropLocation.TOP_RIGHT:
-        return W - mx + jx, my + jy
-    elif loc == DropLocation.BOT_LEFT:
-        return mx + jx, H - my + jy
-    elif loc == DropLocation.BOT_RIGHT:
-        return W - mx + jx, H - my + jy
-    elif loc == DropLocation.TOP_CENTER:
-        return W / 2 + jx, my + jy
-    elif loc == DropLocation.BOT_CENTER:
-        return W / 2 + jx, H - my + jy
-    elif loc == DropLocation.LEFT_CENTER:
-        return mx + jx, H / 2 + jy
-    elif loc == DropLocation.RIGHT_CENTER:
-        return W - mx + jx, H / 2 + jy
     else:
+        # DropLocation.RANDOM and any other value
         return random.uniform(10, W - 10), random.uniform(5, H - 5)
 
 

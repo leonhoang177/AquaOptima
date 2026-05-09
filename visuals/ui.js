@@ -25,6 +25,9 @@ let statsBar, deathBar, genotypeBar, hudDiv;
 let totalFramesCount = 0;
 let jumpCooldown = false;
 
+// Location labels: only Center (0) and Random (9) are used
+const LOC_NAMES = { 0: "Center", 9: "Random" };
+
 export function initUI(data) {
   btnPlayPause = document.getElementById("btn-playpause");
   btnRestart = document.getElementById("btn-restart");
@@ -213,27 +216,14 @@ export function updateUI(frame, totalFrames, deathReasons) {
 function _populateGenotype(data) {
   if (!data || !data.genotype) return;
   const g = data.genotype;
-  const L = (v) =>
-    [
-      "Center",
-      "Top-Left",
-      "Top-Right",
-      "Bot-Left",
-      "Bot-Right",
-      "Top-Center",
-      "Bot-Center",
-      "Left-Center",
-      "Right-Center",
-      "Random",
-    ][v] || "?";
-  const initialFishCount = data.initial_fish_count || "?";
+  const L = (v) => LOC_NAMES[v] || "?";
+  const fishCount = data.initial_fish_count || "?";
   genotypeBar.innerHTML = `
     <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${data.fitness.toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Survival Rate:</span><span class="geno-chip-value">${data.survival_rate.toFixed(4)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Saving Rate:</span><span class="geno-chip-value">${data.saving_rate.toFixed(4)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Healthiness:</span><span class="geno-chip-value">${data.avg_healthiness.toFixed(4)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Saving Rate:</span><span class="geno-chip-value">${(data.saving_rate || 0).toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${data.cost.toFixed(2)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Initial Fish:</span><span class="geno-chip-value">${initialFishCount}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Initial Fish:</span><span class="geno-chip-value">${fishCount}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">O₂:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
