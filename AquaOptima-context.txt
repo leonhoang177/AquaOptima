@@ -43,7 +43,7 @@ from pathlib import Path
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
     AQUACULTURE_DAYS, SIMULATION_JSON_PATH, PROJECT_ROOT,
-    FISH_COUNT,
+    INITIAL_FISH_COUNT,
 )
 from ea import EA
 
@@ -58,13 +58,12 @@ def main():
             'pond_height': POND_HEIGHT,
             'pond_depth': POND_DEPTH,
             'genotype': champ['genotype'],
-            'fish_count': FISH_COUNT,
+            'initial_fish_count': INITIAL_FISH_COUNT,
             'fitness': champ['fitness'],
             'survival_rate': champ['survival_rate'],
+            'saving_rate': champ.get('saving_rate', 0),
             'avg_healthiness': champ.get('avg_healthiness', 0),
             'cost': champ['cost'],
-            'saving': champ.get('saving', 0),
-            'yield': champ.get('yield', 0),
             'aquaculture_days': AQUACULTURE_DAYS,
             'frames': champ['frames'],
         }
@@ -94,7 +93,7 @@ File: /AquaOptima/core/plot.py
 #!/usr/bin/env python3
 """
 plot.py -- Visualize EA evolution from results.csv
-Option A: fish_count is fixed, so fish_count plots are removed.
+All metrics normalized 0.0000 - 1.0000.
 """
 
 import sys, os
@@ -105,7 +104,7 @@ import matplotlib.ticker as mticker
 import matplotlib.colors as mcolors
 from pathlib import Path
 
-from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION, FISH_COUNT
+from constants import RESULTS_CSV_PATH, PLOTS_DIR, MAX_BUDGET, POND_POPULATION, INITIAL_FISH_COUNT
 
 CSV_PATH = RESULTS_CSV_PATH
 OUTPUT_DIR = PLOTS_DIR
@@ -157,6 +156,12 @@ GENO_TITLE_SIZE = _BASE_TITLE * _GENO_SCALE
 GENO_TICK_SIZE = _BASE_TICK * _GENO_SCALE
 GENO_LEGEND_SIZE = _BASE_LEGEND * _GENO_SCALE
 
+# Controlled legend opacity for all plots
+LEGEND_OPACITY = 0.4
+
+# Standard decimal formatter: 0.1234
+_FMT_DECIMAL = lambda x, _: f'{x:.4f}'
+
 
 def _apply_theme():
     plt.rcParams.update({
@@ -164,7 +169,7 @@ def _apply_theme():
         'axes.edgecolor': '#333333', 'axes.labelcolor': '#222222',
         'axes.grid': True, 'grid.color': '#dddddd', 'grid.linestyle': '--', 'grid.alpha': 0.7,
         'text.color': '#222222', 'xtick.color': '#333333', 'ytick.color': '#333333',
-        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': 0.7,
+        'legend.facecolor': 'white', 'legend.edgecolor': '#cccccc', 'legend.framealpha': LEGEND_OPACITY,
         'font.size': FONT_SIZE,
         'axes.titlesize': TITLE_SIZE,
         'axes.labelsize': LABEL_SIZE,
@@ -178,13 +183,9 @@ def load_data(path: str) -> pd.DataFrame:
         print(f"  ERROR: File not found: {path}")
         sys.exit(1)
     df = pd.read_csv(path)
-    for col in ['fitness', 'survival_rate', 'healthiness', 'cost', 'saving', 'yield']:
+    for col in ['fitness', 'survival_rate', 'saving_rate', 'healthiness', 'cost']:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-    if 'survival_rate' in df.columns:
-        df['survival_pct'] = df['survival_rate'] * 100
-    if 'saving' in df.columns:
-        df['saving_rate'] = df['saving'] / MAX_BUDGET
     print(f"  Loaded {path}: {len(df)} rows, "
           f"{df['timeline'].nunique()} timelines, "
           f"{df['generation'].max()} max generations")
@@ -209,7 +210,7 @@ def _filter_legend_avg_only(ax):
             filtered_l.append(l)
     if filtered_h:
         ax.legend(filtered_h, filtered_l, fontsize=SMALL_LEGEND_SIZE,
-                  loc='best', framealpha=0.7)
+                  loc='best', framealpha=LEGEND_OPACITY)
 
 
 # ════════════════════════════════════════════════════════════════
@@ -319,12 +320,15 @@ def _plot_pair_fitness(df, col_x, col_y, xlabel, ylabel, title, filename):
     cbar = fig.colorbar(sc, ax=ax, shrink=0.8)
     cbar.set_label('Fitness', fontweight='bold')
     cbar.ax.tick_params(labelsize=TICK_SIZE)
+    cbar.ax.yaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
 
     ax.set_xlabel(xlabel, fontweight='bold')
     ax.set_ylabel(ylabel, fontweight='bold')
     ax.set_title(title, fontweight='bold', pad=12)
     ax.xaxis.set_major_locator(mticker.MultipleLocator(0.1))
     ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    ax.xaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
 
     fig.tight_layout(); _save(fig, filename)
 
@@ -368,7 +372,7 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
     ax_qty.set_title(qty_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
     ax_qty.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
     ax_qty.tick_params(labelsize=GENO_TICK_SIZE)
-    ax_qty.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
+    ax_qty.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=LEGEND_OPACITY)
 
     # ── Interval subplot ──
     for tl in timelines:
@@ -388,7 +392,7 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
     ax_int.set_title(int_label, fontweight='bold', fontsize=GENO_TITLE_SIZE, pad=12)
     ax_int.xaxis.set_major_locator(mticker.MaxNLocator(integer=True))
     ax_int.tick_params(labelsize=GENO_TICK_SIZE)
-    ax_int.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=0.7)
+    ax_int.legend(fontsize=GENO_LEGEND_SIZE, loc='best', framealpha=LEGEND_OPACITY)
 
     # ── Location subplot (stacked bars: Center vs Random) ──
     gens = sorted(df['generation'].unique())
@@ -427,7 +431,7 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
                         label=f"TL {tl}") for tl in timelines]
     all_handles = tl_handles + texture_handles
     ax_loc.legend(handles=all_handles, fontsize=GENO_LEGEND_SIZE,
-                  loc='best', framealpha=0.7, ncol=min(len(all_handles), 6))
+                  loc='best', framealpha=LEGEND_OPACITY, ncol=min(len(all_handles), 6))
 
     ax_loc.set_xlabel('Generation', fontweight='bold', fontsize=GENO_LABEL_SIZE)
     ax_loc.set_ylabel('Location %', fontweight='bold', fontsize=GENO_LABEL_SIZE)
@@ -450,38 +454,37 @@ def _plot_genotype_convergence(df, policy_name, qty_col, int_col, loc_col,
 def plot_fitness(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'fitness', 'Fitness', 'Fitness vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
     fig.tight_layout(); _save(fig, 'plot_01_fitness_vs_gen.png')
 
-def plot_yield(df):
-    if 'yield' not in df.columns: return
+def plot_survival_rate(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
-    _plot_metric_vs_gen(ax, df, 'yield', 'Yield', 'Yield vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
-    fig.tight_layout(); _save(fig, 'plot_02_yield_vs_gen.png')
+    _plot_metric_vs_gen(ax, df, 'survival_rate', 'Survival Rate', 'Survival Rate vs Generation',
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
+    fig.tight_layout(); _save(fig, 'plot_02_survival_rate_vs_gen.png')
 
 def plot_saving_rate(df):
     if 'saving_rate' not in df.columns: return
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'saving_rate', 'Saving Rate', 'Saving Rate vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
     fig.tight_layout(); _save(fig, 'plot_03_saving_rate_vs_gen.png')
 
 def plot_healthiness(df):
     fig, ax = plt.subplots(figsize=SINGLE_FIG_SIZE)
     _plot_metric_vs_gen(ax, df, 'healthiness', 'Healthiness', 'Healthiness vs Generation',
-                        fmt=lambda x, _: f'{x:.2f}', ylim=(-0.02, 1.02))
+                        fmt=_FMT_DECIMAL, ylim=(-0.02, 1.02))
     fig.tight_layout(); _save(fig, 'plot_04_healthiness_vs_gen.png')
 
-def plot_yield_vs_saving(df):
-    _plot_pair_fitness(df, 'yield', 'saving_rate', 'Yield', 'Saving Rate',
-                       'Yield vs Saving Rate Heatmap', 'plot_05_yield_vs_saving_heatmap.png')
+def plot_survival_rate_vs_saving_rate(df):
+    _plot_pair_fitness(df, 'survival_rate', 'saving_rate', 'Survival Rate', 'Saving Rate',
+                       'Survival Rate vs Saving Rate Heatmap', 'plot_05_survival_rate_vs_saving_rate_heatmap.png')
 
-def plot_yield_vs_healthiness(df):
-    _plot_pair_fitness(df, 'yield', 'healthiness', 'Yield', 'Healthiness',
-                       'Yield vs Healthiness Heatmap', 'plot_06_yield_vs_healthiness_heatmap.png')
+def plot_survival_rate_vs_healthiness(df):
+    _plot_pair_fitness(df, 'survival_rate', 'healthiness', 'Survival Rate', 'Healthiness',
+                       'Survival Rate vs Healthiness Heatmap', 'plot_06_survival_rate_vs_healthiness_heatmap.png')
 
-def plot_saving_vs_healthiness(df):
+def plot_saving_rate_vs_healthiness(df):
     _plot_pair_fitness(df, 'saving_rate', 'healthiness', 'Saving Rate', 'Healthiness',
                        'Saving Rate vs Healthiness Heatmap', 'plot_07_saving_rate_vs_healthiness_heatmap.png')
 
@@ -549,7 +552,7 @@ def plot_status(df):
     ]
     all_handles = tl_handles + status_handles
     ax.legend(handles=all_handles, fontsize=LEGEND_SIZE,
-              loc='upper left', framealpha=0.7,
+              loc='upper left', framealpha=LEGEND_OPACITY,
               ncol=min(len(all_handles), 5))
 
     ax.set_xlabel('Generation', fontweight='bold')
@@ -570,24 +573,23 @@ def plot_champion_comparison(df):
     fig_w = max(SINGLE_FIG_SIZE[0], n_timelines * 4 + 4)
     fig, ax = plt.subplots(figsize=(fig_w, SINGLE_FIG_SIZE[1]))
 
-    best_fit, best_yld, best_hlth, best_sav_rate, labels = [], [], [], [], []
+    best_fit, best_sr, best_hlth, best_sav_rate, labels = [], [], [], [], []
     for tl in timelines:
         sdf = df[df['timeline'] == tl]
         last_gen = sdf['generation'].max()
         last_df = sdf[sdf['generation'] == last_gen]
         row = last_df.loc[last_df['fitness'].idxmax()]
         best_fit.append(row['fitness'])
-        best_yld.append(row.get('yield', 0))
+        best_sr.append(row.get('survival_rate', 0))
         best_hlth.append(row['healthiness'])
-        sav = row.get('saving', 0)
-        best_sav_rate.append(sav / MAX_BUDGET if MAX_BUDGET > 0 else 0)
+        best_sav_rate.append(row.get('saving_rate', 0))
         labels.append(f"TL {tl}")
     x = np.arange(n_timelines); w = 0.18
 
-    b1 = ax.bar(x - 1.5*w, best_fit,      w, label='Fitness',     color='#1f77b4', alpha=0.9, edgecolor='white')
-    b2 = ax.bar(x - 0.5*w, best_yld,      w, label='Yield',       color='#2ca02c', alpha=0.9, edgecolor='white')
-    b3 = ax.bar(x + 0.5*w, best_sav_rate,  w, label='Saving Rate', color='#9467bd', alpha=0.9, edgecolor='white')
-    b4 = ax.bar(x + 1.5*w, best_hlth,      w, label='Healthiness', color='#ff7f0e', alpha=0.9, edgecolor='white')
+    b1 = ax.bar(x - 1.5*w, best_fit,       w, label='Fitness',       color='#1f77b4', alpha=0.9, edgecolor='white')
+    b2 = ax.bar(x - 0.5*w, best_sr,         w, label='Survival Rate', color='#2ca02c', alpha=0.9, edgecolor='white')
+    b3 = ax.bar(x + 0.5*w, best_sav_rate,   w, label='Saving Rate',   color='#9467bd', alpha=0.9, edgecolor='white')
+    b4 = ax.bar(x + 1.5*w, best_hlth,       w, label='Healthiness',   color='#ff7f0e', alpha=0.9, edgecolor='white')
 
     # Show fitness values on all bars
     best_tl_idx = int(np.argmax(best_fit))
@@ -614,9 +616,10 @@ def plot_champion_comparison(df):
     ax.set_xlabel('Timeline', fontweight='bold')
     ax.set_ylabel('Score (0 - 1)', fontweight='bold')
     ax.set_title('Champion Comparison', fontweight='bold', pad=12)
-    ax.legend(fontsize=CHAMPION_LEGEND_SIZE, loc='upper left', framealpha=0.7, ncol=4)
+    ax.legend(fontsize=CHAMPION_LEGEND_SIZE, loc='upper left', framealpha=LEGEND_OPACITY, ncol=4)
     ax.set_ylim(0, 1.25)
     ax.yaxis.set_major_locator(mticker.MultipleLocator(0.1))
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(_FMT_DECIMAL))
     fig.tight_layout(); _save(fig, 'plot_12_champion_comparison.png')
 
 
@@ -633,13 +636,13 @@ def main():
     print(f"\n  Generating plots into {OUTPUT_DIR}/...")
 
     plot_fitness(df)
-    plot_yield(df)
+    plot_survival_rate(df)
     plot_saving_rate(df)
     plot_healthiness(df)
 
-    plot_yield_vs_saving(df)
-    plot_yield_vs_healthiness(df)
-    plot_saving_vs_healthiness(df)
+    plot_survival_rate_vs_saving_rate(df)
+    plot_survival_rate_vs_healthiness(df)
+    plot_saving_rate_vs_healthiness(df)
 
     plot_food_genotype(df)
     plot_probiotic_genotype(df)
@@ -1090,26 +1093,26 @@ File: /AquaOptima/core/log.py
 #!/usr/bin/env python3
 """
 log.py -- Print/table formatting helpers for console output.
-Option A: fish_count is now displayed as a fixed constant, not from genotype.
+All decimal metrics formatted as 0.1234 (5 chars).
 """
 
-from constants import LOC_NAMES, FISH_COUNT
+from constants import LOC_NAMES, INITIAL_FISH_COUNT
 
 
 def _print_gen_table(gen, max_gen, n_ponds, gen_results):
     print(f"\n  Gen {gen + 1:>2}/{max_gen} | {n_ponds} ponds")
-    print(f"  +-----+----------+-----------+-------------+--------------+------------+")
-    print(f"  |  #  | Fitness  | Survival  | Healthiness |     Cost     |   Status   |")
-    print(f"  +-----+----------+-----------+-------------+--------------+------------+")
+    print(f"  +-----+----------+---------------+-------------+--------------+------------+")
+    print(f"  |  #  | Fitness  | Survival Rate | Healthiness |     Cost     |   Status   |")
+    print(f"  +-----+----------+---------------+-------------+--------------+------------+")
     for i, r in enumerate(gen_results):
         st = r.get('status', '?')
         if st == 'GATEKEEPER':    st_s = 'REJECT'
         elif st == 'OVER-BUDGET': st_s = 'OVER$'
         elif st == 'ALL-DEAD':    st_s = 'DEAD'
         else:                     st_s = 'OK'
-        print(f"  | {i:>3} | {r['fitness']:>8.4f} | {r['survival_rate'] * 100:>8.2f}% | "
+        print(f"  | {i:>3} | {r['fitness']:>8.4f} | {r['survival_rate']:>13.4f} | "
               f"{r.get('avg_healthiness', 0):>11.4f} | ${r['cost']:>10.2f} | {st_s:>10} |")
-    print(f"  +-----+----------+-----------+-------------+--------------+------------+")
+    print(f"  +-----+----------+---------------+-------------+--------------+------------+")
 
 
 def _print_champion_detail(label: str, result: dict):
@@ -1117,9 +1120,8 @@ def _print_champion_detail(label: str, result: dict):
     fit = result.get('fitness', 0)
     sr = result.get('survival_rate', 0)
     hlth = result.get('avg_healthiness', 0)
-    sav = result.get('saving', 0)
+    sav_rate = result.get('saving_rate', 0)
     cost = result.get('cost', 0)
-    yld = result.get('yield', 0)
     ac = result.get('alive_count', 0)
     ic = result.get('initial_count', 0)
     W = 56; LW = 24; RW = W - LW - 3
@@ -1129,14 +1131,13 @@ def _print_champion_detail(label: str, result: dict):
     print(f"  | {'Metric':<{LW - 2}} | {'Value':>{RW}} |")
     print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
     print(f"  | {'Fitness':<{LW - 2}} | {fit:>{RW}.4f} |")
-    print(f"  | {'Yield':<{LW - 2}} | {yld:>{RW}.4f} |")
-    print(f"  | {'Survival Rate':<{LW - 2}} | {sr * 100:>{RW - 1}.2f}% |")
+    print(f"  | {'Survival Rate':<{LW - 2}} | {sr:>{RW}.4f} |")
+    print(f"  | {'Saving Rate':<{LW - 2}} | {sav_rate:>{RW}.4f} |")
     print(f"  | {'Healthiness':<{LW - 2}} | {hlth:>{RW}.4f} |")
-    print(f"  | {'Saving':<{LW - 2}} | {'${:.2f}'.format(sav):>{RW}} |")
     print(f"  | {'Cost':<{LW - 2}} | {'${:.2f}'.format(cost):>{RW}} |")
     print(f"  | {'Alive / Initial':<{LW - 2}} | {'{} / {}'.format(ac, ic):>{RW}} |")
     print(f"  +{'-' * LW}+{'-' * (W - LW - 1)}+")
-    print(f"  | {'Fish Count (fixed)':<{LW - 2}} | {FISH_COUNT:>{RW}} |")
+    print(f"  | {'Initial Fish Count':<{LW - 2}} | {INITIAL_FISH_COUNT:>{RW}} |")
     print(f"  | {'Food Interval':<{LW - 2}} | {'{} h'.format(g.get('food_interval', '?')):>{RW}} |")
     print(f"  | {'Food Quantity':<{LW - 2}} | {'{} pellets'.format(g.get('food_quantity', '?')):>{RW}} |")
     print(f"  | {'Food Location':<{LW - 2}} | {LOC_NAMES.get(g.get('food_location', -1), '?'):>{RW}} |")
@@ -1152,22 +1153,22 @@ def _print_champion_detail(label: str, result: dict):
 def _print_champions_summary(champions: list) -> int:
     print(f"\n  +{'=' * 80}+")
     print(f"  | {'ALL TIMELINE CHAMPIONS -- SUMMARY':^78} |")
-    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
-    print(f"  | {'Timeline':>10} | {'Fitness':>8} | {'Yield':>6} | {'Survival':>9} | {'Healthiness':>11} | {'Saving':>12} |")
-    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 16}+{'-' * 13}+{'-' * 13}+{'-' * 14}+")
+    print(f"  | {'Timeline':>10} | {'Fitness':>8} | {'Survival Rate':>14} | {'Saving Rate':>11} | {'Healthiness':>11} | {'Cost':>12} |")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 16}+{'-' * 13}+{'-' * 13}+{'-' * 14}+")
     best_idx = 0; best_fit = -1.0
     for i, c in enumerate(champions):
         tl = c.get('timeline_idx', i) + 1
         fit = c.get('fitness', 0)
-        yld = c.get('yield', 0)
         sr = c.get('survival_rate', 0)
         hlth = c.get('avg_healthiness', 0)
-        sav = c.get('saving', 0)
+        sav_rate = c.get('saving_rate', 0)
+        cost = c.get('cost', 0)
         if fit > best_fit:
             best_fit = fit; best_idx = i
         tag = " *" if c.get('is_latest_dead') else ""
-        print(f"  | {tl:>10} | {fit:>8.4f} | {yld:>6.4f} | {sr * 100:>8.2f}% | {hlth:>11.4f} | ${sav:>11.2f} |{tag}")
-    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 8}+{'-' * 11}+{'-' * 13}+{'-' * 14}+")
+        print(f"  | {tl:>10} | {fit:>8.4f} | {sr:>14.4f} | {sav_rate:>11.4f} | {hlth:>11.4f} | ${cost:>11.2f} |{tag}")
+    print(f"  +{'-' * 12}+{'-' * 10}+{'-' * 16}+{'-' * 13}+{'-' * 13}+{'-' * 14}+")
     winner = champions[best_idx]
     print(f"\n  >>> Best overall: Timeline {winner.get('timeline_idx', best_idx) + 1} with Fitness = {winner['fitness']:.4f}")
     return best_idx
@@ -1181,15 +1182,18 @@ File: /AquaOptima/core/pond.py
 """
 pond.py -- PondSim: the aquaculture simulation orchestrator (3D).
 Delegates physics to physics.py and fish behavior to behavior.py.
-Option A: Yield is now alive_count / n0 (survival rate), since fish_count is fixed.
 Tracks death_events with reasons per timestep.
+
+Fitness = W1_SURVIVAL_RATE * survival_rate
+        + W2_SAVING_RATE   * saving_rate
+        + W3_HEALTHINESS   * healthiness
 """
 
 import random, math, copy
 
 from constants import (
     POND_WIDTH, POND_HEIGHT, POND_DEPTH,
-    W1_YIELD, W2_SAVING, W3_HEALTHINESS,
+    W1_SURVIVAL_RATE, W2_SAVING_RATE, W3_HEALTHINESS,
     NUM_OBSTACLES, OBSTACLE_AREA_RANGE, OBSTACLE_ASPECT_RANGE,
     OBSTACLE_MAX_WIDTH, OBSTACLE_MAX_HEIGHT, OBSTACLE_MAX_DEPTH,
     OBSTACLE_DEPTH_RANGE,
@@ -1278,14 +1282,11 @@ class PondSim:
         sr = len(alive) / self.n0 if self.n0 else 0
         hlth = sum(f.norm_stats() for f in alive) / len(alive) if alive else 0
         cost = self.accum_cost
-        saving = max(0, self.max_budget - cost) if not self.budget_exceeded else 0
-        saving_ratio = saving / self.max_budget if self.max_budget > 0 else 0
-        # Option A: Yield = survival rate (alive / initial), since fish_count is fixed
-        yld = sr
-        fit = (W1_YIELD * yld + W2_SAVING * saving_ratio + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
-        return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving': saving,
+        saving_rate = max(0, self.max_budget - cost) / self.max_budget if self.max_budget > 0 and not self.budget_exceeded else 0
+        fit = (W1_SURVIVAL_RATE * sr + W2_SAVING_RATE * saving_rate + W3_HEALTHINESS * hlth) if not self.budget_exceeded else 0
+        return {'survival_rate': sr, 'avg_healthiness': hlth, 'saving_rate': saving_rate,
                 'fitness': fit, 'cost': cost, 'alive_count': len(alive),
-                'initial_count': self.n0, 'yield': yld, 'frames': self.frames,
+                'initial_count': self.n0, 'frames': self.frames,
                 'genotype': self.geno.to_dict(), 'budget_exceeded': self.budget_exceeded}
 
     def _step(self):
@@ -1394,7 +1395,7 @@ import math
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 RESULTS_CSV_PATH = str(PROJECT_ROOT / 'logs' / 'results.csv')
 SIMULATION_JSON_PATH = str(PROJECT_ROOT / 'logs' / 'simulation_data.json')
-EA_LOG_PATH = str(PROJECT_ROOT / 'logs' / 'ea_log.txt')
+DEMO_LOG_PATH = str(PROJECT_ROOT / 'logs' / 'demo.txt')
 PLOTS_DIR = str(PROJECT_ROOT / 'plots')
 NUM_WORKERS = None
 
@@ -1424,7 +1425,6 @@ VERIFY_SKIP_THRESHOLD = 0.10    # Skip verification if averages differ this much
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 EA POLICY RANGES                            ║
 # ║  Ranges the EA can explore for genotype parameters.         ║
-# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FOOD_QUANTITY_RANGE = (1, 10)
@@ -1440,10 +1440,12 @@ LOCATION_OPTIONS = [0, 9]
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FITNESS WEIGHTS                             ║
+# ║  fitness = W1 * survival_rate + W2 * saving_rate            ║
+# ║          + W3 * healthiness                                 ║
 # ╚══════════════════════════════════════════════════════════════╝
 
-W1_YIELD = 0.55
-W2_SAVING = 0.33
+W1_SURVIVAL_RATE = 0.55
+W2_SAVING_RATE = 0.33
 W3_HEALTHINESS = 0.12
 
 # ╔══════════════════════════════════════════════════════════════╗
@@ -1456,14 +1458,12 @@ POND_DEPTH = 50.0
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                    FISH POPULATION                          ║
-# ║  MAX_FISH_COUNT scales with pond size via cube-root.        ║
+# ║  INITIAL_FISH_COUNT scales with pond size via cube-root.    ║
 # ║  FISH_DENSITY_K=0.55 gives ~50 fish for 200×75×50 pond.    ║
-# ║  fish_count is FIXED at MAX_FISH_COUNT (Option A).          ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 FISH_DENSITY_K = 0.55
-MAX_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_DEPTH) ** (1/3)))
-FISH_COUNT = MAX_FISH_COUNT
+INITIAL_FISH_COUNT = max(10, int(FISH_DENSITY_K * (POND_WIDTH * POND_HEIGHT * POND_DEPTH) ** (1/3)))
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 FISH TRAITS (FIXED AT BIRTH)                ║
@@ -1694,23 +1694,16 @@ PSO_SWARM_HUNGRY_THRESHOLD = 0.7
 
 # ╔══════════════════════════════════════════════════════════════╗
 # ║                 DROP LOCATIONS                              ║
+# ║  Only Center and Random are used.                           ║
 # ╚══════════════════════════════════════════════════════════════╝
 
 class DropLocation(IntEnum):
     CENTER = 0
-    TOP_LEFT = 1
-    TOP_RIGHT = 2
-    BOT_LEFT = 3
-    BOT_RIGHT = 4
-    TOP_CENTER = 5
-    BOT_CENTER = 6
-    LEFT_CENTER = 7
-    RIGHT_CENTER = 8
-    RANDOM = 9
+    RANDOM = 1
 
 LOC_NAMES = {
-    0: 'Center', 1: 'Top-Left', 2: 'Top-Right', 3: 'Bot-Left', 4: 'Bot-Right',
-    5: 'Top-Center', 6: 'Bot-Center', 7: 'Left-Center', 8: 'Right-Center', 9: 'Random'
+    0: 'Center',
+    1: 'Random',
 }
 
 # ════════════════════════════════════════════════════════════════
@@ -1734,13 +1727,12 @@ File: /AquaOptima/core/simulate.py
 """
 simulate.py -- Run a single pond simulation.
 This is the interface point for any decision-maker (EA, LLM, etc.).
-Option A: fish_count is fixed at FISH_COUNT, not part of genotype.
 """
 
 import random
 import time as _time
 
-from constants import MAX_BUDGET, FRAME_SKIP, RUNTIME, FISH_COUNT
+from constants import MAX_BUDGET, FRAME_SKIP, RUNTIME, INITIAL_FISH_COUNT
 from entities import PondGenotype
 from helpers import _make_fish
 from pond import PondSim
@@ -1760,7 +1752,7 @@ def run_single_pond(geno_dict, runtime=None, max_budget=None,
         frame_skip = FRAME_SKIP
 
     geno = PondGenotype(**geno_dict)
-    fishes = [_make_fish(i) for i in range(FISH_COUNT)]
+    fishes = [_make_fish(i) for i in range(INITIAL_FISH_COUNT)]
     sim = PondSim(geno, fishes, runtime, max_budget, record=record, fskip=frame_skip)
     r = sim.run()
     r['genotype'] = geno_dict
@@ -2191,7 +2183,8 @@ def _norm(vx, vy, vz):
 
 
 def _drop_pos(loc: int):
-    """Return (x, y) for a drop location. Z is handled by caller."""
+    """Return (x, y) for a drop location. Z is handled by caller.
+    Only Center and Random are supported."""
     W, H = POND_WIDTH, POND_HEIGHT
     mx, my = W * 0.15, H * 0.15
     jx = random.uniform(-mx * 0.3, mx * 0.3)
@@ -2199,23 +2192,8 @@ def _drop_pos(loc: int):
 
     if loc == DropLocation.CENTER:
         return W / 2 + jx, H / 2 + jy
-    elif loc == DropLocation.TOP_LEFT:
-        return mx + jx, my + jy
-    elif loc == DropLocation.TOP_RIGHT:
-        return W - mx + jx, my + jy
-    elif loc == DropLocation.BOT_LEFT:
-        return mx + jx, H - my + jy
-    elif loc == DropLocation.BOT_RIGHT:
-        return W - mx + jx, H - my + jy
-    elif loc == DropLocation.TOP_CENTER:
-        return W / 2 + jx, my + jy
-    elif loc == DropLocation.BOT_CENTER:
-        return W / 2 + jx, H - my + jy
-    elif loc == DropLocation.LEFT_CENTER:
-        return mx + jx, H / 2 + jy
-    elif loc == DropLocation.RIGHT_CENTER:
-        return W - mx + jx, H / 2 + jy
     else:
+        # DropLocation.RANDOM and any other value
         return random.uniform(10, W - 10), random.uniform(5, H - 5)
 
 
@@ -2299,6 +2277,7 @@ class SpatialGrid:
                             if ddx * ddx + ddy * ddy + ddz * ddz <= r2:
                                 yield obj
 
+
 --------------------
 File: /AquaOptima/core/ea.py
 --------------------
@@ -2319,16 +2298,20 @@ TL1 gets all cores; TL2/TL3 fill idle gaps.
 Results are stored per-timeline and logged sequentially at the end.
 
 Dual output:
-    - Console: real-time interleaved progress
-    - Log file: clean sequential output (all TL1, then TL2, etc.)
+    - Console: real-time interleaved progress (also mirrored to demo.txt)
+    - Log file: demo.txt captures all terminal output
 
-Options A/E/F:
-    A: fish_count fixed at FISH_COUNT (not in genotype)
+Fitness = W1_SURVIVAL_RATE * survival_rate
+        + W2_SAVING_RATE   * saving_rate
+        + W3_HEALTHINESS   * healthiness
+
+Options:
+    A: fish_count fixed at INITIAL_FISH_COUNT (not in genotype)
     E: Memory-based fitness accumulation per timeline
     F: Wilcoxon-verified tournament selection with cascade
 """
 
-import random, copy, csv, time as _time, multiprocessing, hashlib, json, threading, os
+import random, copy, csv, time as _time, multiprocessing, hashlib, json, threading, os, sys
 from collections import defaultdict
 from queue import Queue, Empty
 from concurrent.futures import ProcessPoolExecutor
@@ -2337,7 +2320,7 @@ import heapq
 from scipy.stats import mannwhitneyu
 
 from constants import (
-    MAX_BUDGET, FISH_COUNT, AQUACULTURE_DAYS,
+    MAX_BUDGET, INITIAL_FISH_COUNT, AQUACULTURE_DAYS,
     POND_GENERATIONS, RUN_TIMELINES, POND_POPULATION,
     FRAME_SKIP, NUM_WORKERS, RUNTIME, RESULTS_CSV_PATH,
     EA_ELITISM_COUNT, EA_TOURNAMENT_K,
@@ -2347,12 +2330,37 @@ from constants import (
     OXYGEN_INTERVAL_RANGE, OXYGEN_DURATION_RANGE,
     VERIFY_MIN_SAMPLES, VERIFY_ALPHA,
     VERIFY_MAX_CASCADE_DEPTH, VERIFY_SKIP_THRESHOLD,
-    EA_LOG_PATH, LOCATION_OPTIONS,
+    DEMO_LOG_PATH, LOCATION_OPTIONS,
 )
 
 from entities import PondGenotype
 from simulate import run_single_pond
 from log import _print_champion_detail, _print_champions_summary
+
+
+# ════════════════════════════════════════════════════════════════
+# TEE LOGGER — mirrors all print output to demo.txt
+# ════════════════════════════════════════════════════════════════
+
+class TeeLogger:
+    """Write to both stdout and a log file simultaneously."""
+    def __init__(self, filepath):
+        os.makedirs(os.path.dirname(filepath), exist_ok=True)
+        self.file = open(filepath, 'w', encoding='utf-8')
+        self.stdout = sys.stdout
+
+    def write(self, msg):
+        self.stdout.write(msg)
+        self.file.write(msg)
+        self.file.flush()
+
+    def flush(self):
+        self.stdout.flush()
+        self.file.flush()
+
+    def close(self):
+        self.file.close()
+        sys.stdout = self.stdout
 
 
 # ════════════════════════════════════════════════════════════════
@@ -2385,7 +2393,7 @@ def _perturb_choice(value, choices, n_steps):
 
 
 # ════════════════════════════════════════════════════════════════
-# EA GENOTYPE OPERATIONS (Option A: no fish_count)
+# EA GENOTYPE OPERATIONS
 # ════════════════════════════════════════════════════════════════
 
 def random_genotype() -> PondGenotype:
@@ -2445,8 +2453,8 @@ def mutate(geno: PondGenotype):
 
 CSV_HEADER = [
     'timeline', 'generation', 'pond', 'status',
-    'fitness', 'survival_rate', 'healthiness', 'cost',
-    'saving', 'yield', 'alive_count', 'initial_count',
+    'fitness', 'survival_rate', 'saving_rate', 'healthiness', 'cost',
+    'alive_count', 'initial_count',
     'food_interval', 'food_quantity', 'food_location',
     'probiotic_interval', 'probiotic_quantity', 'probiotic_location',
     'oxygen_interval', 'oxygen_duration', 'oxygen_location',
@@ -2456,9 +2464,11 @@ CSV_HEADER = [
 def _csv_row_data(tl_idx, gen_idx, pond_idx, status, result, geno_dict):
     return [
         tl_idx + 1, gen_idx + 1, pond_idx, status,
-        f"{result.get('fitness', 0):.4f}", f"{result.get('survival_rate', 0):.4f}",
-        f"{result.get('avg_healthiness', 0):.4f}", f"{result.get('cost', 0):.2f}",
-        f"{result.get('saving', 0):.2f}", f"{result.get('yield', 0):.4f}",
+        f"{result.get('fitness', 0):.4f}",
+        f"{result.get('survival_rate', 0):.4f}",
+        f"{result.get('saving_rate', 0):.4f}",
+        f"{result.get('avg_healthiness', 0):.4f}",
+        f"{result.get('cost', 0):.2f}",
         result.get('alive_count', 0), result.get('initial_count', 0),
         geno_dict.get('food_interval', ''), geno_dict.get('food_quantity', ''),
         geno_dict.get('food_location', ''), geno_dict.get('probiotic_interval', ''),
@@ -2815,17 +2825,16 @@ class TimelineState:
         self.finished = False
         self.csv_rows = []
         self.champion = None
-        self.log_lines = []
 
-        # Timing — core-time based
-        self.gen_core_time = {}       # gen → cumulative core-seconds
-        self.total_core_time = 0.0    # cumulative core-seconds across all gens
+        # Timing
+        self.gen_run_time = {}        # gen → cumulative run-seconds
+        self.total_run_time = 0.0     # cumulative run-seconds across all gens
 
         # Diagnostics — wall-clock for overlap detection
         self.first_sim_start = None   # wall-clock: first sim actually started
         self.last_ver_complete = None  # wall-clock: last ver completed
 
-    def _fmt_core_time(self, seconds):
+    def _fmt_run_time(self, seconds):
         if seconds < 60:
             return f"{seconds:.1f}s"
         return f"{seconds / 60:.1f}m"
@@ -2840,17 +2849,21 @@ class EA:
         self.runtime = RUNTIME
 
     def run(self, record_best=True):
+        # Start tee logger — mirrors all print output to demo.txt
+        tee = TeeLogger(DEMO_LOG_PATH)
+        sys.stdout = tee
+
         wall_start = _time.time()
         workers = NUM_WORKERS or max(1, multiprocessing.cpu_count())
 
         print(f"\n{'=' * 72}")
         print(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- PSO + EA")
         print(f"{'=' * 72}")
-        print(f"  Fish: {FISH_COUNT} (fixed)  |  Days: {AQUACULTURE_DAYS}  |  "
-              f"Budget: ${MAX_BUDGET:.2f}  |  Workers: {workers}")
-        print(f"  Ponds/gen: {POND_POPULATION}  |  Generations: {POND_GENERATIONS}  |  "
+        print(f"  Initial-Fish: {INITIAL_FISH_COUNT}  |  Simulation-Days: {AQUACULTURE_DAYS}  |  "
+              f"Budget: ${MAX_BUDGET:.2f}")
+        print(f"  Pond-Population: {POND_POPULATION}  |  Pond-Generations: {POND_GENERATIONS}  |  "
               f"Timelines: {RUN_TIMELINES}")
-        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified Tournament(K={EA_TOURNAMENT_K})")
+        print(f"  Selection: Elitism({EA_ELITISM_COUNT}) + Verified-Tournament(K={EA_TOURNAMENT_K})")
         print(f"  Verification: Wilcoxon α={VERIFY_ALPHA}, min_samples={VERIFY_MIN_SAMPLES}, "
               f"cascade_depth={VERIFY_MAX_CASCADE_DEPTH}")
         print(f"  Mutation: Gaussian perturbation (rate={EA_MUTATION_RATE})")
@@ -2893,34 +2906,23 @@ class EA:
 
         pool.shutdown()
 
-        # ── Collect results and print sequentially ──
+        # ── Collect results ──
         all_csv_rows = []
         timeline_champions = []
 
         for tl in timelines:
             all_csv_rows.extend(tl.csv_rows)
 
-            # Print stored log lines
-            print(f"\n  --- Timeline {tl.tl_idx + 1}/{RUN_TIMELINES} ---\n")
-            for line in tl.log_lines:
-                print(line)
-
             champ = tl.champion
             if champ:
                 champ['timeline_idx'] = tl.tl_idx
                 timeline_champions.append(champ)
-                tag = " [LATEST DEAD]" if champ.get('is_latest_dead') else ""
-                core_str = tl._fmt_core_time(tl.total_core_time)
-                print(f"\n  Timeline {tl.tl_idx + 1} finished ({core_str} core) | "
-                      f"Fitness={champ['fitness']:.4f} | "
-                      f"Alive={champ.get('alive_count', 0)}/{champ.get('initial_count', 0)}{tag}")
             else:
                 timeline_champions.append({
                     'timeline_idx': tl.tl_idx, 'fitness': 0, 'survival_rate': 0,
-                    'avg_healthiness': 0, 'saving': 0, 'cost': 0, 'yield': 0,
+                    'avg_healthiness': 0, 'saving_rate': 0, 'cost': 0,
                     'genotype': random_genotype().to_dict(), 'frames': [],
                     'alive_count': 0, 'initial_count': 0, 'is_latest_dead': True})
-                print(f"\n  Timeline {tl.tl_idx + 1}: No survivors.")
 
         # ── Save CSV ──
         os.makedirs(os.path.dirname(RESULTS_CSV_PATH), exist_ok=True)
@@ -2946,7 +2948,7 @@ class EA:
 
         if not valid:
             print(f"\n{'=' * 72}\n  No valid champions.\n{'=' * 72}")
-            self._write_log_file(timelines, timeline_champions, wall_start)
+            tee.close()
             return None
 
         print(f"\n{'=' * 72}")
@@ -2968,8 +2970,10 @@ class EA:
         # ── Diagnostics ──
         self._print_diagnostics(timelines, wall_start)
 
-        # ── Write log file ──
-        self._write_log_file(timelines, timeline_champions, wall_start)
+        print(f"\n  Saved {DEMO_LOG_PATH}")
+
+        # Close tee logger
+        tee.close()
 
         return champ
 
@@ -2981,7 +2985,7 @@ class EA:
         """Submit all pond simulations for the current generation."""
         tl.gen_results = []
         tl.sim_pending = 0
-        tl.gen_core_time[tl.gen] = 0.0
+        tl.gen_run_time[tl.gen] = 0.0
 
         is_last = (tl.gen == POND_GENERATIONS - 1)
         do_rec = is_last  # only record frames on last generation
@@ -2990,10 +2994,10 @@ class EA:
             # Gatekeeper check
             if geno.per_cycle_cost() > MAX_BUDGET:
                 r = {'fitness': 0.0, 'survival_rate': 0, 'avg_healthiness': 0,
-                     'saving': 0, 'cost': geno.total_cost(self.runtime), 'yield': 0,
+                     'saving_rate': 0, 'cost': geno.total_cost(self.runtime),
                      'genotype_obj': geno, 'genotype': geno.to_dict(),
                      'frames': [], 'budget_exceeded': True,
-                     'alive_count': 0, 'initial_count': FISH_COUNT,
+                     'alive_count': 0, 'initial_count': INITIAL_FISH_COUNT,
                      'status': 'GATEKEEPER', '_worker_elapsed': 0}
                 tl.gen_results.append(r)
                 tl.memory.record(geno, 0.0)
@@ -3019,12 +3023,12 @@ class EA:
     def _handle_sim_result(self, tl, tag, result, pool):
         _, tl_idx, gen_idx, p_idx = tag
 
-        # Track core-time
+        # Track run time
         elapsed = result.get('_worker_elapsed', 0)
-        if gen_idx not in tl.gen_core_time:
-            tl.gen_core_time[gen_idx] = 0.0
-        tl.gen_core_time[gen_idx] += elapsed
-        tl.total_core_time += elapsed
+        if gen_idx not in tl.gen_run_time:
+            tl.gen_run_time[gen_idx] = 0.0
+        tl.gen_run_time[gen_idx] += elapsed
+        tl.total_run_time += elapsed
 
         # Track wall-clock start for diagnostics
         worker_start = result.get('_worker_start_time', 0)
@@ -3094,12 +3098,12 @@ class EA:
     def _handle_ver_result(self, tl, tag, result, pool):
         _, tl_idx, gen_idx, geno_key = tag
 
-        # Track core-time
+        # Track run time
         elapsed = result.get('_worker_elapsed', 0)
-        if gen_idx not in tl.gen_core_time:
-            tl.gen_core_time[gen_idx] = 0.0
-        tl.gen_core_time[gen_idx] += elapsed
-        tl.total_core_time += elapsed
+        if gen_idx not in tl.gen_run_time:
+            tl.gen_run_time[gen_idx] = 0.0
+        tl.gen_run_time[gen_idx] += elapsed
+        tl.total_run_time += elapsed
 
         # Track wall-clock completion for diagnostics
         tl.last_ver_complete = _time.time()
@@ -3124,9 +3128,7 @@ class EA:
         gen = tl.gen
 
         # Log verification count
-        ver_line = f"           Verification: {mgr.total_ver_evals} extra evals (async)"
-        tl.log_lines.append(ver_line)
-        print(f"    {ver_line.strip()}")
+        print(f"\t  Extra Async Verifications: {mgr.total_ver_evals}")
 
         # Build next generation: elites + children
         sorted_results = tl.gen_results
@@ -3175,37 +3177,35 @@ class EA:
         fit = champ['fitness'] if champ else 0
         alive = champ.get('alive_count', 0) if champ else 0
         init = champ.get('initial_count', 0) if champ else 0
-        core_str = tl._fmt_core_time(tl.total_core_time)
-        line = (f"    [TL {tl.tl_idx + 1}] ✓ Finished ({core_str} core) | "
-                f"Fitness={fit:.4f} | Alive={alive}/{init}{tag}")
-        tl.log_lines.append(line)
-        print(line)
+        run_str = tl._fmt_run_time(tl.total_run_time)
+        print(f"    [TL {tl.tl_idx + 1}] ✓ Finished ({run_str}) | "
+              f"Fitness={fit:.4f} | Alive={alive}/{init}{tag}")
 
     # ────────────────────────────────────────────────────────────
     # LOGGING
     # ────────────────────────────────────────────────────────────
 
     def _log_gen(self, tl, gen):
-        """Log a generation's results — console (real-time) + stored for file."""
+        """Log a generation's results to console (mirrored to demo.txt via TeeLogger)."""
         sorted_results = tl.gen_results
         best_fit = sorted_results[0]['fitness'] if sorted_results else 0
+        avg_fit = (sum(r.get('fitness', 0) for r in sorted_results) / len(sorted_results)
+                   if sorted_results else 0)
         n_ok = sum(1 for r in sorted_results if r.get('status') == 'OK')
         n_dead = sum(1 for r in sorted_results if r.get('status') == 'ALL-DEAD')
         n_over = sum(1 for r in sorted_results if r.get('status') == 'OVER-BUDGET')
         n_gate = sum(1 for r in sorted_results if r.get('status') == 'GATEKEEPER')
 
-        gen_core = tl.gen_core_time.get(gen, 0)
-        total_core = tl.total_core_time
+        gen_run = tl.gen_run_time.get(gen, 0)
+        total_run = tl.total_run_time
 
-        gen_core_str = f"{gen_core:.1f}s"
-        total_core_str = tl._fmt_core_time(total_core)
+        gen_run_str = f"{gen_run:.1f}s"
+        total_run_str = tl._fmt_run_time(total_run)
 
-        line = (f"    [TL {tl.tl_idx + 1}] Gen {gen + 1:>2}/{POND_GENERATIONS} | "
-                f"Best(avg): {best_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
-                f"Over$: {n_over:>2} | Reject: {n_gate:>2} | "
-                f"{gen_core_str} (core) | Total: {total_core_str} (core)")
-        tl.log_lines.append(line)
-        print(line)
+        print(f"    [TL {tl.tl_idx + 1}] Gen {gen + 1:>2}/{POND_GENERATIONS} | "
+              f"Best: {best_fit:.4f} | Avg: {avg_fit:.4f} | OK: {n_ok:>2} | Dead: {n_dead:>2} | "
+              f"Over$: {n_over:>2} | Reject: {n_gate:>2} | "
+              f"{gen_run_str} | Total: {total_run_str}")
 
     # ────────────────────────────────────────────────────────────
     # DIAGNOSTICS
@@ -3218,9 +3218,9 @@ class EA:
         for tl in timelines:
             first = tl.first_sim_start - wall_start if tl.first_sim_start else 0
             last = tl.last_ver_complete - wall_start if tl.last_ver_complete else 0
-            core_str = tl._fmt_core_time(tl.total_core_time)
+            run_str = tl._fmt_run_time(tl.total_run_time)
             print(f"    TL {tl.tl_idx + 1}: First Sim started @ {first:.1f}s  |  "
-                  f"Last Ver completed @ {last:.1f}s  |  Core time: {core_str}")
+                  f"Last Ver completed @ {last:.1f}s  |  Run time: {run_str}")
 
         for i in range(len(timelines) - 1):
             a = timelines[i]
@@ -3240,40 +3240,6 @@ class EA:
                 else:
                     print(f"    ✗ TL {a.tl_idx + 1} and TL {b.tl_idx + 1}: No overlap")
 
-    # ────────────────────────────────────────────────────────────
-    # LOG FILE
-    # ────────────────────────────────────────────────────────────
-
-    def _write_log_file(self, timelines, timeline_champions, wall_start):
-        """Write clean sequential log to file."""
-        os.makedirs(os.path.dirname(EA_LOG_PATH), exist_ok=True)
-        with open(EA_LOG_PATH, 'w') as f:
-            f.write(f"{'=' * 72}\n")
-            f.write(f"  LARGEMOUTH BASS AQUACULTURE OPTIMIZER -- EA LOG\n")
-            f.write(f"{'=' * 72}\n\n")
-
-            for tl in timelines:
-                f.write(f"  --- Timeline {tl.tl_idx + 1}/{RUN_TIMELINES} ---\n\n")
-                for line in tl.log_lines:
-                    f.write(f"{line}\n")
-                f.write(f"\n")
-
-            # Diagnostics
-            f.write(f"\n  {'=' * 60}\n")
-            f.write(f"  TIMELINE OVERLAP DIAGNOSTICS\n")
-            f.write(f"  {'=' * 60}\n")
-            for tl in timelines:
-                first = tl.first_sim_start - wall_start if tl.first_sim_start else 0
-                last = tl.last_ver_complete - wall_start if tl.last_ver_complete else 0
-                core_str = tl._fmt_core_time(tl.total_core_time)
-                f.write(f"    TL {tl.tl_idx + 1}: First Sim started @ {first:.1f}s  |  "
-                        f"Last Ver completed @ {last:.1f}s  |  Core time: {core_str}\n")
-
-            wall_elapsed = _time.time() - wall_start
-            f.write(f"\n  Total wall time: {wall_elapsed:.1f}s\n")
-
-        print(f"  Saved {EA_LOG_PATH}")
-
 
 --------------------
 File: /AquaOptima/visuals/ui.js
@@ -3282,7 +3248,7 @@ File: /AquaOptima/visuals/ui.js
 /**
  * ui.js -- Controls, stats bar, genotype bar.
  * Default speed 7. Loop toggle. Play/Pause before Restart.
- * Option A: fish_count is a separate field, not part of genotype.
+ * All metrics normalized 0.0000 - 1.0000.
  * Death reason tracking: suffocated, starved, weakened, sick, parasited, cannibalized.
  */
 
@@ -3302,9 +3268,12 @@ let btnPlayPause, btnRestart, btnLoop;
 let btnSpeedDown, btnSpeedUp, speedDisplay;
 let btnJumpBack, btnJumpFwd;
 let timeDisplay, progressBar;
-let statsBar, genotypeBar, hudDiv;
+let statsBar, deathBar, genotypeBar, hudDiv;
 let totalFramesCount = 0;
 let jumpCooldown = false;
+
+// Location labels: only Center (0) and Random (9) are used
+const LOC_NAMES = { 0: "Center", 9: "Random" };
 
 export function initUI(data) {
   btnPlayPause = document.getElementById("btn-playpause");
@@ -3318,6 +3287,7 @@ export function initUI(data) {
   timeDisplay = document.getElementById("time-display");
   progressBar = document.getElementById("progress-bar");
   statsBar = document.getElementById("stats-bar");
+  deathBar = document.getElementById("death-bar");
   genotypeBar = document.getElementById("genotype-bar");
   hudDiv = document.getElementById("hud");
 
@@ -3413,9 +3383,25 @@ export function signalFrameReady() {
   btnJumpFwd.style.cursor = "";
 }
 
+/**
+ * Return a CSS color for survival rate percentage tiers.
+ *   >= 80% → green
+ *   >= 60% → yellow
+ *   >= 40% → pink
+ *   >= 20% → orange
+ *   <  20% → red
+ */
+function _survivalColor(pct) {
+  if (pct >= 80) return "#2ca02c"; // green
+  if (pct >= 60) return "#e6d520"; // yellow
+  if (pct >= 40) return "#e87da0"; // pink
+  if (pct >= 20) return "#ff7f0e"; // orange
+  return "#d62728"; // red
+}
+
 export function updateUI(frame, totalFrames, deathReasons) {
   deathReasons = deathReasons || {};
-  const deaths = deathReasons.deaths || 0;
+  const lost = deathReasons.deaths || 0;
   const suffocated = deathReasons.suffocated || 0;
   const starved = deathReasons.starved || 0;
   const weakened = deathReasons.weakened || 0;
@@ -3433,7 +3419,8 @@ export function updateUI(frame, totalFrames, deathReasons) {
   const alive = frame.fish.filter((f) => f.alive);
   const n = alive.length || 1;
   const total = frame.total_count;
-  const sp = (alive.length / total) * 100;
+  const srPct = (alive.length / total) * 100;
+  const srColor = _survivalColor(srPct);
   let sH = 0,
     sF = 0,
     sI = 0,
@@ -3451,7 +3438,7 @@ export function updateUI(frame, totalFrames, deathReasons) {
   const fm = (v) => (v / n).toFixed(1);
 
   statsBar.innerHTML = `
-    <div class="stat-chip"><span class="stat-chip-label">Survival</span><span class="stat-chip-value">${sp.toFixed(1)}% (${alive.length}/${total})</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Survival Rate</span><span class="stat-chip-value" style="color:${srColor}">${srPct.toFixed(2)}% (${alive.length}/${total})</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Health</span><span class="stat-chip-value">${fm(sH)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Fullness</span><span class="stat-chip-value">${fm(sF)}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Immunity</span><span class="stat-chip-value">${fm(sI)}</span></div>
@@ -3460,42 +3447,30 @@ export function updateUI(frame, totalFrames, deathReasons) {
     <div class="stat-chip"><span class="stat-chip-label">Parasitized</span><span class="stat-chip-value">${nPar}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Objects</span><span class="stat-chip-value">${frame.objects.length}</span></div>
     <div class="stat-chip"><span class="stat-chip-label">Hazards</span><span class="stat-chip-value">${frame.hazards.length}</span></div>
-    <div class="stat-chip stat-chip-separator"></div>
-    <div class="stat-chip"><span class="stat-chip-label">☠ Deaths</span><span class="stat-chip-value">${deaths}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">💨 Suffocated</span><span class="stat-chip-value">${suffocated}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">🍽 Starved</span><span class="stat-chip-value">${starved}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">💔 Weakened</span><span class="stat-chip-value">${weakened}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">🤒 Sick</span><span class="stat-chip-value">${sick}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">🪱 Parasited</span><span class="stat-chip-value">${parasited}</span></div>
-    <div class="stat-chip"><span class="stat-chip-label">🦷 Cannibalized</span><span class="stat-chip-value">${cannibalized}</span></div>
+  `;
+
+  deathBar.innerHTML = `
+    <div class="stat-chip"><span class="stat-chip-label">Lost</span><span class="stat-chip-value">${lost}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Suffocated</span><span class="stat-chip-value">${suffocated}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Starved</span><span class="stat-chip-value">${starved}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Weakened</span><span class="stat-chip-value">${weakened}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Sick</span><span class="stat-chip-value">${sick}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Parasited</span><span class="stat-chip-value">${parasited}</span></div>
+    <div class="stat-chip"><span class="stat-chip-label">Cannibalized</span><span class="stat-chip-value">${cannibalized}</span></div>
   `;
 }
 
 function _populateGenotype(data) {
   if (!data || !data.genotype) return;
   const g = data.genotype;
-  const L = (v) =>
-    [
-      "Center",
-      "Top-Left",
-      "Top-Right",
-      "Bot-Left",
-      "Bot-Right",
-      "Top-Center",
-      "Bot-Center",
-      "Left-Center",
-      "Right-Center",
-      "Random",
-    ][v] || "?";
-  // Option A: fish_count is a separate field, not in genotype
-  const fishCount = data.fish_count || "?";
+  const L = (v) => LOC_NAMES[v] || "?";
+  const fishCount = data.initial_fish_count || "?";
   genotypeBar.innerHTML = `
     <div class="geno-chip"><span class="geno-chip-label">Fitness:</span><span class="geno-chip-value">${data.fitness.toFixed(4)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Yield:</span><span class="geno-chip-value">${(data.yield || 0).toFixed(4)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Survival:</span><span class="geno-chip-value">${(data.survival_rate * 100).toFixed(1)}%</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Survival Rate:</span><span class="geno-chip-value">${data.survival_rate.toFixed(4)}</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Saving Rate:</span><span class="geno-chip-value">${(data.saving_rate || 0).toFixed(4)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Cost:</span><span class="geno-chip-value">$${data.cost.toFixed(2)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Saving:</span><span class="geno-chip-value">$${(data.saving || 0).toFixed(2)}</span></div>
-    <div class="geno-chip"><span class="geno-chip-label">Fish:</span><span class="geno-chip-value">${fishCount} (fixed)</span></div>
+    <div class="geno-chip"><span class="geno-chip-label">Initial Fish:</span><span class="geno-chip-value">${fishCount}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Food:</span><span class="geno-chip-value">${g.food_quantity}x / ${g.food_interval}h @ ${L(g.food_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">Prob:</span><span class="geno-chip-value">${g.probiotic_quantity}x / ${g.probiotic_interval}h @ ${L(g.probiotic_location)}</span></div>
     <div class="geno-chip"><span class="geno-chip-label">O₂:</span><span class="geno-chip-value">${g.oxygen_duration}h / ${g.oxygen_interval}h @ ${L(g.oxygen_location)}</span></div>
@@ -3512,6 +3487,16 @@ File: /AquaOptima/visuals/index.html
   <head>
     <meta charset="UTF-8" />
     <title>Largemouth Bass Aquaculture - 3D Visualization</title>
+    <script
+      type="text/javascript"
+      nonce="118ed1d65df24eb497599e70e12"
+      src="//local.adguard.org?ts=1778280373783&amp;type=content-script&amp;dmn=aihub.tennessee.edu&amp;url=https%3A%2F%2Faihub.tennessee.edu%2Fapi%2Finternal%2FuserConversations%2Fe707613c-f862-9004-64b4-45afb8f394b3%2Fsegments%2Fb010cf92-283d-448a-b797-da2432de4272%2Fartifacts%2F19a3b9a2-6afb-413d-b206-35f388a0dbd1&amp;app=com.brave.Browser&amp;css=3&amp;js=1&amp;rel=1&amp;rji=1&amp;sbe=1"
+    ></script>
+    <script
+      type="text/javascript"
+      nonce="118ed1d65df24eb497599e70e12"
+      src="//local.adguard.org?ts=1778280373783&amp;name=AdGuard%20Extra&amp;type=user-script"
+    ></script>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
@@ -3551,6 +3536,7 @@ File: /AquaOptima/visuals/index.html
       </div>
 
       <div id="stats-bar"></div>
+      <div id="death-bar"></div>
       <div id="genotype-bar"></div>
 
       <div id="legend">
@@ -3828,6 +3814,23 @@ button.active {
   font-weight: bold;
   font-family: "Consolas", monospace;
   font-size: 1.14em;
+}
+
+/* ═══════════════════════════════════════════════
+   DEATH BAR
+   ═══════════════════════════════════════════════ */
+
+#death-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 5px 12px;
+  background: #111e30;
+  border: 1px solid #1e3a5f;
+  border-radius: 6px;
+  width: 100%;
+  justify-content: center;
+  align-items: center;
 }
 
 /* ═══════════════════════════════════════════════
