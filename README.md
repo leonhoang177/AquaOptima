@@ -2,7 +2,8 @@
 
 **Authors:** Leon Phu Hoang and Ahmed Ghazi
 
-![1786816132629](image/README/1786816132629.gif)
+<video src="./images/demo.mp4" controls="controls" muted="muted" playsinline="playsinline" width="100%">
+</video>
 
 ## 📖 Overview
 
