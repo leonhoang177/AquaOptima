@@ -1,4 +1,4 @@
-# AquaOptima: Optimize Aquaculture using Swar
+# AquaOptima: Apply Swarm Intelligence to Optimize Aquaculture
 
 **Authors:** Leon Phu Hoang and Ahmed Ghazi
 
