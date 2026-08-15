@@ -2,8 +2,7 @@
 
 **Authors:** Leon Phu Hoang and Ahmed Ghazi
 
-<video src="https://raw.githubusercontent.com/leonhoang177/AquaOptima/main/images/demo.mp4" controls="controls" muted="muted" playsinline="playsinline" width="100%">
-</video>
+https://github.com/user-attachments/assets/7524cb17-5588-43fe-8fa1-5355bde50975
 
 ## 📖 Overview
 
